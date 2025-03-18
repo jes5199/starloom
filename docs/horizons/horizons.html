@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="robots" content="nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+    <title>Horizon API</title>
+    <meta name="description" content="Horizons APIVersion: 1.2 (2022 September)change logThis API provides access to JPL’sHorizons systemby specifying Horizons parameters as query parameters in t...">
+  
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/app.css">
+    <link rel="canonical" href="https://ssd-api.jpl.nasa.gov/doc/horizons.html">
+
+    <script type="text/javascript" src="/js/vendor/modernizr.js"></script>
+    <script type="text/javascript" src="/js/vendor/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/vendor/fastclick.js"></script>
+    <script type="text/javascript" src="/js/vendor/foundation.min.js"></script>
+
+    <link rel="stylesheet" href="/css/github-markdown.css">
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+  </head>
+
+  <body>
+
+
+
+
+
+    <!-- force this div to stay at the top of the page to ensure we can always see the menu -->
+    <div class="sticky">
+      <!-- alert when Javascript is disabled -->
+      <noscript>
+        <div data-alert class="alert-box alert">
+          <a href="#" class="close">&times;</a>This site requires JavaScript for most of its functionality.
+          See <a href="http://www.enable-javascript.com">these instructions</a> for enabling JavaScript in your web browser.
+        </div>
+      </noscript>
+      <!-- Top Nav-Bar (begin) -->
+      <nav class="top-bar" role="navigation" data-topbar>
+        <!-- here is the left-side site-logo-go-to-our-home-page button/label -->
+        <ul class="title-area">
+          <li class="name">
+          
+            <div class="logo-container">
+              <div class="nasa-logo">
+                <a id="logo_link_nasa" href="https://www.nasa.gov/">
+                  <img src="/images/transparent.gif" class="hidden-image" alt="NASA Home" />
+                </a>
+                <a id="logo_link_jpl" href="http://www.jpl.nasa.gov/">
+                  <img src="/images/transparent.gif" class="hidden-image" alt="JPL Home" />
+                </a>
+                <a id="logo_link_caltech" href="http://www.caltech.edu/">
+                  <img src="/images/transparent.gif" class="hidden-image" alt="Caltech Home" />
+                </a>
+              </div>
+            </div>
+          </li>
+          
+          <li class="toggle-topbar menu-icon"><a href="/"><span><img id="gear_logo" src="/images/logo_gears.png" alt="Home" /></span></a></li>
+        </ul>
+        <!-- start of main navigation buttons -->
+        <section class="top-bar-section">
+          <ul class="right">
+            <li><a href="/"><div id="api_logo"><img src="/images/api_logo.png" alt="Home" /></div></a></li>
+            <li class="divider"></li>
+            <li><a href="/about/">About</a></li>
+            <li class="divider"></li>
+            <li><a href="/doc/">Documents</a></li>
+          </ul>
+        </section>
+      </nav>
+      <!-- Top Nav-Bar (end) -->
+
+
+
+
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+<!-- page content: begin -->
+
+
+<div class="markdown-body">
+<div class="row">
+  <div class="small-12 columns">
+
+
+
+
+
+
+<h1 id="horizons-api">Horizons API</h1>
+<p><strong>Version: 1.2</strong> (2022 September)<br /><a href="#change_log">change log</a></p>
+
+<p>This API provides access to JPL’s
+<a href="https://ssd.jpl.nasa.gov/horizons/">Horizons system</a>
+by specifying Horizons parameters as query parameters in the URL.
+An alternate <a href="/doc/horizons_file.html">file-based Horizons API</a> is available if you would prefer
+to submit a Horizons batch input file via HTTP POST.</p>
+
+<blockquote>
+  <p>Additional information about available query parameters is available in the
+<a href="https://ssd.jpl.nasa.gov/ftp/ssd/horizons_batch.txt">Horizons batch example/instructions</a> document.</p>
+</blockquote>
+
+<p><a id="request"></a></p>
+<h2>HTTP Request</h2>
+
+<p><span class="label">GET</span>
+<code>https://ssd.jpl.nasa.gov/api/horizons.api</code></p>
+
+<h3 id="example-ephemeris-query">Example Ephemeris Query</h3>
+
+<p>Request an observer ephemeris of Mars in plain-text format:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">https://ssd.jpl.nasa.gov/api/horizons.api?format=text&amp;COMMAND='499'&amp;OBJ_DATA='YES'&amp;MAKE_EPHEM='YES'&amp;EPHEM_TYPE='OBSERVER'&amp;CENTER='500@399'&amp;START_TIME='2006-01-01'&amp;STOP_TIME='2006-01-20'&amp;STEP_SIZE='1%20d'&amp;QUANTITIES='1,9,20,23,24,29'</code></li>
+</ul>
+
+<h2 id="query-parameters">Query Parameters</h2>
+
+<p>Special/reserved characters <a href="#encode">require URL encoding</a>.</p>
+
+<p>The following tables show available query parameters for the Horizons API.
+The first table “<a href="#common">Common Parameters</a>” lists query parameters that are independent
+of the selected <code class="language-plaintext highlighter-rouge">EPHEM_TYPE</code>.
+The next table “<a href="#specific">Ephemeris-Specific Parameters</a>” lists remaining parameters
+that are specific to <code class="language-plaintext highlighter-rouge">OBSERVER</code>, <code class="language-plaintext highlighter-rouge">VECTORS</code>, and <code class="language-plaintext highlighter-rouge">ELEMENTS</code> ephemeris types
+and indicates the <code class="language-plaintext highlighter-rouge">EPHEM_TYPE</code> for which they are available.
+The last two tables, “<a href="#spk">SPK File Parameters</a>” and “<a href="#ca">Close-Approach Table Parameters</a>”,
+list parameters specific to those special ephemeris types.</p>
+
+<p>Details on parameters can be found in the
+<a href="https://ssd.jpl.nasa.gov/horizons/manual.html">Horizons documentation</a> and also the
+<a href="https://ssd.jpl.nasa.gov/ftp/ssd/horizons_batch.txt">Horizons batch example</a> text file.
+In the tables below, direct links to the appropriate section of the
+Horizons documentation for specific parameters is given in the “Manual” column when available.</p>
+
+<h3 id="common-parameters"><a name="common"></a>Common Parameters</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Parameter</th>
+      <th style="text-align: center">Default</th>
+      <th style="text-align: center">Allowable Values/Format</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: center">Manual</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">format</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">json</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">json</code>, <code class="language-plaintext highlighter-rouge">text</code></td>
+      <td style="text-align: left">specify output format: <code class="language-plaintext highlighter-rouge">json</code> for JSON or <code class="language-plaintext highlighter-rouge">text</code> for plain-text</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">COMMAND</td>
+      <td style="text-align: center"><em>none</em></td>
+      <td style="text-align: center">see <a href="#command">details below</a></td>
+      <td style="text-align: left">target search, selection, or enter user-input object mode</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#select">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">OBJ_DATA</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles return of object summary data</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">MAKE_EPHEM</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles generation of ephemeris, if possible</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">EPHEM_TYPE</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">OBSERVER</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">OBSERVER</code>, <code class="language-plaintext highlighter-rouge">VECTORS</code>, <code class="language-plaintext highlighter-rouge">ELEMENTS</code>, <code class="language-plaintext highlighter-rouge">SPK</code>, <code class="language-plaintext highlighter-rouge">APPROACH</code></td>
+      <td style="text-align: left">selects type of ephemeris to generate (see <a href="#ephem_type">details below</a>)</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">EMAIL_ADDR</td>
+      <td style="text-align: center"><em>none</em></td>
+      <td style="text-align: center">any valid email address</td>
+      <td style="text-align: left">optional; used only in the event of highly unlikely problems needing follow-up</td>
+      <td style="text-align: center"> </td>
+    </tr>
+  </tbody>
+</table>
+
+<blockquote>
+  <p><strong>Note:</strong> No output will be generated unless <code class="language-plaintext highlighter-rouge">MAKE_EPHEM='YES'</code> and/or <code class="language-plaintext highlighter-rouge">OBJ_DATA='YES'</code>, unless a database-search only.</p>
+</blockquote>
+
+<h3 id="ephemeris-specific-parameters"><a name="specific"></a>Ephemeris-Specific Parameters</h3>
+
+<p>In the following table, the column heading <code class="language-plaintext highlighter-rouge">O</code> (OBSERVER), <code class="language-plaintext highlighter-rouge">V</code> (VECTORS), and <code class="language-plaintext highlighter-rouge">E</code> (ELEMENTS)
+indicate the ephemeris type for which the parameter is available.</p>
+
+<p>Symbol <code class="language-plaintext highlighter-rouge">x</code> means the parameter is fully supported for the indicated ephemeris type.
+Symbol <code class="language-plaintext highlighter-rouge">-</code> means the parameter is partially supported and
+no symbol (blank) means the parameter is not supported.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Parameter</th>
+      <th style="text-align: center">O</th>
+      <th style="text-align: center">V</th>
+      <th style="text-align: center">E</th>
+      <th style="text-align: center">Default</th>
+      <th style="text-align: center">Allowable Values/Format</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: center">Manual</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">CENTER</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">Geocentric</code></td>
+      <td style="text-align: center">see <a href="#center">details below</a></td>
+      <td style="text-align: left">selects coordinate origin (observing site)</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#center">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">REF_PLANE</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">ECLIPTIC</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">ECLIPTIC</code>, <code class="language-plaintext highlighter-rouge">FRAME</code>, <code class="language-plaintext highlighter-rouge">BODY EQUATOR</code></td>
+      <td style="text-align: left">Ephemeris reference plane (can be abbreviated <code class="language-plaintext highlighter-rouge">E</code>, <code class="language-plaintext highlighter-rouge">F</code>, <code class="language-plaintext highlighter-rouge">B</code>, respectively) )</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">COORD_TYPE</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">GEODETIC</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">GEODETIC</code>, <code class="language-plaintext highlighter-rouge">CYLINDRICAL</code></td>
+      <td style="text-align: left">selects type of user coordinates</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#center">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">SITE_COORD</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">'0,0,0'</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">set coordinate triplets for <code class="language-plaintext highlighter-rouge">COORD_TYPE</code></td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#center">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">START_TIME</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><em>none</em></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">specifies ephemeris start time</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#time">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">STOP_TIME</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><em>none</em></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">specifies ephemeris stop time</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#time">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">STEP_SIZE</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">'60 min'</code></td>
+      <td style="text-align: center">see <a href="#stepping">details below</a></td>
+      <td style="text-align: left">ephemeris output print step. Can be fixed time, uniform interval (unitless), calendar steps, or plane-of-sky angular change steps. See also <code class="language-plaintext highlighter-rouge">TLIST</code> alternative.</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#time">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">TLIST</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><em>none</em></td>
+      <td style="text-align: center">see <a href="#tlist">details below</a></td>
+      <td style="text-align: left">list of up to 10,000 of discrete output times. Either Julian Day numbers (JD), Modified JD (MJD), or calendar dates</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">TLIST_TYPE</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><em>none</em></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">JD</code>, <code class="language-plaintext highlighter-rouge">MJD</code>, <code class="language-plaintext highlighter-rouge">CAL</code></td>
+      <td style="text-align: left">optional specification of type of time in TLIST</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">QUANTITIES</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">'A'</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">list of desired output quantity option codes</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#output">link</a>, <a href="https://ssd.jpl.nasa.gov/horizons/manual.html#obsquan">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">REF_SYSTEM</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">ICRF</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">ICRF</code>, <code class="language-plaintext highlighter-rouge">B1950</code></td>
+      <td style="text-align: left">specifies reference frame for any geometric and astrometric quantities</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#frames">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">OUT_UNITS</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">KM-S</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">KM-S</code>, <code class="language-plaintext highlighter-rouge">AU-D</code>, <code class="language-plaintext highlighter-rouge">KM-D</code></td>
+      <td style="text-align: left">selects output units for distance and time; for example, <code class="language-plaintext highlighter-rouge">AU-D</code> selects astronomical units (au) and days (d)</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">VEC_TABLE</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">3</code></td>
+      <td style="text-align: center">see <a href="#vec_table">details below</a></td>
+      <td style="text-align: left">selects vector table format</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#output">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">VEC_CORR</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NONE</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NONE</code>, <code class="language-plaintext highlighter-rouge">LT</code>, <code class="language-plaintext highlighter-rouge">LT+S</code></td>
+      <td style="text-align: left">selects level of correction to output vectors; <code class="language-plaintext highlighter-rouge">NONE</code> (geometric states), <code class="language-plaintext highlighter-rouge">LT</code> (astrometric light-time corrected states) or <code class="language-plaintext highlighter-rouge">LT+S</code> (astrometric states corrected for stellar aberration)</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">CAL_FORMAT</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">CAL</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">CAL</code>, <code class="language-plaintext highlighter-rouge">JD</code>, <code class="language-plaintext highlighter-rouge">BOTH</code></td>
+      <td style="text-align: left">selects type of date output; <code class="language-plaintext highlighter-rouge">CAL</code> for calendar date/time, <code class="language-plaintext highlighter-rouge">JD</code> for Julian Day numbers, or <code class="language-plaintext highlighter-rouge">BOTH</code> for both CAL and JD</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">CAL_TYPE</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">MIXED</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">MIXED</code>, <code class="language-plaintext highlighter-rouge">GREGORIAN</code></td>
+      <td style="text-align: left">Selects Gregorian-only calendar input/output, or mixed Julian/Gregorian, switching on 1582-Oct-5. Recognized for close-approach tables also.</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">ANG_FORMAT</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">HMS</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">HMS</code>, <code class="language-plaintext highlighter-rouge">DEG</code></td>
+      <td style="text-align: left">selects RA/DEC output format</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">APPARENT</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">AIRLESS</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">AIRLESS</code>, <code class="language-plaintext highlighter-rouge">REFRACTED</code></td>
+      <td style="text-align: left">toggles refraction correction of apparent coordinates (Earth topocentric only)</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">TIME_DIGITS</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">MINUTES</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">MINUTES</code>, <code class="language-plaintext highlighter-rouge">SECONDS</code>, <code class="language-plaintext highlighter-rouge">FRACSEC</code></td>
+      <td style="text-align: left">controls output time precision</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">TIME_ZONE</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">'+00:00'</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">specifies local civil time offset relative to UT</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">RANGE_UNITS</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">AU</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">AU</code>, <code class="language-plaintext highlighter-rouge">KM</code></td>
+      <td style="text-align: left">sets the units on range quantities output</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">SUPPRESS_RANGE_RATE</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">turns off output of delta-dot and rdot (range-rate)</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">ELEV_CUT</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">'-90'</code></td>
+      <td style="text-align: center">integer [-90:90]</td>
+      <td style="text-align: left">skip output when object elevation is less than specified</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">SKIP_DAYLT</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles skipping of print-out when daylight at <code class="language-plaintext highlighter-rouge">CENTER</code></td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">SOLAR_ELONG</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">'0,180'</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">sets bounds on output based on solar elongation angle</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">AIRMASS</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">38.0</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">select airmass cutoff; output is skipped if relative optical airmass is greater than the single decimal value specified. Note than <code class="language-plaintext highlighter-rouge">1.0</code>=zenith, <code class="language-plaintext highlighter-rouge">38.0</code> ~= local-horizon. If value is set &gt;= <code class="language-plaintext highlighter-rouge">38.0</code>, this turns OFF the filtering effect.</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">LHA_CUTOFF</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">0.0</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">skip output when local hour angle exceeds a specified value in the domain <code class="language-plaintext highlighter-rouge">0.0</code> &lt; X &lt; <code class="language-plaintext highlighter-rouge">12.0</code>. To restore output (turn OFF the cut-off behavior), set X to <code class="language-plaintext highlighter-rouge">0.0</code> or <code class="language-plaintext highlighter-rouge">12.0</code>. For example, a cut-off value of <code class="language-plaintext highlighter-rouge">1.5</code> will output table data only when the LHA is within +/- 1.5 angular hours of zenith meridian.</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">ANG_RATE_CUTOFF</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">0.0</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">skip output when the total plane-of-sky angular rate exceeds a specified value</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">EXTRA_PREC</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles additional output digits on some angles such as RA/DEC</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">CSV_FORMAT</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles output of table in comma-separated value format</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">VEC_LABELS</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles labeling of each vector component</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">VEC_DELTA_T</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles output of the time-varying delta-T difference TDB-UT</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">ELM_LABELS</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles labeling of each osculating element</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">TP_TYPE</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">ABSOLUTE</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">ABSOLUTE</code>, <code class="language-plaintext highlighter-rouge">RELATIVE</code></td>
+      <td style="text-align: left">determines what type of periapsis time (Tp) is returned</td>
+      <td style="text-align: center"> </td>
+    </tr>
+    <tr>
+      <td style="text-align: left">R_T_S_ONLY</td>
+      <td style="text-align: center">x</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code></td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">NO</code>, <code class="language-plaintext highlighter-rouge">YES</code></td>
+      <td style="text-align: left">toggles output only at target rise/transit/set</td>
+      <td style="text-align: center"> </td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="spk-file-parameters-ephem_typespk"><a name="spk"></a>SPK File Parameters (<code class="language-plaintext highlighter-rouge">EPHEM_TYPE=SPK</code>)</h3>
+
+<p>The following parameters are available when EPHEM_TYPE is <code class="language-plaintext highlighter-rouge">SPK</code>.
+Binary SPK file generation is restricted to small-bodies only (asteroids and comets).
+See the <a href="https://ssd.jpl.nasa.gov/horizons/manual.html#spk">Horizons documentation</a>
+for details.
+See also the section below for details on <a href="#spk_file">SPK file output</a> format.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Parameter</th>
+      <th style="text-align: center">Default</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: center">Manual</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">START_TIME</td>
+      <td style="text-align: center"><em>none</em></td>
+      <td style="text-align: left">specifies ephemeris start time</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#time">link</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">STOP_TIME</td>
+      <td style="text-align: center"><em>none</em></td>
+      <td style="text-align: left">specifies ephemeris stop time</td>
+      <td style="text-align: center"><a href="https://ssd.jpl.nasa.gov/horizons/manual.html#time">link</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="close-approach-table-parameters-ephem_typeapproach"><a name="ca"></a>Close-Approach Table Parameters (<code class="language-plaintext highlighter-rouge">EPHEM_TYPE=APPROACH</code>)</h3>
+
+<p>The following parameters are available when EPHEM_TYPE is <code class="language-plaintext highlighter-rouge">APPROACH</code>.
+See the <a href="https://ssd.jpl.nasa.gov/horizons/manual.html#ca">Horizons documentation</a>
+on close-approach tables for details.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Parameter</th>
+      <th style="text-align: center">Default</th>
+      <th style="text-align: center">Units</th>
+      <th style="text-align: center">Allowable Values/Format</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">CA_TABLE_TYPE</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">STANDARD</code></td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">STANDARD</code>, <code class="language-plaintext highlighter-rouge">EXTENDED</code></td>
+      <td style="text-align: left">Extended close-approach tables include Julian Day numbers. B-plane information is also output if there is a covariance for the object stored in the system database or specified with user-input elements.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">TCA3SG_LIMIT</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">14400</code></td>
+      <td style="text-align: center">minutes</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">maximum computed 3-sigma uncertainty in time of Earth close-approach</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">CALIM_SB</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">0.05</code></td>
+      <td style="text-align: center">au</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">sets the spherical radius within which the nominal target must pass one of the perturbing asteroids (Ceres, Pallas, Vesta, etc.) to activate close-approach flagging</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">CALIM_PL</td>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">.1, .1, .1, .1, 1.0, 1.0, 1.0, 1.0, .1, .003</code></td>
+      <td style="text-align: center">au</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">sets the spherical radius within which the nominal target must pass one of the planets (or the Moon) to activate close-approach flagging, in the order: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto, and Moon</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="user-specified-heliocentric-ecliptic-osculating-elements"><a name="sb"></a>User-specified Heliocentric Ecliptic Osculating Elements</h3>
+
+<p>The following parameters are used to define an arbitrary small-body target for numerical integration.
+See the <a href="https://ssd.jpl.nasa.gov/horizons/manual.html#user">Horizons documentation</a>
+for a complete description of these parameters.</p>
+
+<p>Heliocentric ecliptic osculating elements may be specified with
+[<code class="language-plaintext highlighter-rouge">TP</code>, <code class="language-plaintext highlighter-rouge">QR</code>],
+[<code class="language-plaintext highlighter-rouge">MA</code>, <code class="language-plaintext highlighter-rouge">A</code>], or
+[<code class="language-plaintext highlighter-rouge">MA</code>, <code class="language-plaintext highlighter-rouge">N</code>].
+If elements are not specified with [<code class="language-plaintext highlighter-rouge">TP</code>, <code class="language-plaintext highlighter-rouge">QR</code>], they will be computed from the other possible input pairs because Horizons always internally uses [<code class="language-plaintext highlighter-rouge">TP</code>, <code class="language-plaintext highlighter-rouge">QR</code>].</p>
+
+<p>Note that other obliquities might be implicit in ecliptic elements from non-JPL sources. For accurate propagation, users should verify which obliquity is relevant, and may have to convert elements obtained from a different source before input here.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Parameter</th>
+      <th style="text-align: center">Units</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">OBJECT</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Name of user input object</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">EPOCH</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Julian Day number (JDTDB) of osculating elements</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">ECLIP</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Reference ecliptic frame of elements: <code class="language-plaintext highlighter-rouge">J2000</code> or <code class="language-plaintext highlighter-rouge">B1950</code>. <code class="language-plaintext highlighter-rouge">J2000</code> assumes the IAU76/80 J2000 obliquity of 84381.448 arcsec relative to the ICRF reference frame. <code class="language-plaintext highlighter-rouge">B1950</code> assumes FK4/B1950 obliquity of 84404.8362512 arcsec.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">EC</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Eccentricity</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">QR</td>
+      <td style="text-align: center">au</td>
+      <td style="text-align: left">Perihelion distance (see note above)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">TP</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Perihelion Julian Day number (see note above)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">OM</td>
+      <td style="text-align: center">deg</td>
+      <td style="text-align: left">Longitude of ascending node wrt ecliptic</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">W</td>
+      <td style="text-align: center">deg</td>
+      <td style="text-align: left">Argument of perihelion wrt ecliptic</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">IN</td>
+      <td style="text-align: center">deg</td>
+      <td style="text-align: left">Inclination wrt ecliptic</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">MA</td>
+      <td style="text-align: center">deg</td>
+      <td style="text-align: left">Mean anomaly (see note above)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">A</td>
+      <td style="text-align: center">au</td>
+      <td style="text-align: left">Semi-major axis (see note above)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">N</td>
+      <td style="text-align: center">deg/d</td>
+      <td style="text-align: left">Mean motion (see note above)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="optional-small-body-parameters">Optional Small-body Parameters</h4>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Parameter</th>
+      <th style="text-align: center">Object Type</th>
+      <th style="text-align: center">Default</th>
+      <th style="text-align: center">Units</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">RAD</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">km</td>
+      <td style="text-align: left">Object radius</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">H</td>
+      <td style="text-align: center">asteroid</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Absolute magnitude parameter</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">G</td>
+      <td style="text-align: center">asteroid</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Magnitude slope parameter; can be &lt; 0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">M1</td>
+      <td style="text-align: center">comet</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Total absolute magnitude</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">M2</td>
+      <td style="text-align: center">comet</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Nuclear absolute magnitude</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">K1</td>
+      <td style="text-align: center">comet</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Total magnitude scaling factor</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">K2</td>
+      <td style="text-align: center">comet</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Nuclear magnitude scaling factor</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">PHCOF</td>
+      <td style="text-align: center">comet</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Phase coefficient for <code class="language-plaintext highlighter-rouge">K2</code>=5</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">A1</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">au/d^2</td>
+      <td style="text-align: left">Radial non-gravitational acceleration</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">A2</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">au/d^2</td>
+      <td style="text-align: left">Transverse non-gravitational acceleration</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">A3</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">au/d^2</td>
+      <td style="text-align: left">Normal non-gravitational acceleration</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">R0</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">2.808</td>
+      <td style="text-align: center">au</td>
+      <td style="text-align: left">Non-grav. model constant, normalizing distance</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">ALN</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">0.1112620426</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Non-grav. model constant, normalizing factor</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">NM</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">2.15</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Non-grav. model constant, exponent m</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">NN</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">5.093</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Non-grav. model constant, exponent n</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">NK</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">4.6142</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Non-grav. model constant, exponent k</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">DT</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">d</td>
+      <td style="text-align: left">Non-grav. lag/delay parameter (comets)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">AMRAT</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center">m^2/kg</td>
+      <td style="text-align: left">Solar pressure model, area/mass ratio</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">SRC</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Square-root covariance from JPL (upper-triangular, vector-stored)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">EST</td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: center"> </td>
+      <td style="text-align: left">Estimated non-grav parameter names <code class="language-plaintext highlighter-rouge">A1</code>, <code class="language-plaintext highlighter-rouge">A2</code>, <code class="language-plaintext highlighter-rouge">A3</code>, <code class="language-plaintext highlighter-rouge">DT</code> in order matching SRC. If no estimated non-gravs in the solution’s SRC, <code class="language-plaintext highlighter-rouge">EST=' '</code> or unspecified.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="description-of-selected-parameters">Description of Selected Parameters</h3>
+
+<h4 id="ephem_type-parameter"><a name="ephem_type"></a><code class="language-plaintext highlighter-rouge">EPHEM_TYPE</code> Parameter</h4>
+
+<p>There are five ephemeris types available.
+These are selected using the <code class="language-plaintext highlighter-rouge">EPHEM_TYPE</code> parameter.
+The table below shows the <code class="language-plaintext highlighter-rouge">EPHEM_TYPE</code> values and corresponding ephemeris type.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">EPHEM_TYPE</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Typical Usage</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">OBSERVER</td>
+      <td style="text-align: left">Observables (RA/DEC, Az/El, physical aspect, angles, uncertainties)</td>
+      <td style="text-align: left">telescope observations</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">ELEMENTS</td>
+      <td style="text-align: left">Osculating orbital elements</td>
+      <td style="text-align: left">instantaneous geometry over time, celestial mechanics</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">VECTORS</td>
+      <td style="text-align: left">Cartesian state vectors and uncertainties</td>
+      <td style="text-align: left">dynamical studies, propagation, programming</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">APPROACH</td>
+      <td style="text-align: left">Close approaches to planets (and 16 largest asteroids)</td>
+      <td style="text-align: left">encounter planning &amp; hazards</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">SPK</td>
+      <td style="text-align: left">SPK binary trajectory files (asteroids and comets only)</td>
+      <td style="text-align: left">time-continuous states, navigation, mission-planning, plug-in for visualization tools</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="command-parameter"><a name="command"></a><code class="language-plaintext highlighter-rouge">COMMAND</code> Parameter</h4>
+
+<p>The <code class="language-plaintext highlighter-rouge">COMMAND</code> parameter looks up the target body, selecting it if a unique match is found, or returning a list of matches if there are multiple matches. It is also used to enter user-defined objects.  The assigned value for <code class="language-plaintext highlighter-rouge">COMMAND</code> should be delimited with single quotes (<code class="language-plaintext highlighter-rouge">'</code>) and some symbols within the quotes may need to be encoded to be successfully passed as a URL, as described below.</p>
+
+<p>To specify a major-body (a planet, natural-satellite, spacecraft, or special pre-computed cases), specify the unique Horizons ID associated with that body. For example, <code class="language-plaintext highlighter-rouge">COMMAND='499'</code> selects the planet Mars while <code class="language-plaintext highlighter-rouge">COMMAND='5'</code> selects the Jupiter system barycenter. <code class="language-plaintext highlighter-rouge">COMMAND='MB'</code> will return a list of current major-bodies and their ID codes.</p>
+
+<p>For small-bodies (asteroids and comets), a search syntax with numerous parameter keywords separated by semi-colons can be used to find objects with certain combinations of properties. For discussion of small-body look-up searching, see <a href="https://ssd.jpl.nasa.gov/horizons/manual.html#search">Horizons documentation</a>.</p>
+
+<p>When you already know what you are looking for, numbered asteroids can be selected with the IAU number followed by a semicolon (<code class="language-plaintext highlighter-rouge">;</code>). For example, <code class="language-plaintext highlighter-rouge">COMMAND='1;'</code> selects the small-body “1 Ceres”. If the semicolon is not specified, <code class="language-plaintext highlighter-rouge">COMMAND='1'</code>, this will instead select the Mercury barycenter. The semicolon syntax resolves numbering ambiguities between major bodies and small-bodies.</p>
+
+<p>Small-body designations, such as ‘1999 AN10’ can be specified using the DES keyword <code class="language-plaintext highlighter-rouge">COMMAND='DES=1999 AN10;'</code>.</p>
+
+<p>SPK IDs, if known, are considered a type of designation. For example, <code class="language-plaintext highlighter-rouge">COMMAND='99942;'</code> (IAU number) and <code class="language-plaintext highlighter-rouge">COMMAND='DES=2099942;'</code> (SPK ID), or <code class="language-plaintext highlighter-rouge">COMMAND='Apophis;'</code> (name) all select the object Apophis, though the numeric forms are guaranteed to be unique matches, while a name search may not be.</p>
+
+<p>To input an arbitrary target for numerical integration, <a href="#sb">heliocentric ecliptic small-body osculating elements</a>
+can be specified by users when <code class="language-plaintext highlighter-rouge">COMMAND=';'</code>.  <a href="#tle">TLEs</a> (two-line elements) may be input for Earth-orbiting objects by setting <code class="language-plaintext highlighter-rouge">COMMAND='TLE'</code>.</p>
+
+<p>IMPORTANT: API calls must encode semicolons as <code class="language-plaintext highlighter-rouge">%3B</code> in the URL since the symbol usually cannot be directly sent without premature interpretation. Implementation of the above examples in a URL would be <code class="language-plaintext highlighter-rouge">COMMAND='1%3B'</code>, <code class="language-plaintext highlighter-rouge">COMMAND='DES=1999%20AN10%3B'</code>,  <code class="language-plaintext highlighter-rouge">COMMAND='Apophis%3B'</code> and <code class="language-plaintext highlighter-rouge">COMMAND='%3B'</code>, for example.</p>
+
+<p>Please see the <a href="https://ssd.jpl.nasa.gov/horizons/manual.html#select">Horizons documentation</a>
+for more details and examples of object selection, including specification of surface targets.</p>
+
+<h4 id="center-parameter"><a name="center"></a><code class="language-plaintext highlighter-rouge">CENTER</code> Parameter</h4>
+
+<p>This setting can be the observing site name, its unique IAU site code, the string ‘coord’ (which tells the system to use coordinate information  stored in parameters <code class="language-plaintext highlighter-rouge">SITE_COORD</code> and <code class="language-plaintext highlighter-rouge">COORD_TYPE</code>) or the string ‘geo’ (meaning geocenter or body center).</p>
+
+<p>Please see the <a href="https://ssd.jpl.nasa.gov/horizons/manual.html#center">Horizons documentation</a>
+for more details and examples.</p>
+
+<h4 id="step_size-parameter"><a name="stepping"></a><code class="language-plaintext highlighter-rouge">STEP_SIZE</code> Parameter</h4>
+
+<p>This setting specifies table output print times using the form ‘<strong>integer {units} {mode}</strong>’.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">{units}</th>
+      <th style="text-align: left">Minimum Abbreviation</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">days</td>
+      <td style="text-align: left">d</td>
+      <td style="text-align: left">fixed interval</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='1d'</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">hours</td>
+      <td style="text-align: left">h</td>
+      <td style="text-align: left">fixed interval</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='3%20h'</code> (w/URL-encoded space)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">minutes</td>
+      <td style="text-align: left">m</td>
+      <td style="text-align: left">fixed interval</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='10m'</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">years</td>
+      <td style="text-align: left">y</td>
+      <td style="text-align: left">calendar stepping</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='1 year'</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">months</td>
+      <td style="text-align: left">mo</td>
+      <td style="text-align: left">calendar stepping</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='1 mo'</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"> </td>
+      <td style="text-align: left"> </td>
+      <td style="text-align: left">unitless fixed intervals</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='86400'</code> (1 second output given 1 day between start/stop)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Calendar stepping</strong></p>
+
+<p>If calendar-stepping units of years or months are specified, output steps will follow the calendar based on the starting date. For example, if the start is 2008-Feb-29, and output is requested at “1 year” steps, output will be returned only for Feb 29 calendar days in those leap years having 29 days in February.</p>
+
+<p>If output is requested at “1 month” intervals, output will occur for every successive month on the 29th of that month. If a start date on the 31st is requested, output will only occur for months having 31 days.</p>
+
+<p><strong>Unitless output stepping</strong></p>
+
+<p>If only the integer component is given in <code class="language-plaintext highlighter-rouge">STEP_SIZE</code>, the interval between specified <code class="language-plaintext highlighter-rouge">START_TIME</code> and <code class="language-plaintext highlighter-rouge">STOP_TIME</code> is divided into that many evenly spaced output steps. For example, if start and stop times are 1 hour (3600 seconds) apart, requesting a unitless output step of ‘3600’ will produce output every second; ‘240’ will output every 15 seconds (3600/15 = 240 intervals).</p>
+
+<p>Unitless <code class="language-plaintext highlighter-rouge">STEP_SIZE</code> is the only way to obtain output with less than 1 minute spacing, while Horizons output steps must be greater than 0.5 seconds.</p>
+
+<p>For example, given a two-minute span between start/stop (120 seconds), specifying a unitless step-size of 240 would produce output at 0.5 second intervals, the smallest output resolution. Only short periods of time can be covered in a single ephemeris when such fine output resolution is specified.</p>
+
+<p><strong>Rise-Transit-Set event stepping</strong></p>
+
+<p>When <code class="language-plaintext highlighter-rouge">EPHEM_TYPE= 'OBS'</code> and <code class="language-plaintext highlighter-rouge">CENTER</code> is a topocentric location, the optional {mode} setting can be used to toggle output at rise-transit-set events only (within integer &lt;= 9 min resolution), where rise and set are relative to one of three reference planes while considering <code class="language-plaintext highlighter-rouge">ELEV_CUT</code> angle setting:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">{mode}</th>
+      <th style="text-align: left">Rise-Transit-Set aberrations relative to reference plane</th>
+      <th style="text-align: left">Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">TVH</td>
+      <td style="text-align: left">True visual horizon (include horizon dip and refraction)</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='1m TVH'</code> (RTS with +/- 1 minute resolution)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">GEO</td>
+      <td style="text-align: left">Geometric horizon (include refraction)</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='5m GEO'</code> (RTS with +/- 5 minute resolution)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">RAD</td>
+      <td style="text-align: left">Radar horizon (geometric horizon, NO refraction)</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='1m RAD'</code> (RTS with +/-1 minute resolution)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>‘Geometric horizon’ refers to the horizon defined by the plane perpendicular to the local zenith (modified by <code class="language-plaintext highlighter-rouge">ELEV_CUT</code>).</p>
+
+<p><strong>Time-varying output (angular stepping)</strong></p>
+
+<p>This mode turns on time-varying output, requesting approximate angular motion criteria for output instead of time-based stepping. Angular range can be 60 to 3600 (arcsec).</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">{mode}</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">VAR</td>
+      <td style="text-align: left">Output after specified angular change in plane-of-sky position</td>
+      <td style="text-align: left"><code class="language-plaintext highlighter-rouge">STEP_SIZE='VAR 600'</code> (output after moving 600 arcseconds in plane-of-sky)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>There is no {units} specification for angle-stepping (time-varying) mode, it is implicitly arcseconds.</p>
+
+<h4 id="tlist-parameter"><a name="tlist"></a><code class="language-plaintext highlighter-rouge">TLIST</code> Parameter</h4>
+
+<p>The Horizons <code class="language-plaintext highlighter-rouge">TLIST</code> parameter allows specification of up to 10,000 discrete output times, though URL length limits may impose smaller limits depending on local software. When using TLIST, do not use any of the other time-span parameters:  <code class="language-plaintext highlighter-rouge">START_TIME</code>, <code class="language-plaintext highlighter-rouge">STOP_TIME</code>, or <code class="language-plaintext highlighter-rouge">STEP_SIZE</code>.</p>
+
+<p><code class="language-plaintext highlighter-rouge">TLIST</code> values may be specified as individually quote-wrapped Julian Day numbers (JD), Modified Julian Day numbers (MJD, where MJD = JD - 2400000.5, the number of days since 1858-Nov-17), or any calendar date form that Horizons recognizes, such as ‘2035-Jul-12 10:17:19.373’. See system documentation for more examples of supported calendar date forms.</p>
+
+<p>For numeric TLIST values (JD or MJD input), the default behavior is to determine if the chronologically earliest value is JD or MJD based on its magnitude. A small value less than <code class="language-plaintext highlighter-rouge">abs(625360.5)</code> will be interpreted as toggling MJD input for the rest of the TLIST.  If they are in fact ancient Julian Day Numbers (prior to around 3001 BC), set TLIST_TYPE= ‘JD’ to force interpretation of small numeric TLIST values as JD instead of MJD.</p>
+
+<p>TLIST can contain a mix of JD and calendar dates, but MJD values cannot be included in the mix without resulting in all other dates being assumed to be MJD.</p>
+
+<p>When more than one TLIST value needs to be specified, the list of individually quoted values is further delimited using either comma <code class="language-plaintext highlighter-rouge">(,)</code> or space ` ` characters. An example specification for Horizons is</p>
+
+<p><code class="language-plaintext highlighter-rouge">TLIST= '2455339.95748' '2455354.92142' '2033-Jan-17 12:10:25.1'</code></p>
+
+<p>However, to successfully transmit such a list via URL to the API, the spaces (or commas) and single quotes in the TLIST setting should be URL-encoded using <code class="language-plaintext highlighter-rouge">%20</code> for spaces, <code class="language-plaintext highlighter-rouge">%2C</code> for commas, and <code class="language-plaintext highlighter-rouge">%27</code> for single-quotes. The resulting URL for successful API handling of the example would look like this:</p>
+
+<p><code class="language-plaintext highlighter-rouge">TLIST=%272455339.95748%27%20%272455354.92142%27%20%272033-Jan-17%2012:10:25.1%27</code></p>
+
+<p>If URL-length limits are encountered when specifying long TLISTS, the <a href="/doc/horizons_file.html">file-based Horizons API</a> provides an alternate input method that supports long lists without the need for URL character-encoding.</p>
+
+<h4 id="vec_table-parameter"><a name="vec_table"></a><code class="language-plaintext highlighter-rouge">VEC_TABLE</code> Parameter</h4>
+
+<p>The VEC_TABLE parameter is used to set table format details when <code class="language-plaintext highlighter-rouge">EPHEM_TYPE=VECTOR</code>.
+Values assigned can be a single integer from 1 to 6, with optionally present modifier symbols allowed for numerically integrated small-bodies</p>
+
+<p>Quantities Output:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Value</th>
+      <th style="text-align: left">Quantities Output</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">1</td>
+      <td style="text-align: left">Position components {x,y,z} only (with optional statistical request codes)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">2</td>
+      <td style="text-align: left">State vector {x,y,z,Vx,Vy,Vz} (with optional statistical request codes)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">3</td>
+      <td style="text-align: left">State vector, 1-way light-time, range, and range-rate</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">4</td>
+      <td style="text-align: left">Position, 1-way light-time, range, and range-rate</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">5</td>
+      <td style="text-align: left">Velocity components {vx, vy, vz} only</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">6</td>
+      <td style="text-align: left">1-way light-time, range, and range-rate</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Modifier codes are accepted for values <code class="language-plaintext highlighter-rouge">1</code> and <code class="language-plaintext highlighter-rouge">2</code> to trigger
+output of formal statistical uncertainties when available
+(<strong>for asteroids and comets only</strong>).</p>
+
+<p>Available modifier codes for values <code class="language-plaintext highlighter-rouge">1</code> and <code class="language-plaintext highlighter-rouge">2</code> as shown in the following table.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Code</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">x</td>
+      <td style="text-align: left">XYZ uncertainties (ICRF or FK4/B1950)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">a</td>
+      <td style="text-align: left">ACN uncertainties (along-track, cross-track, normal)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">r</td>
+      <td style="text-align: left">RTN uncertainties (radial, transverse, normal)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">p</td>
+      <td style="text-align: left">POS uncertainties (plane-of-sky; radial, RA, and DEC components)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Examples:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">VEC_TABLE='1xa'</code> returns position components
+along with their uncertainties, and with uncertainties in
+the ACN system also.</li>
+  <li><code class="language-plaintext highlighter-rouge">VEC_TABLE='2xarp'</code> returns position and velocity, with
+uncertainties in all four coordinate systems.</li>
+</ul>
+
+<h3 id="tles-two-line-elements"><a name="tle"></a>TLEs (Two-Line Elements)</h3>
+
+<p>Two-Line Elements (TLEs) may be input to define an
+artificial Earth-orbiting satellite. They are used only when
+<code class="language-plaintext highlighter-rouge">COMMAND='TLE'</code> (input object is the target), or if <code class="language-plaintext highlighter-rouge">CENTER='@TLE'</code> also
+(meaning the input object is the coordinate center).</p>
+
+<p>TLEs must be supplied in standard format with starting and
+ending quote marks enclosing the entire block. Name
+specification line(s) are optional. Up to 600 pairs (1200
+data lines) can be specified, but this limit is subject to
+change.</p>
+
+<p>Example assignment for object ‘SC-1’:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>TLE = '
+SC-1
+1 87820U 11053A   11273.79990913  .00099611  00000-0  64461-3 0  9991
+2 87820 042.7843 189.7738 0014383 039.8647 002.5266 15.74868665   196
+1 87820U 11053A   11273.86983630 -.00085102 +00000-0 -55758-3 0  9998
+2 87820 042.7804 189.3478 0014258 040.7498 038.5752 15.74826749000204'
+</code></pre></div></div>
+
+<blockquote>
+  <p>IMPORTANT: You must URI-encode such content because a new-line character
+cannot be directly input via URL.
+The above example would use <code class="language-plaintext highlighter-rouge">%0A</code> for the new-line (LF) character as shown below.</p>
+</blockquote>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>TLE='SC-1%0A1 87820U 11053A   11273.79990913  .00099611  00000-0  64461-3 0  9991%0A2 87820 042.7843 189.7738 0014383 039.8647 002.5266 15.74868665   196%0A1 87820U 11053A   11273.86983630 -.00085102 +00000-0 -55758-3 0  9998%0A2 87820 042.7804 189.3478 0014258 040.7498 038.5752 15.74826749000204'
+</code></pre></div></div>
+
+<p>Although the above form may work on some systems with space characters contained
+within the quote characters (<code class="language-plaintext highlighter-rouge">'</code>), it is best practice to encode all space characters using <code class="language-plaintext highlighter-rouge">%20</code>.
+The corresponding content with space-encoding would look like the following.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>TLE='SC-1%0A1%2087820U%2011053A%20%20%2011273.79990913%20%20.00099611%20%2000000-0%20%2064461-3%200%20%209991%0A2%2087820%20042.7843%20189.7738%200014383%20039.8647%20002.5266%2015.74868665%20%20%20196%0A1%2087820U%2011053A%20%20%2011273.86983630%20-.00085102%20+00000-0%20-55758-3%200%20%209998%0A2%2087820%20042.7804%20189.3478%200014258%20040.7498%20038.5752%2015.74826749000204'
+</code></pre></div></div>
+
+<p>See the <a href="https://ssd.jpl.nasa.gov/horizons/manual.html#tles">Horizons documentation</a>
+for more details about TLEs.</p>
+
+<h2 id="data-output">Data Output</h2>
+
+<blockquote>
+  <p>Please <strong>always check</strong> the JSON payload “signature” object for the API “version”.
+  If the version does not match the version in this document (at the top),
+  there is no guarantee that the format has not changed.</p>
+  <p>Example "signature" object with "version" value "1.0":
+  <code>"signature":{"version":"1.0","source":"NASA/JPL ... API"}</code>
+  </p>
+</blockquote>
+
+<p>Successful query requests result in a data payload.
+The format of such a data payload is controlled by the <code class="language-plaintext highlighter-rouge">format</code> parameter.</p>
+
+<h3 id="example-text-format-output">Example <code class="language-plaintext highlighter-rouge">text</code>-format Output</h3>
+
+<p>The first two lines are added by the API. It is important to note the
+<code class="language-plaintext highlighter-rouge">API VERSION</code> value when programmatically processing results to ensure the
+API version is what you expect.
+The number of blank lines following <code class="language-plaintext highlighter-rouge">API SOURCE</code> may vary but will be at least one.
+If you request the body information page (<code class="language-plaintext highlighter-rouge">OBJ_DATA='YES'</code>), there will be
+an additional block of text output after the blank lines following <code class="language-plaintext highlighter-rouge">API SOURCE</code>.
+The remainder of the output is formatted as provided by the Horizons system.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>API VERSION: 1.0
+API SOURCE: NASA/JPL Horizons API
+
+*******************************************************************************
+Ephemeris / WWW_USER Tue Sep  6 22:51:14 2022 Pasadena, USA        / Horizons
+*******************************************************************************
+Target body name: Mars (499)                      {source: mar097}
+Center body name: Earth (399)                     {source: mar097}
+Center-site name: GEOCENTRIC
+*******************************************************************************
+Start time      : A.D. 1998-Jan-01 10:00:00.0000 UT
+Stop  time      : A.D. 1998-Jan-02 00:00:00.0000 UT
+Step-size       : 60 minutes
+*******************************************************************************
+Target pole/equ : IAU_MARS                        {West-longitude positive}
+Target radii    : 3396.19, 3396.19, 3376.2 km     {Equator_a, b, pole_c}
+Center geodetic : 0.0, 0.0, -6378.137             {E-lon(deg),Lat(deg),Alt(km)}
+Center cylindric: 0.0, 0.0, 0.0                   {E-lon(deg),Dxy(km),Dz(km)}
+Center pole/equ : ITRF93                          {East-longitude positive}
+Center radii    : 6378.137, 6378.137, 6356.752 km {Equator_a, b, pole_c}
+Target primary  : Sun
+Vis. interferer : MOON (R_eq= 1737.400) km        {source: mar097}
+Rel. light bend : Sun, EARTH                      {source: mar097}
+Rel. lght bnd GM: 1.3271E+11, 3.9860E+05 km^3/s^2
+Atmos refraction: NO (AIRLESS)
+RA format       : HMS
+Time format     : CAL
+Calendar mode   : Mixed Julian/Gregorian
+EOP file        : eop.220904.p221128
+EOP coverage    : DATA-BASED 1962-JAN-20 TO 2022-SEP-04. PREDICTS-&gt; 2022-NOV-27
+Units conversion: 1 au= 149597870.700 km, c= 299792.458 km/s, 1 day= 86400.0 s
+Table cut-offs 1: Elevation (-90.0deg=NO ),Airmass (&gt;38.000=NO), Daylight (NO )
+Table cut-offs 2: Solar elongation (  0.0,180.0=NO ),Local Hour Angle( 0.0=NO )
+Table cut-offs 3: RA/DEC angular rate (     0.0=NO )
+*********************************************************************************************
+ Date__(UT)__HR:MN     R.A._____(ICRF)_____DEC    APmag   S-brt             delta      deldot
+*********************************************************************************************
+$$SOE
+ 1998-Jan-01 10:00     20 55 41.20 -18 33 23.0    1.199   4.107  2.13799045474771   5.6049390
+ 1998-Jan-01 11:00     20 55 49.17 -18 32 49.7    1.205   4.112  2.13812533287512   5.6044117
+ 1998-Jan-01 12:00     20 55 57.13 -18 32 16.5    1.221   4.128  2.13826019831403   5.6038846
+ 1998-Jan-01 13:00     20 56 05.09 -18 31 43.1    1.234   4.141  2.13839505107206   5.6033579
+ 1998-Jan-01 14:00     20 56 13.05 -18 31 09.8    1.249   4.156  2.13852989115697   5.6028315
+ 1998-Jan-01 15:00     20 56 21.01 -18 30 36.5    1.229   4.136  2.13866471857652   5.6023055
+ 1998-Jan-01 16:00     20 56 28.97 -18 30 03.1    1.242   4.149  2.13879953333835   5.6017797
+ 1998-Jan-01 17:00     20 56 36.93 -18 29 29.7    1.236   4.143  2.13893433545018   5.6012543
+ 1998-Jan-01 18:00     20 56 44.89 -18 28 56.3    1.225   4.132  2.13906912492008   5.6007292
+ 1998-Jan-01 19:00     20 56 52.85 -18 28 22.9    1.233   4.139  2.13920390175678   5.6002045
+ 1998-Jan-01 20:00     20 57 00.81 -18 27 49.4    1.239   4.146  2.13933866596968   5.5996802
+ 1998-Jan-01 21:00     20 57 08.76 -18 27 15.9    1.246   4.153  2.13947341756857   5.5991564
+ 1998-Jan-01 22:00     20 57 16.72 -18 26 42.5    1.226   4.133  2.13960815656331   5.5986329
+ 1998-Jan-01 23:00     20 57 24.67 -18 26 08.9    1.216   4.123  2.13974288296371   5.5981098
+ 1998-Jan-02 00:00     20 57 32.63 -18 25 35.4    1.205   4.111  2.13987759677950   5.5975872
+$$EOE
+*********************************************************************************************
+Column meaning:
+
+... [some content excluded here for brevity] ...
+
+ Computations by ...
+     Solar System Dynamics Group, Horizons On-Line Ephemeris System
+     4800 Oak Grove Drive, Jet Propulsion Laboratory
+     Pasadena, CA  91109   USA
+     Information: http://ssd.jpl.nasa.gov/
+     Connect    : telnet://ssd.jpl.nasa.gov:6775  (via browser)
+                  telnet ssd.jpl.nasa.gov 6775    (via command-line)
+     Author     : Jon.D.Giorgini@jpl.nasa.gov
+
+*****************************************************************************************
+</code></pre></div></div>
+
+<p>If there are any errors in your input file
+(such as requesting ephemeris output times outside the range available),
+they will be shown at the end of the normal output.
+Thus, such error detection is the responsibility of the user.</p>
+
+<p>In some cases, error messages will provide suggestions that are only
+applicable to the command-line interface. For example, when specifying
+an observatory code that does not exist, the message suggests typing <code class="language-plaintext highlighter-rouge">..., ?! for help</code>.
+In such cases, if the error is not obvious,
+please check the <a href="https://ssd.jpl.nasa.gov/horizons/manual.html">Horizons system documentation</a>.</p>
+
+<h3 id="example-json-format-output">Example <code class="language-plaintext highlighter-rouge">json</code>-format Output</h3>
+
+<p>When <code class="language-plaintext highlighter-rouge">json</code>-format is requested, the API attempts to detect any Horizons error
+message(s), capture them, and report them in the <code class="language-plaintext highlighter-rouge">error</code> field.
+Thus, if the <code class="language-plaintext highlighter-rouge">error</code> field is present in the output, an appropriate programmatic
+response can be issued.</p>
+
+<p>In the following successful request, the content of interest will be in the
+JSON <code class="language-plaintext highlighter-rouge">result</code> field.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "signature" : {
+    "source" : "NASA/JPL Horizons API",
+    "version" : "1.0"
+  },
+  "result" : " \n \n*******************************************************************************\nEphemeris / WWW_USER Tue Sep  6 22:51:14 2022 Pasadena, USA      / Horizons    \n*******************************************************************************\nTarget body name: Mars (499)                      {source: mar097}\nCenter body name: Earth (399)                     {source: mar097}\nCenter-site name: GEOCENTRIC\n*******************************************************************************\nStart time      : A.D. 1998-Jan-01 10:00:00.0000 UT      \nStop  time      : A.D. 1998-Jan-02 00:00:00.0000 UT      \nStep-size       : 60 minutes\n*******************************************************************************\nTarget pole/equ : IAU_MARS                        {West-longitude positive}\nTarget radii    : 3396.19, 3396.19, 3376.2 km     {Equator_a, b, pole_c}\nCenter geodetic : 0.0, 0.0, -6378.137             {E-lon(deg),Lat(deg),Alt(km)}\nCenter cylindric: 0.0, 0.0, 0.0                   {E-lon(deg),Dxy(km),Dz(km)}\nCenter pole/equ : High-precision EOP model        {East-longitude positive}\nCenter radii    : 6378.137, 6378.137, 6356.752 km {Equator_a, b, pole_c}\nTarget primary  : Sun\nVis. interferer : MOON (R_eq= 1737.400) km        {source: mar097}\nRel. light bend : Sun, EARTH                      {source: mar097}\nRel. lght bnd GM: 1.3271E+11, 3.9860E+05 km^3/s^2                              \nAtmos refraction: NO (AIRLESS)\nRA format       : HMS\nTime format     : CAL \nCalendar mode   : Mixed Julian/Gregorian\nEOP file        : eop.200513.p200804                                           \nEOP coverage    : DATA-BASED 1962-JAN-20 TO 2020-MAY-13. PREDICTS-&gt; 2020-AUG-03\nUnits conversion: 1 au= 149597870.700 km, c= 299792.458 km/s, 1 day= 86400.0 s \nTable cut-offs 1: Elevation (-90.0deg=NO ),Airmass (&gt;38.000=NO), Daylight (NO )\nTable cut-offs 2: Solar elongation (  0.0,180.0=NO ),Local Hour Angle( 0.0=NO )\nTable cut-offs 3: RA/DEC angular rate (     0.0=NO )                           \n*****************************************************************************************\n Date__(UT)__HR:MN     R.A._____(ICRF)_____DEC    APmag   S-brt             delta      deldot      deldot\n*****************************************************************************************\n$$SOE\n 1998-Jan-01 10:00     20 55 41.20 -18 33 23.0    1.199   4.107  2.13799045474771   5.6049390\n 1998-Jan-01 11:00     20 55 49.17 -18 32 49.7    1.205   4.112  2.13812533287512   5.6044117\n 1998-Jan-01 12:00     20 55 57.13 -18 32 16.5    1.221   4.128  2.13826019831403   5.6038846\n 1998-Jan-01 13:00     20 56 05.09 -18 31 43.1    1.234   4.141  2.13839505107206   5.6033579\n 1998-Jan-01 14:00     20 56 13.05 -18 31 09.8    1.249   4.156  2.13852989115697   5.6028315\n 1998-Jan-01 15:00     20 56 21.01 -18 30 36.5    1.229   4.136  2.13866471857652   5.6023055\n 1998-Jan-01 16:00     20 56 28.97 -18 30 03.1    1.242   4.149  2.13879953333835   5.6017797\n 1998-Jan-01 17:00     20 56 36.93 -18 29 29.7    1.236   4.143  2.13893433545018   5.6012543\n 1998-Jan-01 18:00     20 56 44.89 -18 28 56.3    1.225   4.132  2.13906912492008   5.6007292\n 1998-Jan-01 19:00     20 56 52.85 -18 28 22.9    1.233   4.139  2.13920390175678   5.6002045\n 1998-Jan-01 20:00     20 57 00.81 -18 27 49.4    1.239   4.146  2.13933866596968   5.5996802\n 1998-Jan-01 21:00     20 57 08.76 -18 27 15.9    1.246   4.153  2.13947341756857   5.5991564\n 1998-Jan-01 22:00     20 57 16.72 -18 26 42.5    1.226   4.133  2.13960815656331   5.5986329\n 1998-Jan-01 23:00     20 57 24.67 -18 26 08.9    1.216   4.123  2.13974288296371   5.5981098\n 1998-Jan-02 00:00     20 57 32.63 -18 25 35.4    1.205   4.111  2.13987759677950   5.5975872\n$$EOE\n*****************************************************************************************\nColumn meaning:\n \nTIME\n\n  Times PRIOR to 1962 are UT1, a mean-solar time closely related to the\nprior but now-deprecated GMT. Times AFTER 1962 are in UTC, the current\ncivil or \"wall-clock\" time-scale. UTC is kept within 0.9 seconds of UT1\nusing integer leap-seconds for 1972 and later years.\n\n  Conversion from the internal Barycentric Dynamical Time (TDB) of solar\nsystem dynamics to the non-uniform civil UT time-scale requested for output\nhas not been determined for UTC times after the next July or January 1st.\nTherefore, the last known leap-second is used as a constant over future\nintervals.\n\n  Time tags refer to the UT time-scale conversion from TDB on Earth\nregardless of observer location within the solar system, although clock\nrates may differ due to the local gravity field and no analog to \"UT\"\nmay be defined for that location.\n\n  Any 'b' symbol in the 1st-column denotes a B.C. date. First-column blank\n(\" \") denotes an A.D. date. Calendar dates prior to 1582-Oct-15 are in the\nJulian calendar system. Later calendar dates are in the Gregorian system.\n\n  NOTE: \"n.a.\" in output means quantity \"not available\" at the print-time.\n \n R.A._____(ICRF)_____DEC =\n  Astrometric right ascension and declination of the target center with\nrespect to the observing site (coordinate origin) in the reference frame of\nthe planetary ephemeris (ICRF). Compensated for down-leg light-time delay\naberration.\n\n  Units: RA  in hours-minutes-seconds of time   (HH MM SS.ff)\n         DEC in degrees-minutes-seconds of arc  (sDD MN SC.f)\n \n APmag S-brt =\n   Target's approximate apparent visual magnitude &amp; surface brightness. For\nplanets and satellites, values are available only for solar phase angles in the\nrange generally visible from Earth. This is to avoid extrapolation of models\nbeyond their valid (data-based) limits.\n   Units: MAGNITUDE &amp; VISUAL MAGNITUDES PER SQUARE ARCSECOND\n \n delta  deldot =\n   Range (\"delta\") and range-rate (\"delta-dot\") of target center with respect\nto the observer at the instant light seen by the observer at print-time would\nhave left the target center (print-time minus down-leg light-time); the\ndistance traveled by a light ray emanating from the center of the target and\nrecorded by the observer at print-time. \"deldot\" is a projection of the\nvelocity vector along this ray, the light-time-corrected line-of-sight from\nthe coordinate center, and indicates relative motion. A positive \"deldot\"\nmeans the target center is moving away from the observer (coordinate center).\nA negative \"deldot\" means the target center is moving toward the observer.\nUnits: AU and KM/S\n\n\n Computations by ...\n     Solar System Dynamics Group, Horizons On-Line Ephemeris System\n     4800 Oak Grove Drive, Jet Propulsion Laboratory\n     Pasadena, CA  91109   USA\n     Information: http://ssd.jpl.nasa.gov/\n     Connect    : telnet://ssd.jpl.nasa.gov:6775  (via browser)\n                  telnet ssd.jpl.nasa.gov 6775    (via command-line)\n     Author     : Jon.D.Giorgini@jpl.nasa.gov\n\n*****************************************************************************************\n"
+}
+</code></pre></div></div>
+
+<h3 id="non-unique-object-specification">Non-unique Object Specification</h3>
+
+<p>If the object specified via the <code class="language-plaintext highlighter-rouge">COMMAND</code> query parameter is not
+unique to the Horizons system, you will get a list of matching objects.
+Below is an example (<code class="language-plaintext highlighter-rouge">text</code>-format) output where <code class="language-plaintext highlighter-rouge">COMMAND='DES=141P;'</code>.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>API VERSION: 1.0
+API SOURCE: NASA/JPL Horizons API
+
+*******************************************************************************
+JPL/DASTCOM            Small-body Index Search Results     2021-May-11 07:53:26
+
+ Comet AND asteroid index search:
+
+    DES = 141P;
+
+ Matching small-bodies:
+
+    Record #  Epoch-yr  &gt;MATCH DESIG&lt;  Primary Desig  Name
+    --------  --------  -------------  -------------  -------------------------
+    90001032    2011    141P           141P            Machholz 2
+    90001033    2019    141P           141P            Machholz 2
+    90001034    1994    141P-A         141P-A          Machholz 2
+    90001035    1997    141P-A         141P-A          Machholz 2
+    90001036    1999    141P-A         141P-A          Machholz 2
+    90001037    1994    141P-D         141P-D          Machholz 2
+    90001038    1999    141P-D         141P-D          Machholz 2
+
+ (7 matches. To SELECT, enter record # (integer), followed by semi-colon.)
+*******************************************************************************
+</code></pre></div></div>
+
+<p>In the above example, there are three bodies represented: the parent comet <code class="language-plaintext highlighter-rouge">141P</code>,
+fragment A <code class="language-plaintext highlighter-rouge">(141P-A)</code>, and fragment D <code class="language-plaintext highlighter-rouge">(141P-D)</code>.
+There are also multiple orbits for each of these comets represented by the <code class="language-plaintext highlighter-rouge">Epoch-yr</code>
+field in the results table. This is typically  because the orbit may change between
+apparitions due to changed outgassing accelerations.</p>
+
+<p>To select the object and orbit of interest, you must specify the Horizons
+record number listed in the <code class="language-plaintext highlighter-rouge">Record #</code> column.
+For example, to select the orbit for the parent comet with epoch 2019,
+specify <code class="language-plaintext highlighter-rouge">COMMAND='90001033;'</code>.
+However, be warned that for small bodies (comets and asteroids)
+these <strong>record numbers are subject to change without notice</strong>.</p>
+
+<p>For unique comet selection without using Horizons record numbers,
+there are additional flags that can be used in the <code class="language-plaintext highlighter-rouge">COMMAND</code> specification.
+For example, if you know there are fragments for comet 141P and you want the
+parent comet, you can add the <code class="language-plaintext highlighter-rouge">NOFRAG</code> flag to the <code class="language-plaintext highlighter-rouge">COMMAND</code> specification
+such as <code class="language-plaintext highlighter-rouge">COMMAND='DES=141P;NOFRAG'</code>.</p>
+
+<p>Similarly, if you know you always want the orbit with the most recent epoch,
+you can add the <code class="language-plaintext highlighter-rouge">CAP</code> flag (closest-apparition) to the <code class="language-plaintext highlighter-rouge">COMMAND</code> specification such as
+<code class="language-plaintext highlighter-rouge">COMMAND='DES=141P;CAP'</code>.
+In this example, combining <code class="language-plaintext highlighter-rouge">CAP</code> and <code class="language-plaintext highlighter-rouge">NOFRAG</code> will result in a unique match for
+the parent comet 141P as in <code class="language-plaintext highlighter-rouge">COMMAND='DES=141P;CAP;NOFRAG'</code>.
+For fragments, the designation is already unique so you’d only need the <code class="language-plaintext highlighter-rouge">CAP</code> flag
+as in <code class="language-plaintext highlighter-rouge">COMMAND='DES=141P-A;CAP'</code>.</p>
+
+<p>See the <a href="https://ssd.jpl.nasa.gov/horizons/manual.html">Horizons documentation</a> for more details.</p>
+
+<h3 id="small-body-spk-file-generation"><a name="spk_file"></a>Small-Body SPK File Generation</h3>
+
+<p>The binary SPK file is base-64 encoded on return and, for <code class="language-plaintext highlighter-rouge">text</code>-format output,
+begins after the API header text with the base-64 string <code class="language-plaintext highlighter-rouge">REFGL1NQ...</code>
+in the following example for asteroid 1 Ceres (SPK-ID 2000001).</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>API VERSION: 1.0
+API SOURCE: NASA/JPL Horizons API
+
+
+ID= '2000001'
+
+SPK Binary Data Follows -- base64 encoded:
+
+REFGL1NQSyACAAAABgAAAFNNQl9TUEtfRklMRSAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgID4AAAA+AAAAMLcAAExUTC1JRUVFAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+...
+AAAAAAAAAAAAAAAAAAAAAAAAAA==
+</code></pre></div></div>
+
+<p>To convert the base-64 encoded content to a usable binary SPK file,
+extract the encoded portion to a file and use a base-64 decoder.
+On most Linux systems this is done with the command
+<code class="language-plaintext highlighter-rouge">base64 --decode {extracted_file_content}</code>,
+where <code class="language-plaintext highlighter-rouge">{extacted_file_content}</code> is the name of the file containing
+the encoded content from the API.</p>
+
+<h4 id="example-spk-horizons-request"><a name="script"></a>Example SPK Horizons Request</h4>
+
+<h5 id="for-small-body-in-the-jpl-database">For Small-Body in the JPL Database</h5>
+
+<p>The following example requests an SPK file spanning 2020-01-01 through 2030-12-31 (TDB)
+for asteroids 1 Ceres.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>https://ssd.jpl.nasa.gov/api/horizons.api?COMMAND='1%3B'&amp;EPHEM_TYPE=SPK&amp;START_TIME='2020-01-01'&amp;STOP_TIME='2030-12-31'&amp;OBJ_DATA=NO
+</code></pre></div></div>
+
+<h5 id="for-small-body-not-in-the-jpl-database">For Small-Body <em>not</em> in the JPL Database</h5>
+
+<p>The following example requests an SPK file covering
+2030-01-01 through 2031-01-01 (TDB)
+for the small-body specified with user-supplied osculating elements
+and non-gravitational parameters.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>https://ssd.jpl.nasa.gov/api/horizons.api?COMMAND='%3B'&amp;MAKE_EPHEM=YES&amp;EPHEM_TYPE=SPK&amp;OBJ_DATA=NO&amp;START_TIME='2030-Jan-1'&amp;STOP_TIME='2031-Jan-1'&amp;OBJECT='User%20Apophis'&amp;EPOCH=2459311.5&amp;ECLIP=J2000&amp;EC=0.1915350975906659&amp;QR=0.7458351838564465&amp;TP=2459424.5839352785&amp;OM=203.9782743995174&amp;W=126.6377455281965&amp;IN=3.33973556589891&amp;A1='3.869431020576E-13'&amp;A2='-2.898628963521E-14'&amp;R0=1.&amp;ALN=1.&amp;NM=2.&amp;NN=5.093&amp;NK=0.
+</code></pre></div></div>
+
+<h4 id="command-line-examples">Command-line Examples</h4>
+
+<p>An example Linux command-line to extract the binary SPK file content from
+a successful <code class="language-plaintext highlighter-rouge">text</code>-format output is shown below.
+However, be advised that such usage will not easily catch errors returned from the API.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -s "https://ssd.jpl.nasa.gov/api/horizons.api?format=text&amp;COMMAND='1%3B'&amp;EPHEM_TYPE=SPK&amp;START_TIME='2020-01-01'&amp;STOP_TIME='2030-12-31'&amp;OBJ_DATA=NO" | awk '/REFGL1NQ/,0' | base64 --decode &gt; 2000001.bsp
+</code></pre></div></div>
+
+<p>Similarly, for the <code class="language-plaintext highlighter-rouge">json</code>-format output, the SPK encoded content is contained
+in the <code class="language-plaintext highlighter-rouge">spk:</code> object as in the following example:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+  "signature" : {
+    "source" : "NASA/JPL Horizons API",
+    "version" : "0.2"
+  },
+  "result" : "\nID= '2000001'\n\n",
+  "spk_file_id" : "2000001",
+  "spk" : "REFGL1NQSyACAAAABgAAAFNNQl9TUEtfRklMRSAgICAgICAgICAgICAgICAgICAgICAgICAgICAg\nICAgICAgICAgICAgICAgICAgID4AAAA+AAA ... AAAA\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\nAAAAAAAAAAAAAAAAAAAAAAAAAA==\n"
+}
+</code></pre></div></div>
+<p>Extract the content from the JSON <code class="language-plaintext highlighter-rouge">spk</code> object excluding the surrounding quotes
+and then decode to produce the corresponding binary SPK file.
+The JSON <code class="language-plaintext highlighter-rouge">spk_file_id</code> value suggests an appropriate filename (excluding the <code class="language-plaintext highlighter-rouge">.bsp</code> extension) for output:
+<code class="language-plaintext highlighter-rouge">2000001</code> in this example from which the filename <code class="language-plaintext highlighter-rouge">2000001.bsp</code> could be formed.</p>
+
+<h4 id="sample-scripts">Sample Scripts</h4>
+
+<p>The following scripts generate SPK files spanning <code class="language-plaintext highlighter-rouge">2030-01-01</code> to <code class="language-plaintext highlighter-rouge">2031-01-01</code>
+for the small-body specified on the command-line.
+In this example, the desired small-body is specified using its SPK-ID
+(e.g., <code class="language-plaintext highlighter-rouge">2000001</code> for asteroid 1 Ceres).</p>
+
+<blockquote>
+  <p>IMPORTANT: You must take care to <a href="#encode">encode special characters</a> in the URL
+within your scripts for proper interpretation of your query parameters.
+In the scripts below, the Horizons <code class="language-plaintext highlighter-rouge">COMMAND</code> parameter contains special characters
+<code class="language-plaintext highlighter-rouge">=</code> and <code class="language-plaintext highlighter-rouge">;</code> which must be converted to <code class="language-plaintext highlighter-rouge">%3D</code> and <code class="language-plaintext highlighter-rouge">%3B</code>, respectively.
+For example, <code class="language-plaintext highlighter-rouge">COMMAND='DES=2000001;'</code> must be encoded as <code class="language-plaintext highlighter-rouge">COMMAND='DES%3D2000001%3B'</code>.</p>
+</blockquote>
+
+<h5 id="perl">Perl</h5>
+
+<p>Assuming the following Perl script is saved to a file <code class="language-plaintext highlighter-rouge">horizons_spk.pl</code>,
+it could be invoked from the command-line to generate an SPK file for
+asteroid 1 Ceres (SPKID 2000001) as <code class="language-plaintext highlighter-rouge">perl horizons_spk.pl 2000001</code>.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>use strict;
+use LWP::UserAgent;
+use JSON;
+use MIME::Base64;
+
+# Define API URL and SPK filename:
+my $url = "https://ssd.jpl.nasa.gov/api/horizons.api";
+my $spk_filename = 'spk_file.bsp';
+
+# Define the time span:
+my $start_time = '2030-01-01';
+my $stop_time = '2031-01-01';
+
+# Get the requested SPK-ID from the command-line:
+my $spkid = shift;
+unless ( defined $spkid ) { die "please specify SPK-ID on the command-line"; }
+
+# Build the appropriate URL for this API request:
+# IMPORTANT: You must encode the "=" as "%3D" and the ";" as "%3B" in the
+#            Horizons COMMAND parameter specification.
+$url .= "?format=json&amp;EPHEM_TYPE=SPK&amp;OBJ_DATA=NO";
+$url .= "&amp;COMMAND='DES%3D$spkid%3B'&amp;START_TIME='$start_time'&amp;STOP_TIME='$stop_time'";
+
+# Build and submit the API request and decode the JSON-response:
+my $ua = LWP::UserAgent-&gt;new;
+my $response = $ua-&gt;get($url);
+my $data = decode_json($response-&gt;content);
+
+# If the request was valid...
+if ( $response-&gt;code eq '200' ) {
+  #
+  # If the SPK file was generated, decode it and write it to the output file:
+  if ( defined $data-&gt;{spk} ) {
+    #
+    # If a suggested SPK file basename was provided, use it:
+    if ( defined $data-&gt;{spk_file_id} ) { $spk_filename = "$data-&gt;{spk_file_id}.bsp"; }
+    open (my $fh, "&gt;", $spk_filename) or die "unable to open $spk_filename: $!\n";
+    #
+    # Decode and write the binary SPK file content:
+    print $fh decode_base64($data-&gt;{spk});
+    close $fh;
+    print "wrote SPK content to $spk_filename\n";
+    exit;
+  }
+  #
+  # Otherwise, the SPK file was not generated so output an error:
+  print "ERROR: SPK file not generated\n";
+  if ( defined $data-&gt;{result} ) { print $data-&gt;{result}; }
+  else { print $response-&gt;content; }
+  exit 1;
+}
+
+# If the request was invalid, extract error content and display it:
+if ( $response-&gt;code eq '400' ) {
+  print "ERROR in API call: HTTPS response: ", $response-&gt;status_line, "\n";
+  if ( defined $data-&gt;{message} ) { print $data-&gt;{message}, "\n"; }
+  else { print $response-&gt;content; }
+  exit 1;
+}
+
+# Otherwise, some other error occurred:
+print "ERROR in API call: HTTPS response: ", $response-&gt;status_line, "\n";
+exit 1;
+</code></pre></div></div>
+
+<h5 id="python">Python</h5>
+
+<p>Assuming the following Python script is saved to a file <code class="language-plaintext highlighter-rouge">horizons_spk.py</code>,
+it could be invoked from the command-line to generate an SPK file for
+asteroid 1 Ceres (SPKID 2000001) as <code class="language-plaintext highlighter-rouge">python horizons_spk.py 2000001</code>.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import sys
+import json
+import base64
+import requests
+
+# Define API URL and SPK filename:
+url = 'https://ssd.jpl.nasa.gov/api/horizons.api'
+spk_filename = 'spk_file.bsp'
+
+# Define the time span:
+start_time = '2030-01-01'
+stop_time = '2031-01-01'
+
+# Get the requested SPK-ID from the command-line:
+if (len(sys.argv)) == 1:
+  print("please specify SPK-ID on the command-line");
+  sys.exit(2)
+spkid = sys.argv[1]
+
+# Build the appropriate URL for this API request:
+# IMPORTANT: You must encode the "=" as "%3D" and the ";" as "%3B" in the
+#            Horizons COMMAND parameter specification.
+url += "?format=json&amp;EPHEM_TYPE=SPK&amp;OBJ_DATA=NO"
+url += "&amp;COMMAND='DES%3D{}%3B'&amp;START_TIME='{}'&amp;STOP_TIME='{}'".format(spkid, start_time, stop_time)
+
+# Submit the API request and decode the JSON-response:
+response = requests.get(url)
+try:
+  data = json.loads(response.text)
+except ValueError:
+  print("Unable to decode JSON results")
+
+# If the request was valid...
+if (response.status_code == 200):
+  #
+  # If the SPK file was generated, decode it and write it to the output file:
+  if "spk" in data:
+    #
+    # If a suggested SPK file basename was provided, use it:
+    if "spk_file_id" in data:
+      spk_filename = data["spk_file_id"] + ".bsp"
+    try:
+      f = open(spk_filename, "wb")
+    except OSError as err:
+      print("Unable to open SPK file '{0}': {1}".format(spk_filename, err))
+    #
+    # Decode and write the binary SPK file content:
+    f.write(base64.b64decode(data["spk"]))
+    f.close()
+    print("wrote SPK content to {0}".format(spk_filename))
+    sys.exit()
+  #
+  # Otherwise, the SPK file was not generated so output an error:
+  print("ERROR: SPK file not generated")
+  if "result" in data:
+    print(data["result"])
+  else:
+    print(response.text)
+  sys.exit(1)
+
+# If the request was invalid, extract error content and display it:
+if (response.status_code == 400):
+  data = json.loads(response.text)
+  if "message" in data:
+    print("MESSAGE: {}".format(data["message"]))
+  else:
+    print(json.dumps(data, indent=2))
+
+# Otherwise, some other error occurred:
+print("response code: {0}".format(response.status_code))
+sys.exit(2)
+</code></pre></div></div>
+
+<h2 id="url-encoding"><a name="encode"></a>URL Encoding</h2>
+
+<p>If a query parameter <em>value</em> contains any of the following characters,
+those characters should be URI-encoded before submitting your request.
+The following table shows these reserved characters and their
+corresponding encoding.
+For example, a query string value “My Value” should be encoded as <code class="language-plaintext highlighter-rouge">My%20Value</code>
+where the space character is replaced with <code class="language-plaintext highlighter-rouge">%20</code>.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">Char.</th>
+      <th style="text-align: center">Encoding</th>
+      <th style="text-align: left">Name</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">LF</td>
+      <td style="text-align: center">%0A</td>
+      <td style="text-align: left">line feed (new-line)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">` `</td>
+      <td style="text-align: center">%20</td>
+      <td style="text-align: left">space</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">#</code></td>
+      <td style="text-align: center">%23</td>
+      <td style="text-align: left">hash tag</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">$</code></td>
+      <td style="text-align: center">%24</td>
+      <td style="text-align: left">dollar sign</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">&amp;</code></td>
+      <td style="text-align: center">%26</td>
+      <td style="text-align: left">ampersand</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">+</code></td>
+      <td style="text-align: center">%2B</td>
+      <td style="text-align: left">plus sign</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">,</code></td>
+      <td style="text-align: center">%2C</td>
+      <td style="text-align: left">comma</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">/</code></td>
+      <td style="text-align: center">%2F</td>
+      <td style="text-align: left">slash</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">:</code></td>
+      <td style="text-align: center">%3A</td>
+      <td style="text-align: left">colon</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">;</code></td>
+      <td style="text-align: center">%3B</td>
+      <td style="text-align: left">semicolon</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">=</code></td>
+      <td style="text-align: center">%3D</td>
+      <td style="text-align: left">equals sign</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">?</code></td>
+      <td style="text-align: center">%3F</td>
+      <td style="text-align: left">question mark</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">@</code></td>
+      <td style="text-align: center">%40</td>
+      <td style="text-align: left">at symbol</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">[</code></td>
+      <td style="text-align: center">%5B</td>
+      <td style="text-align: left">left square bracket</td>
+    </tr>
+    <tr>
+      <td style="text-align: center"><code class="language-plaintext highlighter-rouge">]</code></td>
+      <td style="text-align: center">%5D</td>
+      <td style="text-align: left">right square bracket</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>More information is available in
+<a href="https://datatracker.ietf.org/doc/html/rfc3875#section-2.3">section 2.3 of RFC3975</a>.</p>
+
+<h2 id="http-response-codes">HTTP Response Codes</h2>
+
+<p>Most errors are returned via appropriate HTTP response codes.
+However, it is possible to submit Horizons input data
+(e.g., a bad <code class="language-plaintext highlighter-rouge">START_TIME</code> value) resulting in Horizons-generated errors.
+In such cases, a non-error code of 200 is returned so the user is responsible
+for checking the payload if they wish to detect such errors.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">HTTP Code</th>
+      <th style="text-align: center">Description</th>
+      <th>Typical Usage</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">200</td>
+      <td style="text-align: center">OK</td>
+      <td>normal successful result</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">400</td>
+      <td style="text-align: center">Bad Request</td>
+      <td>the request contained invalid keywords and/or content or used a request-method other than GET or POST (details returned in the JSON or text payload)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">405</td>
+      <td style="text-align: center">Method Not Allowed</td>
+      <td>the request used an incorrect method (see the <a href="#request">HTTP Request</a> section)</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">500</td>
+      <td style="text-align: center">Internal Server Error</td>
+      <td>the database is not available at the time of the request</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">503</td>
+      <td style="text-align: center">Service Unavailable</td>
+      <td>the server is currently unable to handle the request due to a temporary overloading or maintenance of the server, which will likely be alleviated after some delay</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr />
+
+<h2 id="change-log"><a name="change_log"></a>Change Log</h2>
+
+<h3 id="version-12-2022-september">Version 1.2 (2022 September)</h3>
+
+<ul>
+  <li>Update to list new <code class="language-plaintext highlighter-rouge">CAL_TYPE</code> setting</li>
+</ul>
+
+<h3 id="version-11-2021-december">Version 1.1 (2021 December)</h3>
+
+<ul>
+  <li>Update to mention <code class="language-plaintext highlighter-rouge">TLIST</code> calendar date option, new <code class="language-plaintext highlighter-rouge">TLIST_TYPE</code> setting, and elaborate on <code class="language-plaintext highlighter-rouge">STEP_SIZE</code> options</li>
+</ul>
+
+<h3 id="version-10-2021-july">Version 1.0 (2021 July)</h3>
+
+<ul>
+  <li>Initial release</li>
+</ul>
+
+
+  </div>
+</div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-links">
+    <ul class="hide-for-small-only inline-list">
+      <li><a href="http://www.jpl.nasa.gov/copyrights.php">Privacy</a></li>
+      <li><a>|</a></li>
+      <li><a href="http://www.jpl.nasa.gov/imagepolicy">Image Policy</a></li>
+    </ul>
+    <ul class="show-for-small-only no-bullet">
+      <li><a href="http://www.jpl.nasa.gov/copyrights.php">Privacy</a></li>
+      <li><a href="http://www.jpl.nasa.gov/imagepolicy">Image Policy</a></li>
+    </ul>
+  </div>
+  <div class="footer-people">
+    <table id="footer-people-table" role="presentation">
+      <tr>
+        <td class="people-label text-right">Site Manager :</td>
+        <td class="text-left">Ryan Park</td>
+      </tr>
+      <tr>
+        <td class="people-label text-right">Webmaster :</td>
+        <td class="text-left">Alan Chamberlin</td>
+      </tr>
+      <tr>
+        <td class="people-label text-right">URS Clearance :</td>
+        <td class="text-left">CL#16-5242</td>
+      </tr>
+    </table>
+  </div>
+
+
+</footer>
+
+<script>
+var name = 'contact-ssd-api';
+var domain = 'jpl.nasa.gov';
+var maddr = name + String.fromCharCode(64) + domain;
+var html = '<tr><td class="people-label text-right">Contact :</td>';
+html += '<td class="text-left">' + maddr + '</td></tr>';
+$('#footer-people-table').append(html);
+</script>
+
+<!-- Initialize Foundation JS at the end of the BODY section -->
+<script>
+$(document).foundation({
+  accordion: {
+    multi_expand: true
+  }
+});
+//
+// Force external links to open in a new tab/window (A.Chamberlin)
+$(document).ready(function() {
+  $('a[href^="http"]').attr('target','_blank');
+});
+</script>
+
+  </body>
+</html>

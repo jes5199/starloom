@@ -1,0 +1,15 @@
+# Instructions
+
+During your interactions with users, you should maintain notes in the `/docs/cursor/lessons.md` file about any reusable information discovered (e.g., library versions, model names), especially regarding corrections or fixes to previous mistakes. This helps prevent repeating the same mistakes.
+
+Use the `/docs/cursor/scratchpad.md` file to organize your thoughts. When receiving a new task:
+1. Review the current scratchpad content
+2. Clear any unrelated previous task notes
+3. Explain the new task
+4. Plan the required steps
+
+Track progress using todo markers, for example:
+[X] Completed task
+[ ] Pending task
+
+Update the scratchpad as you complete subtasks. After reaching milestones, use the scratchpad to reflect and plan next steps. This helps maintain both a high-level overview and detailed progress tracking of the task. Always consult the scratchpad when planning your next steps.
