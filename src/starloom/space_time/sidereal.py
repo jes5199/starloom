@@ -1,5 +1,5 @@
 from datetime import datetime
-from lib.time.julian import julian_from_datetime
+from starloom.space_time.julian import julian_from_datetime
 
 
 def sidereal_time_from_julian(julian_date: float, longitude: float) -> float:
