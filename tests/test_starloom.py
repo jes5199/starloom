@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-"""Tests for `starloom_2025` package."""
+"""Tests for `starloom` package."""
 
 import pytest
 
 
-from starloom_2025 import starloom_2025
+from starloom import starloom
 
 
 @pytest.fixture

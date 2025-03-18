@@ -1,5 +1,5 @@
-"""Console script for starloom_2025."""
-import starloom_2025
+"""Console script for starloom."""
+import starloom.starloom as starloom
 
 import typer
 from rich.console import Console
@@ -10,9 +10,9 @@ console = Console()
 
 @app.command()
 def main():
-    """Console script for starloom_2025."""
+    """Console script for starloom."""
     console.print("Replace this message by putting your code into "
-               "starloom_2025.cli.main")
+               "starloom.cli.main")
     console.print("See Typer documentation at https://typer.tiangolo.com/")
     
 

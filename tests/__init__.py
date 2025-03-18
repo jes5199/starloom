@@ -1,1 +1,1 @@
-"""Unit test package for starloom_2025."""
+"""Unit test package for starloom."""
