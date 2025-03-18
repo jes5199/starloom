@@ -17,7 +17,6 @@ def sidereal_time_from_julian(julian_date: float, longitude: float) -> float:
     """
     # Constants
     JD0 = 2451545.0  # Julian Date at J2000.0
-    SECONDS_PER_DAY = 86400.0
 
     # Step 1: Calculate the number of days since J2000.0
     d = julian_date - JD0

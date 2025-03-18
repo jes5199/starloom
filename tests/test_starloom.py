@@ -5,9 +5,6 @@
 import pytest
 
 
-from starloom import starloom
-
-
 @pytest.fixture
 def response():
     """Sample pytest fixture.
