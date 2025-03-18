@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, date
 import pytz
 
-from lib.constants import SECONDS_PER_LONGITUDE_DEGREE
+from starloom.constants import SECONDS_PER_LONGITUDE_DEGREE
 
 
 class NaiveDateTimeError(Exception):

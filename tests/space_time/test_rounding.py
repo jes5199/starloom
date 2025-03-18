@@ -2,7 +2,7 @@
 
 import unittest
 from datetime import datetime, timezone
-from lib.time.rounding import create_and_round_to_millisecond
+from starloom.space_time.rounding import create_and_round_to_millisecond
 
 
 class TestRounding(unittest.TestCase):

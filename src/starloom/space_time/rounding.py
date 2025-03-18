@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def round_to_nearest_minute(dt: datetime) -> datetime:

@@ -13,3 +13,5 @@ Track progress using todo markers, for example:
 [ ] Pending task
 
 Update the scratchpad as you complete subtasks. After reaching milestones, use the scratchpad to reflect and plan next steps. This helps maintain both a high-level overview and detailed progress tracking of the task. Always consult the scratchpad when planning your next steps.
+
+For longer running tasks that might span multiple sessions and be project-wide goals, use a similar format in /docs/cursor/TODO.md, but this should default towards persisting indefinitely - don't just clear it out.

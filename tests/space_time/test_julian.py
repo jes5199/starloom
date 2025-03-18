@@ -2,15 +2,15 @@
 
 import unittest
 from datetime import datetime, timezone
-from lib.time.julian import (
+from starloom.space_time.julian import (
     julian_from_datetime,
     julian_from_datetime_with_microseconds,
     julian_to_datetime,
     julian_to_int_frac,
     julian_parts_from_datetime,
     julian_parts_from_datetimes,
-    _round_to_millisecond,
 )
+from starloom.space_time.rounding import create_and_round_to_millisecond
 
 
 class TestJulianDateConversion(unittest.TestCase):
@@ -67,11 +67,11 @@ class TestJulianDateConversion(unittest.TestCase):
     def test_round_to_millisecond(self):
         """Test rounding microseconds to nearest millisecond."""
         # Test normal case
-        dt = _round_to_millisecond(123456, 0, 0, 0, 1, 1, 2025)
+        dt = create_and_round_to_millisecond(123456, 0, 0, 0, 1, 1, 2025)
         self.assertEqual(dt, datetime(2025, 1, 1, 0, 0, 0, 123000, tzinfo=timezone.utc))
 
         # Test overflow case
-        dt = _round_to_millisecond(999999, 0, 0, 0, 1, 1, 2025)
+        dt = create_and_round_to_millisecond(999999, 0, 0, 0, 1, 1, 2025)
         self.assertEqual(dt, datetime(2025, 1, 1, 0, 0, 1, 0, tzinfo=timezone.utc))
 
 

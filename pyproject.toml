@@ -18,7 +18,9 @@ classifiers = [
 ]
 license = {text = "Not open source"}
 dependencies = [
-  "typer"
+  "typer",
+  "pytz",
+  "juliandate"
 ]
 
 [project.optional-dependencies]
