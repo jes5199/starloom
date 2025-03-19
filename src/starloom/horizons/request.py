@@ -115,7 +115,6 @@ class HorizonsRequest:
 
     def _make_request(self) -> str:
         """Make the request to the Horizons API."""
-        params = {**self._get_base_params(), **self._get_time_params()}
         get_url = self.get_url()
         
         if len(get_url) > self.max_url_length or (self.dates and len(self.dates) > self.max_tlist_length):

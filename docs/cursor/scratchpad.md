@@ -44,4 +44,45 @@ Refactor and improve the Horizons request module from the old project, making it
 1. Consider adding more test cases for edge cases
 2. Add integration tests with the actual Horizons API
 3. Add more documentation or examples
-4. Consider adding convenience methods for common use cases 
+4. Consider adding convenience methods for common use cases
+
+# Current Task: Horizons API Improvements
+
+## TODOs
+[ ] Parameter Cleanup
+  - Create TimeRange class to handle start/stop/step vs dates
+  - Consider unified parameter for time specification
+  - Clean up parameter handling in request.py
+
+[ ] Type Checking
+  - Add py.typed markers
+  - Install type stubs for requests
+  - Add type hints to all methods
+  - Run mypy and fix any issues
+
+[ ] API Improvements
+  - Review API for confusing parts
+  - Add better documentation
+  - Consider adding convenience methods
+
+[ ] Testing
+  - Add test for quoted quantities in URL
+  - Test comma handling in parameters
+  - Add integration tests
+
+[ ] CLI Implementation
+  - Add CLI command for ecliptic coordinates
+  - Support date, date list, and date range
+  - Direct STDOUT printing
+  - Add proper error handling
+
+## Implementation Plan
+1. Start with parameter cleanup as it affects other changes
+2. Add type checking
+3. Add missing tests
+4. Implement CLI functionality
+
+## Notes
+- Need to check Horizons manual for exact parameter requirements
+- Consider using dataclasses for parameter structures
+- May need to add more error handling for edge cases 
