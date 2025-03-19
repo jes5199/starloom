@@ -86,15 +86,3 @@ def julian_parts_from_datetimes(dates: List[datetime]) -> List[Tuple[int, float]
         List[Tuple[int, float]]: List of integer and fractional parts
     """
     return [julian_parts_from_datetime(date) for date in dates]
-
-
-def datetime_from_julian(jd: float) -> datetime:
-    """Convert Julian date to datetime.
-
-    Args:
-        jd: Julian date to convert
-
-    Returns:
-        datetime: Datetime
-    """
-    return _julian_to_datetime(jd)
