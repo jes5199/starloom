@@ -11,4 +11,4 @@ def cli():
     pass
 
 
-cli.add_command(horizons) 
+cli.add_command(horizons)

@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class Location:
     """Represents an observer's location on Earth."""
+
     latitude: float  # in degrees, positive north
     longitude: float  # in degrees, positive east
     elevation: float = 0.0  # in meters above sea level
@@ -20,4 +22,4 @@ class Location:
 
     def to_horizons_format(self) -> str:
         """Format location for Horizons API."""
-        return f"{self.longitude:.6f},{self.latitude:.6f},{self.elevation:.6f}" 
+        return f"{self.longitude:.6f},{self.latitude:.6f},{self.elevation:.6f}"

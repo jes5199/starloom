@@ -1,1 +1,1 @@
-"""Tests for the horizons module.""" 
+"""Tests for the horizons module."""
