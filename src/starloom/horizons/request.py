@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List, Optional
 import requests
 from urllib.parse import urlencode, quote_plus
@@ -12,6 +11,7 @@ from .planet import Planet
 from .location import Location
 from .time_spec import TimeSpec, TimeSpecType
 
+
 class EphemType(Enum):
     OBSERVER = "OBSERVER"
     VECTORS = "VECTORS"
@@ -19,9 +19,10 @@ class EphemType(Enum):
     SPK = "SPK"
     APPROACH = "APPROACH"
 
+
 class HorizonsRequest:
     """A class to make requests to the JPL Horizons API."""
-    
+
     def __init__(
         self,
         planet: Planet,
@@ -30,7 +31,7 @@ class HorizonsRequest:
         time_spec: Optional[TimeSpec] = None,
     ):
         """Initialize a Horizons request.
-        
+
         Args:
             planet: The celestial body to get ephemeris data for
             location: Optional observer location on Earth
@@ -41,7 +42,7 @@ class HorizonsRequest:
         self.location = location
         self.quantities = quantities or []
         self.time_spec = time_spec
-        
+
         # Base URL and parameters
         self.base_url = "https://ssd.jpl.nasa.gov/api/horizons.api"
         self.post_url = "https://ssd.jpl.nasa.gov/api/horizons_file.api"
@@ -61,15 +62,17 @@ class HorizonsRequest:
             "CSV_FORMAT": "YES",
             "COMMAND": self.planet.value,
         }
-        
+
         # Add location if specified
         if self.location:
-            params.update({
-                "CENTER": f"coord@{Planet.EARTH.value}",
-                "SITE_COORD": self.location.to_horizons_format(),
-                "COORD_TYPE": "GEODETIC",
-            })
-        
+            params.update(
+                {
+                    "CENTER": f"coord@{Planet.EARTH.value}",
+                    "SITE_COORD": self.location.to_horizons_format(),
+                    "COORD_TYPE": "GEODETIC",
+                }
+            )
+
         # Add quantities if specified
         if self.quantities:
             qs = set(self.quantities)
@@ -77,7 +80,7 @@ class HorizonsRequest:
             ints = sorted(set(rq.value for rq in rqs if rq is not None))
             if ints:
                 params["QUANTITIES"] = ",".join(map(str, ints))
-        
+
         return params
 
     def _get_time_params(self) -> dict:
@@ -89,14 +92,14 @@ class HorizonsRequest:
     def _make_request(self) -> str:
         """Make the request to the Horizons API."""
         get_url = self.get_url()
-        
+
         if len(get_url) > self.max_url_length or (
-            self.time_spec and 
-            self.time_spec.type == TimeSpecType.DATES and 
-            len(self.time_spec.dates) > self.max_tlist_length
+            self.time_spec
+            and self.time_spec.type == TimeSpecType.DATES
+            and len(self.time_spec.dates) > self.max_tlist_length
         ):
             return self._make_post_request()
-        
+
         print(f"Requesting GET {get_url}")
         response = requests.get(get_url)
         response.raise_for_status()
@@ -130,10 +133,10 @@ class HorizonsRequest:
         """Make a POST request when the GET URL would be too long."""
         print(f"Requesting POST {self.post_url}")
         post_data = self._format_post_data()
-        
-        data = {'format': 'text'}
-        files = {'input': ('input.txt', post_data)}
-        
+
+        data = {"format": "text"}
+        files = {"input": ("input.txt", post_data)}
+
         try:
             response = requests.post(self.post_url, data=data, files=files)
             response.raise_for_status()
@@ -145,36 +148,37 @@ class HorizonsRequest:
     def _format_post_data(self) -> str:
         """Format the data for a POST request."""
         lines = ["!$$SOF"]
-        
+
         # Add all parameters
         params = {**self._get_base_params(), **self._get_time_params()}
         for key, value in params.items():
-            if key != 'format':  # Exclude 'format' from the input file
+            if key != "format":  # Exclude 'format' from the input file
                 lines.append(f"{key}='{value}'")
-        
+
         # Handle TLIST separately if using dates
         if self.time_spec and self.time_spec.type == TimeSpecType.DATES:
             for d in self.time_spec.dates:
                 jd = julian.julian_from_datetime(d)
                 lines.append(f"TLIST='{jd}'")
-        
+
         lines.append("\n")
         return "\n".join(lines)
 
     def get_url(self) -> str:
         """Get the URL for a GET request."""
         params = {**self._get_base_params(), **self._get_time_params()}
-        
+
         # Quote values that contain commas or spaces
         for key, value in params.items():
             if isinstance(value, str):
-                if ',' in value or ' ' in value:
+                if "," in value or " " in value:
                     if not (value.startswith("'") and value.endswith("'")):
                         params[key] = f"'{value}'"
-        
+
         # URL encode the parameters
         query_string = urlencode(params, quote_via=quote_plus)
         return f"{self.base_url}?{query_string}"
+
 
 class HorizonsSolarRequest(HorizonsRequest):
     def __init__(self, latitude: float, longitude: float, elevation: float = 0):
@@ -192,5 +196,5 @@ class HorizonsSolarRequest(HorizonsRequest):
         req.params["QUANTITIES"] = "4,7,34,42"
         req.params["APPARENT"] = "REFRACTED"
 
-        #req.params["OBJ_DATA"] = "YES"
+        # req.params["OBJ_DATA"] = "YES"
         req.params["SUPPRESS_RANGE_RATE"] = "NO"
