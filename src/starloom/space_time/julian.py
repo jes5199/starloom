@@ -1,12 +1,9 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Tuple, List
 
 from .pythonic_datetimes import ensure_utc
 from .rounding import create_and_round_to_millisecond
-from .julian_calc import (
-    datetime_to_julian,
-    julian_to_datetime as _julian_to_datetime
-)
+from .julian_calc import datetime_to_julian, julian_to_datetime as _julian_to_datetime
 
 JD_PRECISION = 9
 
@@ -14,7 +11,7 @@ JD_PRECISION = 9
 def julian_from_datetime(dt: datetime) -> float:
     """Convert datetime to Julian date.
 
-    Args: 
+    Args:
         dt: Datetime to convert
 
     Returns:
@@ -48,8 +45,7 @@ def julian_to_datetime(jd: float) -> datetime:
     """
     dt = _julian_to_datetime(jd)
     return create_and_round_to_millisecond(
-        dt.microsecond, dt.second, dt.minute, dt.hour,
-        dt.day, dt.month, dt.year
+        dt.microsecond, dt.second, dt.minute, dt.hour, dt.day, dt.month, dt.year
     )
 
 
@@ -101,5 +97,4 @@ def datetime_from_julian(jd: float) -> datetime:
     Returns:
         datetime: Datetime
     """
-    year, month, day, hour, minute, second = juliandate.to_gregorian(jd)
-    return datetime(year, month, day, hour, minute, int(second), tzinfo=timezone.utc)
+    return _julian_to_datetime(jd)
