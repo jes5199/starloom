@@ -19,11 +19,5 @@ class Location:
             raise ValueError("Elevation cannot be less than -500 meters")
 
     def to_horizons_format(self) -> str:
-        """Convert to Horizons API format: 'longitude,latitude,elevation'
-        
-        Returns:
-            String in the format "longitude,latitude,elevation" with consistent decimal places:
-            - longitude and latitude to 4 decimal places
-            - elevation to 1 decimal place
-        """
-        return f"{self.longitude:.4f},{self.latitude:.4f},{self.elevation:.1f}" 
+        """Format location for Horizons API."""
+        return f"{self.longitude:.6f},{self.latitude:.6f},{self.elevation:.6f}" 

@@ -5,23 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "starloom"
 version = "0.1.0"
-description = "Tool for working with Horizons and Weft ephhemeris data"
-readme = "README.rst"
-authors = [
-  {name = "Jes Wolfe", email = "jes5199@gmail.com"}
-]
-maintainers = [
-  {name = "Jes Wolfe", email = "jes5199@gmail.com"}
-]
-classifiers = [
-
-]
-license = {text = "Not open source"}
+description = "A Python library for astronomical calculations and ephemeris data"
+requires-python = ">=3.8"
 dependencies = [
-  "typer",
-  "pytz",
-  "juliandate"
+    "requests>=2.25.0",
+    "click>=8.0.0",
 ]
+
+[project.scripts]
+starloom = "starloom.cli:cli"
 
 [project.optional-dependencies]
 dev = [
@@ -32,7 +24,6 @@ dev = [
 ]
 
 [project.urls]
-
 bugs = "https://github.com/jes5199/starloom_2025/issues"
 changelog = "https://github.com/jes5199/starloom_2025/blob/master/changelog.md"
 homepage = "https://github.com/jes5199/starloom_2025"
