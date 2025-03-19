@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict
 from enum import Enum
 
-from ..space_time import julian
+from starloom.space_time.julian import julian_from_datetime
 
 
 class TimeSpecType(Enum):
@@ -13,56 +13,69 @@ class TimeSpecType(Enum):
 
 @dataclass
 class TimeSpec:
-    """A unified way to specify time parameters for Horizons requests."""
+    """Specification for time parameters in a Horizons request."""
 
-    type: TimeSpecType
+    dates: Optional[List[datetime]] = None
     start_time: Optional[datetime] = None
     stop_time: Optional[datetime] = None
     step_size: Optional[str] = None
-    dates: Optional[List[datetime]] = None
 
-    def __post_init__(self):
-        """Validate the time specification."""
-        if self.type == TimeSpecType.RANGE:
-            if not all([self.start_time, self.stop_time, self.step_size]):
-                raise ValueError(
-                    "Range time spec requires start_time, stop_time, and step_size"
+    def __post_init__(self) -> None:
+        """Validate time parameters after initialization."""
+        if self.dates is not None and len(self.dates) > 100:
+            raise ValueError("Maximum of 100 dates allowed")
+        if self.start_time is not None and self.stop_time is not None:
+            if self.start_time > self.stop_time:
+                raise ValueError("Start time must be before stop time")
+
+    def to_params(self) -> Dict[str, str]:
+        """Convert time specification to Horizons API parameters.
+
+        Returns:
+            Dict[str, str]: Dictionary of parameter names and values
+        """
+        params: Dict[str, str] = {}
+
+        if self.dates is not None:
+            # Convert dates to Julian dates
+            julian_dates = [julian_from_datetime(dt) for dt in self.dates]
+            params["TLIST"] = ",".join(f"'{jd}'" for jd in julian_dates)
+        else:
+            if self.start_time is not None:
+                params["START_TIME"] = (
+                    f"'{self.start_time.strftime('%Y-%m-%d %H:%M:%S')}'"
                 )
-        elif self.type == TimeSpecType.DATES:
-            if not self.dates:
-                raise ValueError("Dates time spec requires at least one date")
+            if self.stop_time is not None:
+                params["STOP_TIME"] = (
+                    f"'{self.stop_time.strftime('%Y-%m-%d %H:%M:%S')}'"
+                )
+            if self.step_size is not None:
+                params["STEP_SIZE"] = f"'{self.step_size}'"
 
-    @classmethod
-    def from_range(
-        cls, start_time: datetime, stop_time: datetime, step_size: str
-    ) -> "TimeSpec":
-        """Create a time spec from a range."""
-        return cls(
-            type=TimeSpecType.RANGE,
-            start_time=start_time,
-            stop_time=stop_time,
-            step_size=step_size,
-        )
+        return params
 
     @classmethod
     def from_dates(cls, dates: List[datetime]) -> "TimeSpec":
-        """Create a time spec from a list of dates."""
-        return cls(type=TimeSpecType.DATES, dates=dates)
+        """Create TimeSpec from a list of dates.
 
-    def to_params(self) -> dict:
-        """Convert to Horizons API parameters."""
-        params = {}
+        Args:
+            dates: List of datetime objects
 
-        if self.type == TimeSpecType.RANGE:
-            params.update(
-                {
-                    "START_TIME": f"JD{julian.julian_from_datetime(self.start_time)}",
-                    "STOP_TIME": f"JD{julian.julian_from_datetime(self.stop_time)}",
-                    "STEP_SIZE": self.step_size,
-                }
-            )
-        else:  # DATES
-            tlist = sorted(set(julian.julian_from_datetime(d) for d in self.dates))
-            params["TLIST"] = ",".join(f"'{item}'" for item in tlist)
+        Returns:
+            TimeSpec: New TimeSpec instance
+        """
+        return cls(dates=dates)
 
-        return params
+    @classmethod
+    def from_range(cls, start: datetime, stop: datetime, step: str) -> "TimeSpec":
+        """Create TimeSpec from a time range.
+
+        Args:
+            start: Start datetime
+            stop: Stop datetime
+            step: Step size string (e.g. "1d", "1h", "30m")
+
+        Returns:
+            TimeSpec: New TimeSpec instance
+        """
+        return cls(start_time=start, stop_time=stop, step_size=step)

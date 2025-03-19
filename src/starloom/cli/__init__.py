@@ -6,9 +6,9 @@ from .horizons import horizons
 
 
 @click.group()
-def cli():
+def main() -> None:
     """Starloom CLI."""
     pass
 
 
-cli.add_command(horizons)
+main.add_command(horizons)

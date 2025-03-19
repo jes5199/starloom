@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
+from dataclasses import dataclass
 
 from ..ephemeris import Quantity
 
@@ -141,3 +142,26 @@ RequestQuantityForQuantity: dict[
     Quantity.PHASE_ANGLE_BISECTOR_LON: HorizonsRequestObserverQuantities.PHASE_ANGLE_BISECTOR,
     Quantity.PHASE_ANGLE_BISECTOR_LAT: HorizonsRequestObserverQuantities.PHASE_ANGLE_BISECTOR,
 }
+
+
+@dataclass
+class Quantities:
+    """A collection of quantities to request from Horizons."""
+
+    values: List[int]
+
+    def __init__(self, values: Optional[List[int]] = None) -> None:
+        """Initialize quantities.
+
+        Args:
+            values: List of quantity codes to request
+        """
+        self.values = values or []
+
+    def to_string(self) -> str:
+        """Convert quantities to string format for Horizons API.
+
+        Returns:
+            str: Comma-separated list of quantity codes
+        """
+        return ",".join(str(v) for v in sorted(set(self.values)))
