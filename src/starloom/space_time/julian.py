@@ -1,56 +1,57 @@
-from datetime import datetime
-from typing import cast, Tuple, List
+from datetime import datetime, timezone
+from typing import Tuple, List
+import juliandate
 
-from juliandate import from_gregorian, to_gregorian
 from .pythonic_datetimes import ensure_utc
 from .rounding import create_and_round_to_millisecond
 
 
-JD_PRECISION = 6
+JD_PRECISION = 9
 
 
 def julian_from_datetime(dt: datetime) -> float:
-    """Convert a datetime object to Julian date.
+    """Convert datetime to Julian date.
 
     Args:
-        dt: Datetime object to convert
+        dt: Datetime to convert
 
     Returns:
         float: Julian date
     """
     dt = ensure_utc(dt)
-    jd = cast(
-        float, from_gregorian(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+    return round(
+        juliandate.from_gregorian(
+            dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
+        ),
+        JD_PRECISION,
     )
-    return round(jd, JD_PRECISION)
 
 
-def julian_from_datetime_with_microseconds(date: datetime) -> float:
-    """Convert a datetime object to Julian date with microsecond precision.
+def julian_from_datetime_with_microseconds(dt: datetime) -> float:
+    """Convert datetime to Julian date with microsecond precision.
 
     Args:
-        date: Datetime object to convert
+        dt: Datetime to convert
 
     Returns:
         float: Julian date with microsecond precision
     """
-    date = ensure_utc(date)
-    jd = cast(
-        float,
-        from_gregorian(
-            date.year,
-            date.month,
-            date.day,
-            date.hour,
-            date.minute,
-            date.second + date.microsecond / 1_000_000,
+    dt = ensure_utc(dt)
+    return round(
+        juliandate.from_gregorian(
+            dt.year,
+            dt.month,
+            dt.day,
+            dt.hour,
+            dt.minute,
+            dt.second + dt.microsecond / 1_000_000,
         ),
+        JD_PRECISION,
     )
-    return round(jd, JD_PRECISION)
 
 
 def julian_to_datetime(jd: float) -> datetime:
-    (year, month, day, hour, minute, second, microseconds) = to_gregorian(jd)
+    (year, month, day, hour, minute, second, microseconds) = juliandate.to_gregorian(jd)
     return create_and_round_to_millisecond(
         microseconds, second, minute, hour, day, month, year
     )
@@ -63,44 +64,40 @@ def julian_to_int_frac(jd: float) -> Tuple[int, float]:
 
 
 def julian_parts_from_datetime(dt: datetime) -> Tuple[int, float]:
-    """Convert a datetime object to Julian date parts.
+    """Get integer and fractional parts of Julian date.
 
     Args:
-        dt: Datetime object to convert
+        dt: Datetime to convert
 
     Returns:
-        Tuple[int, float]: Integer and fractional parts of Julian date
+        Tuple[int, float]: Integer and fractional parts
     """
     jd = julian_from_datetime(dt)
-    int_part = int(jd)
-    frac_part = jd - int_part
-    return int_part, frac_part
+    jd_int = int(jd)
+    jd_frac = round(jd - jd_int, JD_PRECISION)
+    return jd_int, jd_frac
 
 
 def julian_parts_from_datetimes(dates: List[datetime]) -> List[Tuple[int, float]]:
-    """Convert a list of datetime objects to Julian date parts.
+    """Get integer and fractional parts of Julian dates.
 
     Args:
-        dates: List of datetime objects to convert
+        dates: List of datetimes to convert
 
     Returns:
-        List[Tuple[int, float]]: List of integer and fractional parts of Julian dates
+        List[Tuple[int, float]]: List of integer and fractional parts
     """
     return [julian_parts_from_datetime(date) for date in dates]
 
 
 def datetime_from_julian(jd: float) -> datetime:
-    """Convert a Julian date to a datetime object.
+    """Convert Julian date to datetime.
 
     Args:
         jd: Julian date to convert
 
     Returns:
-        datetime: Datetime object
+        datetime: Datetime
     """
-    year, month, day, hour, minute, second = cast(
-        Tuple[int, int, int, int, int, float], to_gregorian(jd)
-    )
-    return create_and_round_to_millisecond(
-        0, int(second), minute, hour, day, month, year
-    )
+    year, month, day, hour, minute, second = juliandate.to_gregorian(jd)
+    return datetime(year, month, day, hour, minute, int(second), tzinfo=timezone.utc)

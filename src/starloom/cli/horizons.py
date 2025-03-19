@@ -6,7 +6,7 @@ import pytz
 from typing import Optional, List, cast
 
 from ..horizons.planet import Planet
-from ..horizons.quantities import Quantities
+from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
 from ..horizons.request import HorizonsRequest
 from ..horizons.time_spec import TimeSpec
 
@@ -18,11 +18,21 @@ def parse_date_input(date_str: str) -> datetime:
         date_str: Date string to parse
 
     Returns:
-        datetime: Parsed datetime object
+        datetime: Parsed datetime object with UTC timezone
     """
     if date_str.lower() == "now":
         return datetime.now(pytz.UTC)
-    return datetime.fromisoformat(date_str)
+    try:
+        # Try parsing with timezone info
+        dt = datetime.fromisoformat(date_str)
+        if dt.tzinfo is None:
+            # If no timezone info, assume UTC
+            dt = dt.replace(tzinfo=pytz.UTC)
+        return dt
+    except ValueError:
+        raise click.BadParameter(
+            f"Invalid date format: {date_str}. Use ISO format (YYYY-MM-DDTHH:MM:SS)"
+        )
 
 
 @click.group()
@@ -86,7 +96,12 @@ def ecliptic(
         )
 
     # Create and make request
-    quantities = Quantities([20, 31])  # Ecliptic lon/lat and distance
+    quantities = Quantities(
+        [
+            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,  # 20
+            HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,  # 31
+        ]
+    )
     request = HorizonsRequest(
         planet=planet_enum.value,
         quantities=quantities,

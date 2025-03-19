@@ -1,31 +1,46 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 import pytz
 
 from starloom.constants import SECONDS_PER_LONGITUDE_DEGREE
 
 
 class NaiveDateTimeError(Exception):
-    """Exception raised when a naive datetime is provided."""
+    """Raised when a datetime object has no timezone info."""
 
     pass
 
 
 def ensure_utc(dt: datetime) -> datetime:
-    """Ensure a datetime is in UTC.
+    """Convert datetime to UTC if it has a timezone.
 
     Args:
         dt: Datetime to convert
 
     Returns:
         datetime: UTC datetime
+
+    Raises:
+        NaiveDateTimeError: If datetime is naive
     """
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=pytz.UTC)
-    return dt.astimezone(pytz.UTC)
+        raise NaiveDateTimeError("Datetime must have timezone info")
+    return dt.astimezone(timezone.utc)
+
+
+def _get_longitude_offset(longitude: float) -> timedelta:
+    """Convert longitude to timezone offset.
+
+    Args:
+        longitude: Longitude in degrees
+
+    Returns:
+        timedelta: Timezone offset
+    """
+    return timedelta(seconds=longitude * SECONDS_PER_LONGITUDE_DEGREE)
 
 
 def get_local_datetime(dt: datetime, longitude: float) -> datetime:
-    """Get local datetime for a given longitude.
+    """Convert UTC datetime to local datetime based on longitude.
 
     Args:
         dt: UTC datetime
@@ -35,66 +50,55 @@ def get_local_datetime(dt: datetime, longitude: float) -> datetime:
         datetime: Local datetime
     """
     dt = ensure_utc(dt)
-    offset = timedelta(seconds=longitude * SECONDS_PER_LONGITUDE_DEGREE)
-    return dt + offset
+    return dt + _get_longitude_offset(longitude)
 
 
 def get_local_date(dt: datetime, longitude: float) -> date:
-    """Get local date for a given longitude.
+    """Convert UTC datetime to local date based on longitude.
+
+    Args:
+        dt: UTC datetime
+        longitude: Longitude in degrees (positive east)
+
+    Returns:
+        Local date
+    """
+    # For dates, we want to use the date at the given longitude
+    # This means we need to adjust the datetime to be at local midnight
+    local_dt = get_local_datetime(dt, longitude)
+    # If the local time is before noon, use the previous day's date
+    if local_dt.hour < 12:
+        local_dt = local_dt - timedelta(days=1)
+    return local_dt.date()
+
+
+def get_closest_local_midnight_before(dt: datetime, longitude: float) -> datetime:
+    """Find closest local midnight before given datetime.
 
     Args:
         dt: UTC datetime
         longitude: Longitude in degrees
 
     Returns:
-        date: Local date
+        datetime: Closest local midnight before given datetime
     """
-    return get_local_datetime(dt, longitude).date()
+    local_dt = get_local_datetime(dt, longitude)
+    local_midnight = local_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    if local_midnight > local_dt:
+        local_midnight -= timedelta(days=1)
+    return local_midnight - _get_longitude_offset(longitude)
 
 
-def _get_longitude_offset(longitude: float) -> timedelta:
-    """Calculate time offset for a given longitude.
+def normalize_longitude(lon: float) -> float:
+    """Normalize longitude to range [-180, 180].
 
     Args:
-        longitude: Longitude in degrees
-
-    Returns:
-        timedelta: Time offset
-    """
-    return timedelta(seconds=longitude * SECONDS_PER_LONGITUDE_DEGREE)
-
-
-def _normalize_longitude(longitude: float) -> float:
-    """Normalize longitude to -180 to 180 range.
-
-    Args:
-        longitude: Longitude in degrees
+        lon: Longitude to normalize
 
     Returns:
         float: Normalized longitude
     """
-    while longitude > 180:
-        longitude -= 360
-    while longitude < -180:
-        longitude += 360
-    return longitude
-
-
-def get_closest_local_midnight_before(dt: datetime, longitude: float) -> datetime:
-    """Calculate the closest local midnight before the given datetime.
-
-    Args:
-        dt: UTC datetime
-        longitude: Longitude in degrees
-
-    Returns:
-        datetime: UTC datetime of closest local midnight before dt
-    """
-    local_dt = get_local_datetime(dt, longitude)
-    local_midnight = local_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    # Convert local midnight back to UTC
-    return (local_midnight - _get_longitude_offset(longitude)).replace(microsecond=0)
+    return ((lon + 180) % 360) - 180
 
 
 def get_utc_datetime(

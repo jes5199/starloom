@@ -6,7 +6,7 @@ from starloom.horizons.request import HorizonsRequest
 from starloom.horizons.location import Location
 from starloom.horizons.planet import Planet
 from starloom.horizons.time_spec import TimeSpec
-from starloom.ephemeris.quantities import Quantity
+from starloom.horizons.quantities import HorizonsRequestObserverQuantities, Quantities
 
 
 def test_location_validation():
@@ -51,7 +51,12 @@ def test_request_initialization():
     assert req.location == loc
 
     # Request with quantities
-    quantities = [Quantity.ECLIPTIC_LATITUDE, Quantity.ECLIPTIC_LONGITUDE]
+    quantities = Quantities(
+        [
+            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,
+            HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,
+        ]
+    )
     req = HorizonsRequest(Planet.SUN, quantities=quantities)
     assert req.quantities == quantities
 
@@ -73,11 +78,12 @@ def test_request_url_generation():
     )  # URL-encoded quoted value
 
     # Request with multiple quantities
-    quantities = [
-        Quantity.ECLIPTIC_LATITUDE,
-        Quantity.ECLIPTIC_LONGITUDE,
-        Quantity.DELTA,
-    ]
+    quantities = Quantities(
+        [
+            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,
+            HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,
+        ]
+    )
     req = HorizonsRequest(Planet.SUN, quantities=quantities)
     url = req.get_url()
     assert (

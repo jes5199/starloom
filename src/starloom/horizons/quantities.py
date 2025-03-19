@@ -165,3 +165,18 @@ class Quantities:
             str: Comma-separated list of quantity codes
         """
         return ",".join(str(v) for v in sorted(set(self.values)))
+
+    def __eq__(self, other: object) -> bool:
+        """Compare quantities with another object.
+
+        Args:
+            other: Object to compare with
+
+        Returns:
+            bool: True if equal, False otherwise
+        """
+        if isinstance(other, list):
+            return list(self.values) == other
+        if isinstance(other, Quantities):
+            return self.values == other.values
+        return NotImplemented

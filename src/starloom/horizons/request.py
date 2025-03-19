@@ -1,10 +1,12 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 import requests
 from enum import Enum
+from urllib.parse import urlencode
 
 from .quantities import Quantities
 from .location import Location
 from .time_spec import TimeSpec
+from .planet import Planet
 
 
 class EphemType(Enum):
@@ -20,7 +22,7 @@ class HorizonsRequest:
 
     def __init__(
         self,
-        planet: str,
+        planet: Union[str, Planet],
         location: Optional[Location] = None,
         quantities: Optional[Quantities] = None,
         time_spec: Optional[TimeSpec] = None,
@@ -44,31 +46,31 @@ class HorizonsRequest:
         self.max_tlist_length = 70
 
     def get_url(self) -> str:
-        """Generate the URL for this request.
+        """Get URL for request.
 
         Returns:
-            str: The complete URL with all parameters
+            str: URL for request
         """
-        self.params = self._get_base_params()
-
+        params = self._get_base_params()
+        # Convert quantities to string format expected by Horizons
+        if isinstance(self.quantities, list):
+            params["QUANTITIES"] = (
+                f"'{','.join(str(q.value) for q in self.quantities)}'"
+            )
+        else:
+            params["QUANTITIES"] = f"'{self.quantities.to_string()}'"
+        # Add time parameters
         if self.time_spec:
-            self.params.update(self.time_spec.to_params())
-
-        # Quote parameter values containing commas or spaces
-        quoted_params = {
-            k: f"'{v}'" if "," in v or " " in v else v for k, v in self.params.items()
-        }
-
-        query = "&".join(f"{k}={v}" for k, v in quoted_params.items())
-        return f"{self.base_url}?{query}"
+            params.update(self.time_spec.to_params())
+        return f"{self.base_url}?{urlencode(params)}"
 
     def _get_base_params(self) -> Dict[str, str]:
-        """Get base parameters for the request.
+        """Get base parameters for request.
 
         Returns:
-            Dict[str, str]: Dictionary of base parameter names and values
+            Dict[str, str]: Base parameters
         """
-        params: Dict[str, str] = {
+        params = {
             "format": "text",
             "MAKE_EPHEM": "YES",
             "OBJ_DATA": "NO",
@@ -77,41 +79,26 @@ class HorizonsRequest:
             "TIME_DIGITS": "FRACSEC",
             "EXTRA_PREC": "YES",
             "CSV_FORMAT": "YES",
-            "COMMAND": self.planet,
+            "COMMAND": str(
+                self.planet.value if isinstance(self.planet, Planet) else self.planet
+            ),
         }
-
-        if self.quantities:
-            params["QUANTITIES"] = f"'{self.quantities.to_string()}'"
-
         if self.location:
-            params["CENTER"] = f"'{self.location.to_horizons_format()}'"
-
+            params["SITE_COORD"] = f"'{self.location.to_horizons_format()}'"
         return params
 
     def make_request(self) -> str:
-        """Make the request to the Horizons API.
+        """Make request to Horizons API.
 
         Returns:
-            str: The response from the API
-
-        Raises:
-            requests.RequestException: If the request fails
+            str: Response text
         """
         url = self.get_url()
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            return response.text
-        except requests.RequestException as e:
-            # Try POST as fallback
-            try:
-                response = requests.post(url)
-                response.raise_for_status()
-                return response.text
-            except requests.RequestException as e2:
-                raise requests.RequestException(
-                    f"Both GET and POST requests failed: {str(e)}, {str(e2)}"
-                ) from e2
+        if len(url) > self.max_url_length:
+            return self._make_post_request()
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.text
 
     def _get_time_params(self) -> Dict[str, str]:
         """Get time-related parameters for the request.
@@ -124,27 +111,16 @@ class HorizonsRequest:
         return self.time_spec.to_params()
 
     def _make_post_request(self) -> str:
-        """Make a POST request when the GET URL would be too long.
+        """Make POST request to Horizons API.
 
         Returns:
-            str: The response from the API
-
-        Raises:
-            requests.RequestException: If the request fails
+            str: Response text
         """
-        print(f"Requesting POST {self.post_url}")
-        post_data = self._format_post_data()
-
         data = {"format": "text"}
-        files = {"input": ("input.txt", post_data)}
-
-        try:
-            response = requests.post(self.post_url, data=data, files=files)
-            response.raise_for_status()
-            return response.text
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP Error {e.response.status_code}: {e}")
-            raise
+        files = {"input": ("input.txt", self._format_post_data())}
+        response = requests.post(self.post_url, data=data, files=files)
+        response.raise_for_status()
+        return response.text
 
     def _format_post_data(self) -> str:
         """Format data for POST request.
@@ -162,3 +138,16 @@ class HorizonsRequest:
 
         lines.append("\n")
         return "\n".join(lines)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare request with another object.
+
+        Args:
+            other: Object to compare with
+
+        Returns:
+            bool: True if equal, False otherwise
+        """
+        if not isinstance(other, list):
+            return NotImplemented
+        return list(self.quantities.values) == other

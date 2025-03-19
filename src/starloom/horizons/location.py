@@ -26,11 +26,9 @@ class Location:
         """Convert location to Horizons API format.
 
         Returns:
-            str: Location in format "lat,lon,elev" with elevation optional
+            str: Location in format "longitude,latitude,elevation"
         """
-        if self.elevation is not None:
-            return f"{self.latitude:.8f},{self.longitude:.8f},{self.elevation:.3f}"
-        return f"{self.latitude:.8f},{self.longitude:.8f}"
+        return f"{self.longitude:.6f},{self.latitude:.6f},{self.elevation:.6f}"
 
     def __str__(self) -> str:
         """Return string representation of location.

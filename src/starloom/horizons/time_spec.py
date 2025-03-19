@@ -39,18 +39,14 @@ class TimeSpec:
         if self.dates is not None:
             # Convert dates to Julian dates
             julian_dates = [julian_from_datetime(dt) for dt in self.dates]
-            params["TLIST"] = ",".join(f"'{jd}'" for jd in julian_dates)
+            params["TLIST"] = ",".join(str(jd) for jd in julian_dates)
         else:
             if self.start_time is not None:
-                params["START_TIME"] = (
-                    f"'{self.start_time.strftime('%Y-%m-%d %H:%M:%S')}'"
-                )
+                params["START_TIME"] = self.start_time.strftime("%Y-%m-%dT%H:%M:%S")
             if self.stop_time is not None:
-                params["STOP_TIME"] = (
-                    f"'{self.stop_time.strftime('%Y-%m-%d %H:%M:%S')}'"
-                )
+                params["STOP_TIME"] = self.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
             if self.step_size is not None:
-                params["STEP_SIZE"] = f"'{self.step_size}'"
+                params["STEP_SIZE"] = self.step_size
 
         return params
 
