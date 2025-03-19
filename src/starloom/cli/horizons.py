@@ -10,6 +10,13 @@ from ..horizons.time_spec import TimeSpec
 from ..ephemeris.quantities import Quantity
 
 
+def parse_date_input(date_str: str) -> datetime:
+    """Parse date input, handling special cases like 'now'."""
+    if date_str.lower() == "now":
+        return datetime.now(timezone.utc)
+    return click.DateTime().convert(date_str, None, None)
+
+
 @click.group()
 def horizons():
     """Commands for interacting with the JPL Horizons API."""
@@ -22,21 +29,21 @@ def horizons():
     "--date",
     "-d",
     multiple=True,
-    type=click.DateTime(),
-    help="Specific date(s) to request data for (UTC). Can be specified multiple times.",
+    type=str,
+    help="Specific date(s) to request data for (UTC). Can be specified multiple times. Use 'now' for current time.",
 )
 @click.option(
-    "--start", "-s", type=click.DateTime(), help="Start date for date range (UTC)."
+    "--start", "-s", type=str, help="Start date for date range (UTC). Use 'now' for current time."
 )
 @click.option(
-    "--end", "-e", type=click.DateTime(), help="End date for date range (UTC)."
+    "--end", "-e", type=str, help="End date for date range (UTC). Use 'now' for current time."
 )
 @click.option("--step", type=str, help='Step size for date range (e.g., "1h", "1d").')
 def ecliptic(
     planet: str,
-    date: List[datetime],
-    start: Optional[datetime],
-    end: Optional[datetime],
+    date: List[str],
+    start: Optional[str],
+    end: Optional[str],
     step: Optional[str],
 ):
     """Get ecliptic coordinates and distance for a planet."""
@@ -48,17 +55,13 @@ def ecliptic(
 
     # Create time specification
     if date:
-        # Convert to UTC if not already
-        dates = [
-            d.replace(tzinfo=timezone.utc) if d.tzinfo is None else d for d in date
-        ]
+        # Parse dates, handling 'now' special case
+        dates = [parse_date_input(d) for d in date]
         time_spec = TimeSpec.from_dates(dates)
     elif all([start, end, step]):
-        # Convert to UTC if not already
-        start_utc = (
-            start.replace(tzinfo=timezone.utc) if start.tzinfo is None else start
-        )
-        end_utc = end.replace(tzinfo=timezone.utc) if end.tzinfo is None else end
+        # Parse dates, handling 'now' special case
+        start_utc = parse_date_input(start)
+        end_utc = parse_date_input(end)
         time_spec = TimeSpec.from_range(start_utc, end_utc, step)
     else:
         raise click.UsageError(
@@ -67,20 +70,14 @@ def ecliptic(
 
     # Create request with ecliptic coordinates and distance
     quantities = [
-        Quantity.ECLIPTIC_LONGITUDE,
-        Quantity.ECLIPTIC_LATITUDE,
-        Quantity.DELTA,
+        Quantity.DELTA,  # Distance
+        Quantity.DELTA_DOT,  # Range rate
+        Quantity.OBS_ECL_LON,  # Observer-centered ecliptic longitude
+        Quantity.OBS_ECL_LAT,  # Observer-centered ecliptic latitude
     ]
-
-    req = HorizonsRequest(
-        planet=planet_enum,
-        quantities=quantities,
-        time_spec=time_spec,
-    )
+    request = HorizonsRequest(planet_enum, quantities=quantities)
+    request.set_time_spec(time_spec)
 
     # Make request and print response
-    try:
-        response = req.make_request()
-        click.echo(response)
-    except Exception as e:
-        raise click.ClickException(str(e))
+    response = request.make_request()
+    print(response)
