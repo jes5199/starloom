@@ -1,14 +1,15 @@
 from datetime import datetime
+from typing import List, Optional
 import requests
 from urllib.parse import urlencode, quote_plus
-from typing import List
 import time
 from enum import Enum
 
-from lib.time import julian
-from lib.horizons.quantities import EphemerisQuantity, RequestQuantityForQuantity
-
+from ..space_time import julian
+from ..ephemeris.quantities import Quantity
+from .quantities import RequestQuantityForQuantity
 from .planet import Planet
+from .location import Location
 
 class EphemType(Enum):
     OBSERVER = "OBSERVER"
@@ -17,11 +18,54 @@ class EphemType(Enum):
     SPK = "SPK"
     APPROACH = "APPROACH"
 
-class HorizonsBasicRequest:
-    def __init__(self):
+class HorizonsRequest:
+    """A class to make requests to the JPL Horizons API."""
+    
+    def __init__(
+        self,
+        planet: Planet,
+        location: Optional[Location] = None,
+        quantities: Optional[List[Quantity]] = None,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        step_size: Optional[str] = None,
+        dates: Optional[List[datetime]] = None,
+    ):
+        """Initialize a Horizons request.
+        
+        Args:
+            planet: The celestial body to get ephemeris data for
+            location: Optional observer location on Earth
+            quantities: List of quantities to request
+            start_time: Start time for time range requests
+            stop_time: Stop time for time range requests
+            step_size: Step size for time range requests (e.g., '1d', '1h', '10m')
+            dates: List of specific dates to request
+            
+        Raises:
+            ValueError: If too many dates are provided (more than max_tlist_length)
+        """
+        self.planet = planet
+        self.location = location
+        self.quantities = quantities or []
+        self.start_time = start_time
+        self.stop_time = stop_time
+        self.step_size = step_size
+        self.dates = dates or []
+        
+        # Base URL and parameters
         self.base_url = "https://ssd.jpl.nasa.gov/api/horizons.api"
         self.post_url = "https://ssd.jpl.nasa.gov/api/horizons_file.api"
-        self.params = {
+        self.max_url_length = 1843  # Determined by find_max_url_length.py
+        self.max_tlist_length = 70
+        
+        # Validate dates
+        if self.dates and len(self.dates) > self.max_tlist_length:
+            raise ValueError(f"Too many dates: {len(self.dates)} > {self.max_tlist_length}")
+
+    def _get_base_params(self) -> dict:
+        """Get the base parameters for the request."""
+        params = {
             "format": "text",
             "MAKE_EPHEM": "YES",
             "OBJ_DATA": "NO",
@@ -30,26 +74,60 @@ class HorizonsBasicRequest:
             "TIME_DIGITS": "FRACSEC",
             "EXTRA_PREC": "YES",
             "CSV_FORMAT": "YES",
-            "CAL_FORMAT": "BOTH",
-            #"QUANTITIES": "\"1,31,9,10,14,15,16,17,20,43\"",
+            "COMMAND": self.planet.value,
         }
-        self.max_url_length = 1843  # Determined by find_max_url_length.py
-        self.max_tlist_length = 70
-        self.tlist = []  # New attribute to store TLIST as an array
+        
+        # Add location if specified
+        if self.location:
+            params.update({
+                "CENTER": f"coord@{Planet.EARTH.value}",
+                "SITE_COORD": self.location.to_horizons_format(),
+                "COORD_TYPE": "GEODETIC",
+            })
+        
+        # Add quantities if specified
+        if self.quantities:
+            qs = set(self.quantities)
+            rqs = [RequestQuantityForQuantity[q] for q in qs]
+            ints = set(rq.value for rq in rqs if rq is not None)
+            if ints:
+                params["QUANTITIES"] = ",".join(map(str, ints))
+        
+        return params
+
+    def _get_time_params(self) -> dict:
+        """Get the time-related parameters for the request."""
+        params = {}
+        
+        if self.start_time and self.stop_time and self.step_size:
+            params.update({
+                "START_TIME": f"JD{julian.julian_from_datetime(self.start_time)}",
+                "STOP_TIME": f"JD{julian.julian_from_datetime(self.stop_time)}",
+                "STEP_SIZE": self.step_size,
+            })
+        elif self.dates:
+            tlist = sorted(set(julian.julian_from_datetime(d) for d in self.dates))
+            if len(tlist) > self.max_tlist_length:
+                raise ValueError(f"Too many dates: {len(tlist)} > {self.max_tlist_length}")
+            params["TLIST"] = ",".join(f"'{item}'" for item in tlist)
+        
+        return params
 
     def _make_request(self) -> str:
+        """Make the request to the Horizons API."""
+        params = {**self._get_base_params(), **self._get_time_params()}
         get_url = self.get_url()
-        if len(get_url) > self.max_url_length or len(self.tlist) > self.max_tlist_length:
-            # URL too long ({len(get_url)} characters). Using POST request.
-            return self._make_post_request()
-        else:
-            print(f"Requesting GET {get_url}")
-            response = requests.get(get_url)
-            response.raise_for_status()
-            #print(f"GET response: {response.text}")
-            return response.text
         
+        if len(get_url) > self.max_url_length or (self.dates and len(self.dates) > self.max_tlist_length):
+            return self._make_post_request()
+        
+        print(f"Requesting GET {get_url}")
+        response = requests.get(get_url)
+        response.raise_for_status()
+        return response.text
+
     def make_request(self) -> str:
+        """Make the request with retries."""
         max_retries = 100
         delay = 1  # Initial delay in seconds
         maximum_delay = 60
@@ -73,85 +151,45 @@ class HorizonsBasicRequest:
                 raise
 
     def _make_post_request(self) -> str:
-        print(f"Requesting POST {self.post_url} with {len(self.tlist)} TLIST items")
+        """Make a POST request when the GET URL would be too long."""
+        print(f"Requesting POST {self.post_url}")
         post_data = self._format_post_data()
         
-        # Prepare the data and files for the POST request
         data = {'format': 'text'}
         files = {'input': ('input.txt', post_data)}
-        
-        #print(f"POST data: {data}")
-        #print(f"POST files content: {post_data}")
         
         try:
             response = requests.post(self.post_url, data=data, files=files)
             response.raise_for_status()
-            # print(f"POST response: {response.text}")
             return response.text
         except requests.exceptions.HTTPError as e:
             print(f"HTTP Error {e.response.status_code}: {e}")
-            #print(f"Error response body: {e.response.text}")
             raise
 
     def _format_post_data(self) -> str:
+        """Format the data for a POST request."""
         lines = ["!$$SOF"]
-        for key, value in self.params.items():
+        
+        # Add all parameters
+        params = {**self._get_base_params(), **self._get_time_params()}
+        for key, value in params.items():
             if key != 'format':  # Exclude 'format' from the input file
                 lines.append(f"{key}='{value}'")
         
-        # Handle TLIST separately
-        # if self.tlist:
-        #    tlist_str = " ".join(f"'{item}'" for item in self.tlist)
-        #    lines.append(f"TLIST={tlist_str}")
+        # Handle TLIST separately if using dates
+        if self.dates:
+            for d in self.dates:
+                jd = julian.julian_from_datetime(d)
+                lines.append(f"TLIST='{jd}'")
         
-        if self.tlist:
-            for t in self.tlist:
-                lines.append(f"TLIST='{t}'")
-
         lines.append("\n")
         return "\n".join(lines)
 
-    def set_format(self, format):
-        self.params["format"] = format
-
-    def set_command(self, command: Planet):
-        self.params["COMMAND"] = command.value
-
-    def set_obj_data(self, obj_data):
-        self.params["OBJ_DATA"] = obj_data
-
-    def set_make_ephem(self, make_ephem):
-        self.params["MAKE_EPHEM"] = make_ephem
-
-    def set_ephem_type(self, ephem_type: EphemType):
-        self.params["EPHEM_TYPE"] = ephem_type.value
-
-    def set_start_time(self, start_time):
-        jd = julian.julian_from_datetime(start_time)
-        self.params["START_TIME"] = f"JD{jd}"
-
-    def set_stop_time(self, stop_time):
-        jd = julian.julian_from_datetime(stop_time)
-        self.params["STOP_TIME"] = f"JD{jd}"
-
-    def set_step_size(self, step_size):
-        self.params["STEP_SIZE"] = step_size
-
-    def set_tlist(self, tlist: list[float]):
-        self.tlist = tlist  # Store as an array instead of joining into a string
-
-    def set_quantities(self, quantities: list[int]):
-        self.params["QUANTITIES"] = ",".join(map(str, quantities))
-
     def get_url(self) -> str:
-        params = self.params.copy()
+        """Get the URL for a GET request."""
+        params = {**self._get_base_params(), **self._get_time_params()}
         
-        # Handle TLIST separately for GET requests
-        if self.tlist:
-            tlist_str = ",".join(f"'{item}'" for item in self.tlist)
-            params['TLIST'] = tlist_str
-        
-        # Quote any values containing commas or spaces
+        # Quote only values that contain commas or spaces
         for key, value in params.items():
             if isinstance(value, str) and (',' in value or ' ' in value):
                 if not (value.startswith("'") and value.endswith("'")):
@@ -159,76 +197,6 @@ class HorizonsBasicRequest:
         
         query_string = urlencode(params, quote_via=quote_plus)
         return f"{self.base_url}?{query_string}"
-    
-
-class HorizonsRequest:
-    def __init__(self, planet: Planet):
-        self.planet = planet
-        self.dates = []  # List to store dates
-        self.quantities = []  # List to store quantities
-        self.start_time = None
-        self.stop_time = None
-        self.step_size = None
-
-    def add_date(self, d: datetime):
-        self.dates.append(d)
-
-    def add_dates(self, dates: List[datetime]):
-        self.dates.extend(dates)
-
-    def add_quantity(self, quantity: EphemerisQuantity):
-        self.quantities.append(quantity)
-
-    def add_quantities(self, quantities: List[EphemerisQuantity]):
-        self.quantities.extend(quantities)
-
-    def add(self, d: datetime, q: EphemerisQuantity):
-        self.add_date(d)
-        self.add_quantity(q)
-
-    def tlist(self) -> list[float]:
-        return sorted(set(julian.julian_from_datetime(d) for d in self.dates))
-
-    def quantities_list(self) -> list[int]:
-        qs = set(self.quantities)
-        rqs = [RequestQuantityForQuantity[q] for q in qs]
-        ints = set(rq.value for rq in rqs if rq is not None)
-        return list(ints)
-
-    def set_time_range(self, start: datetime, stop: datetime, step: str):
-        """Set time range and step size instead of using discrete dates.
-        
-        Args:
-            start: Start datetime
-            stop: Stop datetime
-            step: Step size (e.g., '1d', '1h', '10m')
-        """
-        self.start_time = start
-        self.stop_time = stop
-        self.step_size = step
-
-    def configure_request(self, req: HorizonsBasicRequest):
-        req.set_command(self.planet)
-        if self.start_time and self.stop_time and self.step_size:
-            req.set_start_time(self.start_time)
-            req.set_stop_time(self.stop_time)
-            req.set_step_size(self.step_size)
-        else:
-            req.set_tlist(self.tlist())
-        if self.quantities_list():
-            req.set_quantities(self.quantities_list())
-
-    def basic_request(self) -> HorizonsBasicRequest:
-        req = HorizonsBasicRequest()
-        self.configure_request(req)
-        return req
-
-    def make_request(self) -> str:
-        req = self.basic_request()
-        return req.make_request()
-
-    def get_url(self) -> str:
-        return self.basic_request().get_url()
 
 class HorizonsSolarRequest(HorizonsRequest):
     def __init__(self, latitude: float, longitude: float, elevation: float = 0):
@@ -237,7 +205,7 @@ class HorizonsSolarRequest(HorizonsRequest):
         self.longitude = longitude
         self.elevation = elevation
 
-    def configure_request(self, req: HorizonsBasicRequest):
+    def configure_request(self, req: HorizonsRequest):
         super().configure_request(req)
         # Set coordinates for the observer on Earth
         req.params["CENTER"] = f"coord@{Planet.EARTH.value}"

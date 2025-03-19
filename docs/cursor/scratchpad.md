@@ -1,41 +1,47 @@
-# Space Time Module Import and Test Fixes
+# Horizons Request Module Refactoring
 
 ## Current Task
-Fix imports and add missing unit tests for the space_time module that was imported from another project.
+Refactor and improve the Horizons request module from the old project, making it more flexible and adding proper unit tests.
 
 ## Files to Address
-1. src/starloom/space_time/rounding.py
-2. src/starloom/space_time/sidereal.py
-3. src/starloom/space_time/julian.py
-4. src/starloom/space_time/pythonic_datetimes.py
+1. src/starloom/horizons/request.py (main file to refactor)
+2. src/starloom/horizons/location.py (new file)
+3. tests/horizons/test_request.py (new file)
 
 ## Progress Tracking
-[X] Run existing unit tests to identify import issues
-[X] Fix import paths in test files
-[X] Review each module to identify untested functions
-[X] Add missing unit tests for:
-  - [X] rounding.py (added tests for round_to_nearest_minute and round_to_nearest_second)
-  - [X] sidereal.py (added tests for sidereal_time_from_julian and sidereal_time_from_datetime)
-  - [X] julian.py (all functions tested)
-  - [X] pythonic_datetimes.py (added tests for all functions)
-[X] Verify all tests pass
-
-## Summary of Changes
-1. Fixed import paths in all files from 'lib.time' to 'starloom.space_time'
-2. Added missing timezone import in rounding.py
-3. Created new test files:
-   - test_pythonic_datetimes.py
-   - test_sidereal.py
-4. Added missing tests to test_rounding.py
-5. Fixed test_normalize_longitude to match actual behavior
-6. All 18 tests now passing
+[X] Review dependencies and request missing files
+[X] Create Location class for observer coordinates
+[X] Refactor HorizonsBasicRequest:
+  - [X] Move solar-specific functionality into main class
+  - [X] Add Location parameter support
+  - [X] Improve error handling and retries
+  - [X] Add type hints
+[X] Create unit tests:
+  - [X] Test basic request functionality
+  - [X] Test location-based requests
+  - [X] Test error handling
+  - [X] Test URL generation
+  - [X] Test POST request fallback
+[X] Documentation updates
+[X] Organize tests in proper subdirectory structure
+[X] Fix test failures:
+  - [X] Location formatting precision
+  - [X] URL encoding behavior
+  - [X] Date validation
+  - [X] Mock response handling
 
 ## Notes
-- All functions in the space_time module are now tested
-- Test coverage includes edge cases and boundary conditions
-- All imports have been updated to use the correct package structure
+- All required files are present
+- Imports have been updated to use the new package structure
+- Solar request functionality is now optional through Location parameter
+- Added comprehensive unit tests
+- Improved error handling and retries
+- Added type hints throughout
+- Tests are now properly organized in tests/horizons/
+- All tests are passing
 
 ## Next Steps
-1. Fix the import in sidereal.py from lib.time.julian to starloom.space_time.julian
-2. Create test files for each module with missing tests
-3. Implement the missing tests 
+1. Consider adding more test cases for edge cases
+2. Add integration tests with the actual Horizons API
+3. Add more documentation or examples
+4. Consider adding convenience methods for common use cases 
