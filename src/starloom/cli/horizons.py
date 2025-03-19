@@ -33,10 +33,16 @@ def horizons():
     help="Specific date(s) to request data for (UTC). Can be specified multiple times. Use 'now' for current time.",
 )
 @click.option(
-    "--start", "-s", type=str, help="Start date for date range (UTC). Use 'now' for current time."
+    "--start",
+    "-s",
+    type=str,
+    help="Start date for date range (UTC). Use 'now' for current time.",
 )
 @click.option(
-    "--end", "-e", type=str, help="End date for date range (UTC). Use 'now' for current time."
+    "--end",
+    "-e",
+    type=str,
+    help="End date for date range (UTC). Use 'now' for current time.",
 )
 @click.option("--step", type=str, help='Step size for date range (e.g., "1h", "1d").')
 def ecliptic(
@@ -72,11 +78,14 @@ def ecliptic(
     quantities = [
         Quantity.DELTA,  # Distance
         Quantity.DELTA_DOT,  # Range rate
-        Quantity.OBS_ECL_LON,  # Observer-centered ecliptic longitude
-        Quantity.OBS_ECL_LAT,  # Observer-centered ecliptic latitude
+        Quantity.ECLIPTIC_LONGITUDE,  # Ecliptic longitude
+        Quantity.ECLIPTIC_LATITUDE,  # Ecliptic latitude
     ]
-    request = HorizonsRequest(planet_enum, quantities=quantities)
-    request.set_time_spec(time_spec)
+    request = HorizonsRequest(
+        planet=planet_enum,
+        quantities=quantities,
+        time_spec=time_spec,
+    )
 
     # Make request and print response
     response = request.make_request()
