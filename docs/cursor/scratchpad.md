@@ -85,4 +85,30 @@ Refactor and improve the Horizons request module from the old project, making it
 ## Notes
 - Need to check Horizons manual for exact parameter requirements
 - Consider using dataclasses for parameter structures
-- May need to add more error handling for edge cases 
+- May need to add more error handling for edge cases
+
+# Julian Date Module Linting and Type Checking
+
+## Current Task
+Fix linting and type checking issues in the Julian date module.
+
+## Files to Address
+1. src/starloom/space_time/julian.py
+2. src/starloom/space_time/julian_calc.py
+
+## Progress Tracking
+[X] Run ruff linter on the source code
+[X] Identify linting issues
+  - [X] Undefined reference to `juliandate` module in `datetime_from_julian` function
+  - [X] Unused `timezone` import
+[X] Fix the linting issues:
+  - [X] Replace `datetime_from_julian` implementation to use `_julian_to_datetime`
+  - [X] Remove unused `timezone` import
+[X] Run mypy type checker to verify the fixes
+[X] Run tests to ensure functionality is preserved
+
+## Notes
+- Fixed reference to undefined `juliandate` module
+- Removed unused imports
+- All linting and type checking issues are resolved
+- All tests pass after the changes 
