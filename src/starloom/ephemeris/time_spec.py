@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Union
 from enum import Enum
 
@@ -34,6 +34,86 @@ class TimeSpec:
             )
             if start_jd > stop_jd:
                 raise ValueError("Start time must be before stop time")
+
+    def get_time_points(self) -> List[Union[datetime, float]]:
+        """Get all time points represented by this TimeSpec.
+
+        Returns:
+            List of datetime objects or Julian dates (floats) representing all time points.
+            For a date list, returns the list directly.
+            For a range, generates time points based on start, stop, and step size.
+
+        Raises:
+            ValueError: If neither dates nor a complete range (start, stop, step) is specified,
+                      or if the step size format is invalid.
+        """
+        if self.dates is not None:
+            return self.dates
+
+        if (
+            self.start_time is not None
+            and self.stop_time is not None
+            and self.step_size is not None
+        ):
+            # Parse step size
+            if not self.step_size or len(self.step_size) < 2:
+                raise ValueError(
+                    "Invalid step size format. Must be like '1d', '1h', '30m'"
+                )
+
+            try:
+                value = int(self.step_size[:-1])
+                if value <= 0:
+                    raise ValueError("Step size value must be positive")
+            except ValueError as e:
+                if "must be positive" in str(e):
+                    raise
+                raise ValueError(
+                    "Invalid step size format. Must be like '1d', '1h', '30m'"
+                )
+
+            unit = self.step_size[-1].lower()
+
+            # Convert both times to datetime if they aren't already
+            start_dt = (
+                datetime.fromtimestamp((self.start_time - 2440587.5) * 86400)
+                if isinstance(self.start_time, float)
+                else self.start_time
+            )
+            stop_dt = (
+                datetime.fromtimestamp((self.stop_time - 2440587.5) * 86400)
+                if isinstance(self.stop_time, float)
+                else self.stop_time
+            )
+
+            # Calculate step size in timedelta
+            if unit == "d":
+                delta = timedelta(days=value)
+            elif unit == "h":
+                delta = timedelta(hours=value)
+            elif unit == "m":
+                delta = timedelta(minutes=value)
+            else:
+                raise ValueError(
+                    "Step size must end with 'd' (days), 'h' (hours), or 'm' (minutes)"
+                )
+
+            # Generate time points
+            time_points = []
+            current = start_dt
+            while current <= stop_dt:
+                # Convert back to Julian date if input was Julian dates
+                if isinstance(self.start_time, float):
+                    time_points.append(current.timestamp() / 86400 + 2440587.5)
+                else:
+                    time_points.append(current)
+                current += delta
+
+            return time_points
+
+        raise ValueError(
+            "Must specify either dates list or complete range (start, stop, step)"
+        )
 
     @classmethod
     def from_dates(cls, dates: List[Union[datetime, float]]) -> "TimeSpec":

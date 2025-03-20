@@ -10,6 +10,7 @@ from datetime import datetime
 
 from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris.quantities import Quantity
+from ..ephemeris.time_spec import TimeSpec
 from .storage import LocalHorizonsStorage
 
 
@@ -54,3 +55,27 @@ class LocalHorizonsEphemeris(Ephemeris):
         """
         # Delegate to the storage class to retrieve data
         return self.storage.get_ephemeris_data(planet, time)
+
+    def get_planet_positions(
+        self, planet: str, time_spec: TimeSpec
+    ) -> Dict[float, Dict[Quantity, Any]]:
+        """
+        Get a planet's positions for multiple times specified by a TimeSpec.
+
+        Args:
+            planet: The name or identifier of the planet.
+            time_spec: Time specification defining the times to retrieve positions for.
+                      Can be either a list of specific times or a range with step size.
+
+        Returns:
+            A dictionary mapping Julian dates (as floats) to position data dictionaries.
+            Each position data dictionary maps Quantity enum values to their corresponding values
+            and will include at minimum:
+            - Quantity.ECLIPTIC_LONGITUDE
+            - Quantity.ECLIPTIC_LATITUDE
+            - Quantity.DELTA (distance from Earth)
+
+            Note: Times not found in the database will be omitted from the result dictionary.
+        """
+        # Delegate to the storage class to retrieve data
+        return self.storage.get_ephemeris_data_bulk(planet, time_spec)

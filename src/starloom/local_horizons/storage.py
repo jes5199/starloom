@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, or_
 from sqlalchemy.orm import Session
 
 from ..ephemeris.quantities import Quantity
+from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import (
     julian_from_datetime,
     julian_to_julian_parts,
@@ -48,6 +49,81 @@ class LocalHorizonsStorage:
         Base.metadata.create_all(self.engine)
 
     # --- Reading methods ---
+
+    def get_ephemeris_data_bulk(
+        self, body: str, time_spec: TimeSpec
+    ) -> Dict[float, Dict[Quantity, Any]]:
+        """
+        Get ephemeris data for a celestial body at multiple time points.
+
+        Args:
+            body: The name or identifier of the celestial body.
+            time_spec: Time specification defining the times to retrieve data for.
+
+        Returns:
+            A dictionary mapping Julian dates (as floats) to dictionaries of quantities.
+            Times not found in the database are omitted from the result.
+        """
+        # Get all time points from the TimeSpec
+        time_points = time_spec.get_time_points()
+
+        # Convert all time points to Julian date components
+        julian_components = [
+            get_julian_components(time_point) for time_point in time_points
+        ]
+
+        # Create a list of OR conditions for each time point
+        with Session(self.engine) as session:
+            conditions = []
+            for jd, jd_fraction in julian_components:
+                conditions.append(
+                    (
+                        HorizonsGlobalEphemerisRow.julian_date == jd,
+                        HorizonsGlobalEphemerisRow.julian_date_fraction == jd_fraction,
+                    )
+                )
+
+            # Build the query with all time points
+            query = select(HorizonsGlobalEphemerisRow).where(
+                HorizonsGlobalEphemerisRow.body == body,
+                or_(*[(row_cond[0] & row_cond[1]) for row_cond in conditions]),
+            )
+
+            # Execute query and process results
+            results = session.execute(query).scalars().all()
+
+            # Convert results to the required format
+            output: Dict[float, Dict[Quantity, Any]] = {}
+            for result in results:
+                jd = result.julian_date + result.julian_date_fraction
+                output[jd] = {
+                    Quantity.BODY: result.body,
+                    Quantity.JULIAN_DATE: result.julian_date
+                    + result.julian_date_fraction,
+                    Quantity.DATE_TIME: result.date_time,
+                    Quantity.RIGHT_ASCENSION: result.right_ascension,
+                    Quantity.DECLINATION: result.declination,
+                    Quantity.ECLIPTIC_LONGITUDE: result.ecliptic_longitude,
+                    Quantity.ECLIPTIC_LATITUDE: result.ecliptic_latitude,
+                    Quantity.APPARENT_MAGNITUDE: result.apparent_magnitude,
+                    Quantity.SURFACE_BRIGHTNESS: result.surface_brightness,
+                    Quantity.ILLUMINATION: result.illumination,
+                    Quantity.OBSERVER_SUB_LON: result.observer_sub_lon,
+                    Quantity.OBSERVER_SUB_LAT: result.observer_sub_lat,
+                    Quantity.SUN_SUB_LON: result.sun_sub_lon,
+                    Quantity.SUN_SUB_LAT: result.sun_sub_lat,
+                    Quantity.SOLAR_NORTH_ANGLE: result.solar_north_angle,
+                    Quantity.SOLAR_NORTH_DISTANCE: result.solar_north_distance,
+                    Quantity.NORTH_POLE_ANGLE: result.north_pole_angle,
+                    Quantity.NORTH_POLE_DISTANCE: result.north_pole_distance,
+                    Quantity.DELTA: result.delta,
+                    Quantity.DELTA_DOT: result.delta_dot,
+                    Quantity.PHASE_ANGLE: result.phase_angle,
+                    Quantity.PHASE_ANGLE_BISECTOR_LON: result.phase_angle_bisector_lon,
+                    Quantity.PHASE_ANGLE_BISECTOR_LAT: result.phase_angle_bisector_lat,
+                }
+
+            return output
 
     def get_ephemeris_data(
         self, body: str, time: Optional[Union[float, datetime]] = None
