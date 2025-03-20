@@ -111,4 +111,43 @@ Fix linting and type checking issues in the Julian date module.
 - Fixed reference to undefined `juliandate` module
 - Removed unused imports
 - All linting and type checking issues are resolved
-- All tests pass after the changes 
+- All tests pass after the changes
+
+# Fixture Data Generation Task
+
+## Task Overview
+Create a script to generate fixture data using the starloom CLI for both ecliptic and elements commands.
+
+## Plan
+[X] Create a fixtures directory structure in tests/
+[X] Create a script to generate fixture data
+[X] Generate data for multiple planets
+[X] Save data in appropriate format (JSON)
+[X] Document the fixture data structure
+
+## Required Data
+1. Ecliptic positions for:
+   - Venus (single time and time range)
+   - Mars (single time and time range)
+2. Orbital elements for:
+   - Mars (single time and time range)
+   - Jupiter (single time and time range)
+
+## Time Ranges
+- Single time: 2025-03-19T20:00:00
+- Time range: 2025-03-19T20:00:00 to 2025-03-19T22:00:00 with 1h steps
+
+## Results
+- Successfully generated fixture data for all required planets and commands
+- Data is stored in JSON format in tests/fixtures/
+- Directory structure:
+  - tests/fixtures/ecliptic/
+    - venus_single.json
+    - venus_range.json
+    - mars_single.json
+    - mars_range.json
+  - tests/fixtures/elements/
+    - mars_single.json
+    - mars_range.json
+    - jupiter_single.json
+    - jupiter_range.json 
