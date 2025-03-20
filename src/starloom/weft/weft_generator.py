@@ -4,13 +4,13 @@ from zoneinfo import ZoneInfo
 from numpy.polynomial import chebyshev
 import os
 
+from .blocks.utils import unwrap_angles
 from .weft import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourSectionHeader,
     FortyEightHourBlock,
     WeftFile,
-    unwrap_angles,
     BlockType,
 )
 from ..horizons.quantities import (

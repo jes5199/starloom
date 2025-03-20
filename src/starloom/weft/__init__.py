@@ -6,14 +6,13 @@ which store ephemeris data as Chebyshev polynomials for efficient
 storage and fast evaluation.
 """
 
+from .blocks.utils import evaluate_chebyshev, unwrap_angles
 from .weft import (
     WeftFile,
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourSectionHeader,
     FortyEightHourBlock,
-    evaluate_chebyshev,
-    unwrap_angles,
 )
 
 from .weft_reader import WeftReader
