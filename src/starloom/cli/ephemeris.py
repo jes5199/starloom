@@ -11,6 +11,7 @@ from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance
 from ..local_horizons.ephemeris import LocalHorizonsEphemeris
 from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
 from ..ephemeris.time_spec import TimeSpec
+from ..space_time.julian import julian_to_datetime
 
 
 # Define available ephemeris sources
@@ -169,8 +170,9 @@ def ephemeris(
 
         # Print results for each time point
         for jd, position_data in sorted(results.items()):
-            # Format the time as Julian date
-            date_str = f"JD {jd:.6f}"
+            # Format the time as Julian date and ISO datetime
+            dt = julian_to_datetime(jd)
+            date_str = f"JD {jd:.6f} {dt.strftime('%Y-%m-%dT%H:%M:%SZ')}"
 
             # Get position values
             longitude = position_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
