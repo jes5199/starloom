@@ -10,9 +10,10 @@ to store astronomical values efficiently. It supports multiple levels of precisi
 
 import struct
 from datetime import datetime, timezone, time, date
-from typing import List, BinaryIO, Union, Tuple, Literal, TypedDict
+from typing import List, BinaryIO, Union, Tuple, Literal, TypedDict, Sequence
 from io import BytesIO
 import numpy as np
+from numpy.typing import NDArray
 
 # Define block types
 BlockType = Union[
@@ -36,7 +37,9 @@ class UnboundedBehavior(TypedDict):
 ValueBehavior = Union[RangedBehavior, UnboundedBehavior]
 
 
-def evaluate_chebyshev(coeffs: Union[List[float], np.ndarray], x: float) -> float:
+def evaluate_chebyshev(
+    coeffs: Union[List[float], NDArray[np.float32]], x: float
+) -> float:
     """Evaluate a Chebyshev polynomial at x using Clenshaw's algorithm.
 
     Args:
@@ -245,7 +248,9 @@ class MultiYearBlock:
         year_float = dt.year + (day_of_year - 1) / days_in_year
         x = 2 * ((year_float - self.start_year) / self.duration) - 1
 
-        return evaluate_chebyshev(self.coeffs, x)
+        # Ensure coefficients are in the correct format
+        coeffs = np.array(self.coeffs, dtype=np.float32)
+        return evaluate_chebyshev(coeffs, x)
 
 
 class MonthlyBlock:
@@ -526,25 +531,25 @@ class FortyEightHourBlock:
         self.header = header
 
         # Convert coefficients to numpy array
-        coeffs = np.array(coeffs, dtype=np.float64)
+        coeffs_array = np.array(coeffs, dtype=np.float64)
 
         # Check for NaN values
-        if np.any(np.isnan(coeffs)):
+        if np.any(np.isnan(coeffs_array)):
             raise ValueError("Coefficients cannot be NaN")
 
         # If coefficients list is empty, use a single zero coefficient
-        if len(coeffs) == 0:
-            coeffs = np.array([0.0])
+        if len(coeffs_array) == 0:
+            coeffs_array = np.array([0.0], dtype=np.float64)
 
         # Strip trailing zeros to get significant coefficients
-        while len(coeffs) > 1 and coeffs[-1] == 0:
-            coeffs = coeffs[:-1]
+        while len(coeffs_array) > 1 and coeffs_array[-1] == 0:
+            coeffs_array = coeffs_array[:-1]
 
-        self.coeffs = coeffs
+        self.coeffs = coeffs_array.tolist()  # Convert back to list for storage
 
         # Pad to header's count for binary format
         self._full_coeffs = np.pad(
-            self.coeffs, (0, self.header.coefficient_count - len(self.coeffs))
+            coeffs_array, (0, self.header.coefficient_count - len(coeffs_array))
         )
 
     def contains(self, dt: datetime) -> bool:
@@ -621,7 +626,7 @@ class FortyEightHourBlock:
 class WeftFile:
     """A .weft file containing multiple blocks of data."""
 
-    def __init__(self, preamble: str, blocks: List[BlockType]):
+    def __init__(self, preamble: str, blocks: Sequence[BlockType]):
         """Initialize a .weft file.
 
         Args:
@@ -639,9 +644,9 @@ class WeftFile:
             preamble = preamble.rstrip("\n") + "\n\n"
 
         self.preamble = preamble
-        self.blocks = blocks
+        self.blocks = list(blocks)  # Convert to list for internal storage
 
-    def get_info(self) -> dict:
+    def get_info(self) -> dict[str, Union[str, List[BlockType], int]]:
         """Get information about the file.
 
         Returns:
@@ -689,7 +694,7 @@ class WeftFile:
             if len(preamble) > 1000:  # Reasonable maximum preamble size
                 raise ValueError("Invalid preamble format")
 
-        blocks = []
+        blocks: List[BlockType] = []
         while True:
             # Try to read marker
             marker = stream.read(2)
@@ -710,7 +715,7 @@ class WeftFile:
                     raise ValueError("FortyEightHourBlock without preceding header")
                 blocks.append(FortyEightHourBlock.from_stream(stream, blocks[-1]))
             else:
-                raise ValueError(f"Unknown block type marker: {marker}")
+                raise ValueError(f"Unknown block type marker: {marker!r}")
 
         return cls(preamble=preamble, blocks=blocks)
 
