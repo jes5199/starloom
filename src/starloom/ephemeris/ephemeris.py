@@ -3,6 +3,7 @@ from typing import Optional, Dict, Any, Union
 from datetime import datetime
 
 from .quantities import Quantity
+from .time_spec import TimeSpec
 
 
 class Ephemeris(ABC):
@@ -29,6 +30,28 @@ class Ephemeris(ABC):
         Returns:
             A dictionary mapping Quantity enum values to their corresponding values.
             Will include at minimum:
+            - Quantity.ECLIPTIC_LONGITUDE
+            - Quantity.ECLIPTIC_LATITUDE
+            - Quantity.DELTA (distance from Earth)
+        """
+        pass
+
+    @abstractmethod
+    def get_planet_positions(
+        self, planet: str, time_spec: TimeSpec
+    ) -> Dict[float, Dict[Quantity, Any]]:
+        """
+        Get a planet's positions for multiple times specified by a TimeSpec.
+
+        Args:
+            planet: The name or identifier of the planet.
+            time_spec: Time specification defining the times to retrieve positions for.
+                      Can be either a list of specific times or a range with step size.
+
+        Returns:
+            A dictionary mapping Julian dates (as floats) to position data dictionaries.
+            Each position data dictionary maps Quantity enum values to their corresponding values
+            and will include at minimum:
             - Quantity.ECLIPTIC_LONGITUDE
             - Quantity.ECLIPTIC_LATITUDE
             - Quantity.DELTA (distance from Earth)
