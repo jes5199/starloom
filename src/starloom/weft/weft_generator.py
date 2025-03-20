@@ -52,9 +52,11 @@ class WeftGenerator:
         if self.wrapping_behavior == "wrapping":
             if quantity == EphemerisQuantity.RIGHT_ASCENSION:
                 # Right ascension is in hours [0, 24)
-                self.value_behavior: Union[RangedBehavior, UnboundedBehavior] = RangedBehavior(
-                    type="wrapping",
-                    range=(0.0, 24.0),
+                self.value_behavior: Union[RangedBehavior, UnboundedBehavior] = (
+                    RangedBehavior(
+                        type="wrapping",
+                        range=(0.0, 24.0),
+                    )
                 )
             else:
                 # Other angles are in degrees [0, 360)
@@ -566,13 +568,13 @@ class WeftGenerator:
         # Create preamble
         now = datetime.utcnow()
         timespan = f"{start_date.year}-{end_date.year}"
-        
+
         # Add value behavior range to preamble if applicable
         behavior_str = self.wrapping_behavior
         if isinstance(self.value_behavior, RangedBehavior):
             min_val, max_val = self.value_behavior["range"]
             behavior_str = f"{behavior_str}[{min_val},{max_val}]"
-        
+
         preamble = (
             f"#weft! v0.02 {body.name} jpl:horizons {timespan} "
             f"32bit {quantity.name} {behavior_str} chebychevs "

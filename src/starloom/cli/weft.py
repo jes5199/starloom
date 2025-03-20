@@ -45,7 +45,7 @@ def generate(
     prefetch_step: int,
 ) -> None:
     """Generate a .weft binary ephemeris file."""
-    print(f"Starting generation with parameters:")
+    print("Starting generation with parameters:")
     print(f"  Planet: {planet}")
     print(f"  Quantity: {quantity}")
     print(f"  Start date: {start_date}")
@@ -64,10 +64,12 @@ def generate(
         # Convert to datetime if it's a Julian date
         if isinstance(start_dt, float):
             from ..space_time.julian import datetime_from_julian
+
             print("Converting start date from Julian...")
             start_dt = datetime_from_julian(start_dt)
         if isinstance(end_dt, float):
             from ..space_time.julian import datetime_from_julian
+
             print("Converting end date from Julian...")
             end_dt = datetime_from_julian(end_dt)
         print(f"Parsed dates: {start_dt} to {end_dt}")
