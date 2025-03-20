@@ -6,8 +6,12 @@ The parser can handle different column formats and dynamically maps column names
 
 import csv
 from typing import List, Tuple, Dict, Optional
-from .quantities import EphemerisQuantity, QuantityForColumnName, normalize_column_name
-from ..ephemeris import Quantity
+from .quantities import (
+    EphemerisQuantity,
+    QuantityForColumnName,
+    EphemerisQuantityToQuantity,
+    normalize_column_name,
+)
 
 
 class ObserverParser:
@@ -111,29 +115,40 @@ class ObserverParser:
             else:
                 return None
 
-        # Direct mapping for JPL Horizons column names to EphemerisQuantity
+        # Clean and normalize the column name
         normalized_name = normalize_column_name(column_name)
-        # First check if it's already an EphemerisQuantity-specific column
+
+        # Special handling for Julian date columns with extra text
+        if "jdut" in normalized_name.lower():
+            return EphemerisQuantity.JULIAN_DATE
+
+        # Direct mapping for common column names
+        if normalized_name == "delta":
+            return EphemerisQuantity.DISTANCE
+        elif normalized_name == "deldot":
+            return EphemerisQuantity.RANGE_RATE
+        elif normalized_name == "obseclon":
+            return EphemerisQuantity.ECLIPTIC_LONGITUDE
+        elif normalized_name == "obseclat":
+            return EphemerisQuantity.ECLIPTIC_LATITUDE
+
+        # Try matching by the EphemerisQuantity value directly
         for q in EphemerisQuantity:
-            if q.value == normalized_name:
+            if q.value and q.value.lower() == normalized_name.lower():
                 return q
 
-        # Otherwise check the general Quantity mapping and convert if needed
-        quantity = QuantityForColumnName.get(normalized_name, None)
+        # Otherwise, try the generic Quantity mapping
+        # Note: This is a fallback and might not be needed for most cases
+        quantity = QuantityForColumnName.get(normalized_name)
         if quantity is None:
             return None
 
-        # Map between general Quantity and EphemerisQuantity
-        # This is a simplified mapping for the most common quantities
-        quantity_to_ephemeris_map = {
-            Quantity.DELTA: EphemerisQuantity.DISTANCE,
-            Quantity.DELTA_DOT: EphemerisQuantity.RANGE_RATE,
-            Quantity.ECLIPTIC_LONGITUDE: EphemerisQuantity.ECLIPTIC_LONGITUDE,
-            Quantity.ECLIPTIC_LATITUDE: EphemerisQuantity.ECLIPTIC_LATITUDE,
-            Quantity.JULIAN_DATE: EphemerisQuantity.JULIAN_DATE,
-        }
+        # Convert from Quantity to EphemerisQuantity
+        for ephemeris_quantity, std_quantity in EphemerisQuantityToQuantity.items():
+            if std_quantity == quantity:
+                return ephemeris_quantity
 
-        return quantity_to_ephemeris_map.get(quantity, None)
+        return None
 
     def _map_columns_to_quantities(self) -> Dict[int, EphemerisQuantity]:
         """Maps column indices to their corresponding EphemerisQuantity, handling blank columns."""

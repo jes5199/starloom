@@ -4,8 +4,15 @@ import re
 
 class Quantity(Enum):
     """
-    Combined enum for all astronomical quantities, including both ephemeris columns and orbital elements.
+    Comprehensive enum for all astronomical quantities, including both ephemeris columns and orbital elements.
     Names are SQL-friendly.
+
+    This is the standard enum used throughout the starloom package for representing
+    astronomical quantities in a consistent way. It is more comprehensive than the
+    module-specific enums (like EphemerisQuantity in the horizons module) and serves
+    as the primary reference for quantity names.
+
+    Module-specific enums may map to and from this enum as needed for their specific purposes.
     """
 
     # Basic identifiers

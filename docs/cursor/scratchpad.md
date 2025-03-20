@@ -379,3 +379,33 @@ Modify the `HorizonsRequest` class to only include the quantities parameter when
 - The modification was simple and straightforward
 - The tests continue to pass, confirming that our changes don't break existing functionality
 - This implementation is more efficient as it avoids sending unnecessary parameters to the API 
+
+# Directory Structure and Duplication Review
+
+## Current Task
+Expand `EphemerisQuantity` to be comprehensive and improve the mappings between enums.
+
+## Analysis
+1. We have two separate but related enums:
+   - `Quantity` in `src/starloom/ephemeris/quantities.py`: A comprehensive enum for all astronomical quantities
+   - `EphemerisQuantity` in `src/starloom/horizons/quantities.py`: A specific enum for quantities that can be parsed from Horizons API responses
+
+2. The horizons module imports the Quantity enum from ephemeris and maps between them.
+
+## Improvements Made
+[X] Expanded `EphemerisQuantity` to include all quantities found in `QuantityForColumnName`
+[X] Added a new mapping `EphemerisQuantityToQuantity` for direct mapping between enums
+[X] Simplified `QuantityForColumnName` to use the new mapping, making it more maintainable
+[X] Organized quantities in `EphemerisQuantity` with the same categorical structure as `Quantity`
+[X] Preserved special handling for blank column markers with appropriate comments
+
+## Benefits
+1. `EphemerisQuantity` is now comprehensive, matching all the column names in Horizons API responses
+2. The bidirectional mapping between enums is clear and maintainable
+3. Code duplication is reduced by deriving `QuantityForColumnName` from `EphemerisQuantityToQuantity`
+4. The structure is more maintainable and less error-prone
+
+## Next Steps
+[ ] If needed, rename `EphemerisQuantity` to `HorizonsQuantity` (as noted in TODO.md)
+[ ] Test all code that depends on these enums to ensure compatibility
+[ ] Update documentation to clarify the relationship between the enums 

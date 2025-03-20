@@ -74,69 +74,141 @@ class HorizonsRequestObserverQuantities(Enum):
 
 
 class EphemerisQuantity(Enum):
-    """Quantities that can be parsed from Horizons responses."""
+    """
+    Quantities that can be parsed from Horizons responses.
 
+    This enum is specific to the Horizons API response format and is distinct from
+    the more comprehensive Quantity enum in the ephemeris module. Each value
+    represents a column name as it appears in Horizons API responses.
+
+    There is a mapping between this enum and the Quantity enum (see QuantityForColumnName),
+    allowing for conversion between the API-specific format and the standardized format.
+    """
+
+    # Basic identifiers
+    BODY = "body"
+    DATE_TIME = "Date_(UT)_HR:MN:SC.fff"
     JULIAN_DATE = "JDUT"
-    DISTANCE = "delta"
-    RANGE_RATE = "deldot"
+    JULIAN_DATE_FRACTION = "JDTDB"
+
+    # Positional quantities
+    RIGHT_ASCENSION = "R.A._(ICRF)"
+    DECLINATION = "DEC_(ICRF)"
     ECLIPTIC_LONGITUDE = "ObsEcLon"
     ECLIPTIC_LATITUDE = "ObsEcLat"
+    APPARENT_AZIMUTH = "Azimuth_(a-app)"
+    APPARENT_ELEVATION = "Elevation_(a-app)"
+
+    # Magnitude and brightness
+    APPARENT_MAGNITUDE = "APmag"
+    SURFACE_BRIGHTNESS = "S-brt"
+    ILLUMINATION = "Illu%"
+
+    # Sub-observer and sub-solar points
+    OBSERVER_SUB_LON = "ObsSub-LON"
+    OBSERVER_SUB_LAT = "ObsSub-LAT"
+    SUN_SUB_LON = "SunSub-LON"
+    SUN_SUB_LAT = "SunSub-LAT"
+
+    # Angles and distances
+    SOLAR_NORTH_ANGLE = "SN.ang"
+    SOLAR_NORTH_DISTANCE = "SN.dist"
+    NORTH_POLE_ANGLE = "NP.ang"
+    NORTH_POLE_DISTANCE = "NP.dist"
+    DISTANCE = "delta"
+    RANGE_RATE = "deldot"
+    PHASE_ANGLE = "phi"
+    PHASE_ANGLE_BISECTOR_LON = "PAB-LON"
+    PHASE_ANGLE_BISECTOR_LAT = "PAB-LAT"
+    ELONGATION = "Elong"
+
+    # Time-related
+    LOCAL_APPARENT_SIDEREAL_TIME = "L_Ap_Sid_Time"
+    LOCAL_APPARENT_SOLAR_TIME = "L_Ap_SOL_Time"
+    LOCAL_APPARENT_HOUR_ANGLE = "r-L_Ap_Hour_Ang"
+
+    # Orbital elements
+    ECCENTRICITY = "EC"
+    PERIAPSIS_DISTANCE = "QR"
+    INCLINATION = "IN"
+    ASCENDING_NODE_LONGITUDE = "OM"
+    ARGUMENT_OF_PERIFOCUS = "W"
+    PERIAPSIS_TIME = "Tp"
+    MEAN_MOTION = "N"
+    MEAN_ANOMALY = "MA"
+    TRUE_ANOMALY = "TA"
+    SEMI_MAJOR_AXIS = "A"
+    APOAPSIS_DISTANCE = "AD"
+    ORBITAL_PERIOD = "PR"
+
+    # Special markers
     SOLAR_PRESENCE_CONDITION_CODE = ""  # First blank column
     TARGET_EVENT_MARKER = ""  # Second blank column
 
 
+# Create a mapping from EphemerisQuantity to Quantity
+EphemerisQuantityToQuantity = {
+    EphemerisQuantity.BODY: Quantity.BODY,
+    EphemerisQuantity.DATE_TIME: Quantity.DATE_TIME,
+    EphemerisQuantity.JULIAN_DATE: Quantity.JULIAN_DATE,
+    EphemerisQuantity.JULIAN_DATE_FRACTION: Quantity.JULIAN_DATE_FRACTION,
+    EphemerisQuantity.RIGHT_ASCENSION: Quantity.RIGHT_ASCENSION,
+    EphemerisQuantity.DECLINATION: Quantity.DECLINATION,
+    EphemerisQuantity.ECLIPTIC_LONGITUDE: Quantity.ECLIPTIC_LONGITUDE,
+    EphemerisQuantity.ECLIPTIC_LATITUDE: Quantity.ECLIPTIC_LATITUDE,
+    EphemerisQuantity.APPARENT_AZIMUTH: Quantity.APPARENT_AZIMUTH,
+    EphemerisQuantity.APPARENT_ELEVATION: Quantity.APPARENT_ELEVATION,
+    EphemerisQuantity.APPARENT_MAGNITUDE: Quantity.APPARENT_MAGNITUDE,
+    EphemerisQuantity.SURFACE_BRIGHTNESS: Quantity.SURFACE_BRIGHTNESS,
+    EphemerisQuantity.ILLUMINATION: Quantity.ILLUMINATION,
+    EphemerisQuantity.OBSERVER_SUB_LON: Quantity.OBSERVER_SUB_LON,
+    EphemerisQuantity.OBSERVER_SUB_LAT: Quantity.OBSERVER_SUB_LAT,
+    EphemerisQuantity.SUN_SUB_LON: Quantity.SUN_SUB_LON,
+    EphemerisQuantity.SUN_SUB_LAT: Quantity.SUN_SUB_LAT,
+    EphemerisQuantity.SOLAR_NORTH_ANGLE: Quantity.SOLAR_NORTH_ANGLE,
+    EphemerisQuantity.SOLAR_NORTH_DISTANCE: Quantity.SOLAR_NORTH_DISTANCE,
+    EphemerisQuantity.NORTH_POLE_ANGLE: Quantity.NORTH_POLE_ANGLE,
+    EphemerisQuantity.NORTH_POLE_DISTANCE: Quantity.NORTH_POLE_DISTANCE,
+    EphemerisQuantity.DISTANCE: Quantity.DELTA,
+    EphemerisQuantity.RANGE_RATE: Quantity.DELTA_DOT,
+    EphemerisQuantity.PHASE_ANGLE: Quantity.PHASE_ANGLE,
+    EphemerisQuantity.PHASE_ANGLE_BISECTOR_LON: Quantity.PHASE_ANGLE_BISECTOR_LON,
+    EphemerisQuantity.PHASE_ANGLE_BISECTOR_LAT: Quantity.PHASE_ANGLE_BISECTOR_LAT,
+    EphemerisQuantity.ELONGATION: Quantity.ELONGATION,
+    EphemerisQuantity.LOCAL_APPARENT_SIDEREAL_TIME: Quantity.LOCAL_APPARENT_SIDEREAL_TIME,
+    EphemerisQuantity.LOCAL_APPARENT_SOLAR_TIME: Quantity.LOCAL_APPARENT_SOLAR_TIME,
+    EphemerisQuantity.LOCAL_APPARENT_HOUR_ANGLE: Quantity.LOCAL_APPARENT_HOUR_ANGLE,
+    EphemerisQuantity.ECCENTRICITY: Quantity.ECCENTRICITY,
+    EphemerisQuantity.PERIAPSIS_DISTANCE: Quantity.PERIAPSIS_DISTANCE,
+    EphemerisQuantity.INCLINATION: Quantity.INCLINATION,
+    EphemerisQuantity.ASCENDING_NODE_LONGITUDE: Quantity.ASCENDING_NODE_LONGITUDE,
+    EphemerisQuantity.ARGUMENT_OF_PERIFOCUS: Quantity.ARGUMENT_OF_PERIFOCUS,
+    EphemerisQuantity.PERIAPSIS_TIME: Quantity.PERIAPSIS_TIME,
+    EphemerisQuantity.MEAN_MOTION: Quantity.MEAN_MOTION,
+    EphemerisQuantity.MEAN_ANOMALY: Quantity.MEAN_ANOMALY,
+    EphemerisQuantity.TRUE_ANOMALY: Quantity.TRUE_ANOMALY,
+    EphemerisQuantity.SEMI_MAJOR_AXIS: Quantity.SEMI_MAJOR_AXIS,
+    EphemerisQuantity.APOAPSIS_DISTANCE: Quantity.APOAPSIS_DISTANCE,
+    EphemerisQuantity.ORBITAL_PERIOD: Quantity.ORBITAL_PERIOD,
+    EphemerisQuantity.SOLAR_PRESENCE_CONDITION_CODE: Quantity.SOLAR_PRESENCE_CONDITION_CODE,
+    EphemerisQuantity.TARGET_EVENT_MARKER: Quantity.TARGET_EVENT_MARKER,
+}
+
+
 # Mapping from Horizons column names to Quantity enum values
 QuantityForColumnName = {
-    # Basic identifiers
-    "body": Quantity.BODY,
-    "Date_(UT)_HR:MN:SC.fff": Quantity.DATE_TIME,
-    "Date_JDUT": Quantity.JULIAN_DATE,
-    "JDTDB": Quantity.JULIAN_DATE_FRACTION,
-    # Positional quantities
-    "R.A._(ICRF)": Quantity.RIGHT_ASCENSION,
-    "DEC_(ICRF)": Quantity.DECLINATION,
-    "ObsEcLon": Quantity.ECLIPTIC_LONGITUDE,
-    "ObsEcLat": Quantity.ECLIPTIC_LATITUDE,
-    "Azimuth_(a-app)": Quantity.APPARENT_AZIMUTH,
-    "Elevation_(a-app)": Quantity.APPARENT_ELEVATION,
-    # Magnitude and brightness
-    "APmag": Quantity.APPARENT_MAGNITUDE,
-    "S-brt": Quantity.SURFACE_BRIGHTNESS,
-    "Illu%": Quantity.ILLUMINATION,
-    # Sub-observer and sub-solar points
-    "ObsSub-LON": Quantity.OBSERVER_SUB_LON,
-    "ObsSub-LAT": Quantity.OBSERVER_SUB_LAT,
-    "SunSub-LON": Quantity.SUN_SUB_LON,
-    "SunSub-LAT": Quantity.SUN_SUB_LAT,
-    # Angles and distances
-    "SN.ang": Quantity.SOLAR_NORTH_ANGLE,
-    "SN.dist": Quantity.SOLAR_NORTH_DISTANCE,
-    "NP.ang": Quantity.NORTH_POLE_ANGLE,
-    "NP.dist": Quantity.NORTH_POLE_DISTANCE,
-    "delta": Quantity.DELTA,
-    "deldot": Quantity.DELTA_DOT,
-    "phi": Quantity.PHASE_ANGLE,
-    "PAB-LON": Quantity.PHASE_ANGLE_BISECTOR_LON,
-    "PAB-LAT": Quantity.PHASE_ANGLE_BISECTOR_LAT,
-    "Elong": Quantity.ELONGATION,
-    # Time-related
-    "L_Ap_Sid_Time": Quantity.LOCAL_APPARENT_SIDEREAL_TIME,
-    "L_Ap_SOL_Time": Quantity.LOCAL_APPARENT_SOLAR_TIME,
-    "r-L_Ap_Hour_Ang": Quantity.LOCAL_APPARENT_HOUR_ANGLE,
-    # Orbital elements
-    "EC": Quantity.ECCENTRICITY,
-    "QR": Quantity.PERIAPSIS_DISTANCE,
-    "IN": Quantity.INCLINATION,
-    "OM": Quantity.ASCENDING_NODE_LONGITUDE,
-    "W": Quantity.ARGUMENT_OF_PERIFOCUS,
-    "Tp": Quantity.PERIAPSIS_TIME,
-    "N": Quantity.MEAN_MOTION,
-    "MA": Quantity.MEAN_ANOMALY,
-    "TA": Quantity.TRUE_ANOMALY,
-    "A": Quantity.SEMI_MAJOR_AXIS,
-    "AD": Quantity.APOAPSIS_DISTANCE,
-    "PR": Quantity.ORBITAL_PERIOD,
+    ephemq.value: EphemerisQuantityToQuantity[ephemq]
+    for ephemq in EphemerisQuantity
+    if ephemq.value  # Skip entries with empty values (special markers)
 }
+
+# Also include the special markers (with empty values)
+QuantityForColumnName[""] = (
+    Quantity.SOLAR_PRESENCE_CONDITION_CODE
+)  # This will be overridden by the next line
+QuantityForColumnName[""] = (
+    Quantity.TARGET_EVENT_MARKER
+)  # We'll handle these special cases separately in the parsers
 
 
 # Mapping from Quantity to HorizonsRequestObserverQuantities

@@ -19,6 +19,26 @@
 
 # Lessons Learned
 
+## Project Structure
+
+- The package structure uses standard Python conventions with modules nested appropriately under src/starloom/.
+- The directory structure with ephemeris as a subdirectory of starloom is correct and follows standard practices.
+
+## Enum Relationships
+
+- `Quantity` (in ephemeris module) and `EphemerisQuantity` (in horizons module) are distinct but related enums:
+  - `Quantity` is a comprehensive enum for all astronomical quantities, including both ephemeris columns and orbital elements.
+  - `EphemerisQuantity` is a specialized enum specifically for quantities that can be parsed from Horizons API responses.
+  - The horizons module imports and maps between these enums as needed.
+  - Renaming `EphemerisQuantity` to `HorizonsQuantity` might better reflect its purpose.
+
+- For robust enum mappings:
+  - Create bidirectional mappings between related enums when needed
+  - When one enum's values directly correspond to another's purpose, derive the mapping programmatically rather than hardcoding it
+  - Group enum values into logical categories with comments for better organization
+  - Include special handling for edge cases (like blank columns) with clear comments
+  - For API-specific enums, use the exact string values expected by the API
+
 ## Julian Date Calculations
 
 When working with Julian dates in astronomical calculations:
