@@ -9,7 +9,7 @@ to store astronomical values efficiently. It supports multiple levels of precisi
 """
 
 from datetime import datetime, timezone, time
-from typing import Union, Tuple, Literal, TypedDict, Sequence
+from typing import Union, Tuple, Literal, TypedDict, Sequence, List
 from io import BytesIO
 
 from .blocks import (
@@ -176,19 +176,19 @@ class WeftFile:
         else:
             dt = dt.astimezone(timezone.utc)
 
-        # Try daily blocks first (highest priority)
-        daily_blocks = []
+        # Find all forty-eight hour blocks that contain this datetime
+        forty_eight_hour_blocks = []
         for block in self.blocks:
             if isinstance(block, FortyEightHourBlock) and block.contains(dt):
-                daily_blocks.append(block)
+                forty_eight_hour_blocks.append(block)
 
-        # If we have daily blocks, use them
-        if daily_blocks:
-            # If multiple daily blocks cover this datetime, use linear interpolation
-            if len(daily_blocks) > 1:
-                return self._interpolate_daily_blocks(daily_blocks, dt)
-            else:
-                return daily_blocks[0].evaluate(dt)
+        # If we have forty-eight hour blocks, use them with interpolation
+        if forty_eight_hour_blocks:
+            if len(forty_eight_hour_blocks) > 1:
+                return self._interpolate_forty_eight_hour_blocks(
+                    forty_eight_hour_blocks, dt
+                )
+            return forty_eight_hour_blocks[0].evaluate(dt)
 
         # Try monthly blocks next
         for block in self.blocks:
@@ -202,14 +202,17 @@ class WeftFile:
 
         raise ValueError(f"No block found for datetime: {dt}")
 
-    def _interpolate_daily_blocks(
-        self, blocks: list[FortyEightHourBlock], dt: datetime
+    def _interpolate_forty_eight_hour_blocks(
+        self, blocks: List[FortyEightHourBlock], dt: datetime
     ) -> float:
         """
-        Interpolate between overlapping daily blocks.
+        Interpolate between multiple forty-eight hour blocks.
+
+        When multiple forty-eight hour blocks cover the same datetime, we linearly
+        interpolate between them based on their relative influence.
 
         Args:
-            blocks: List of overlapping blocks
+            blocks: List of forty-eight hour blocks that contain the datetime
             dt: The datetime to evaluate at
 
         Returns:

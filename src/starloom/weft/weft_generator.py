@@ -277,7 +277,7 @@ class WeftGenerator:
 
         return blocks
 
-    def create_daily_blocks(
+    def create_forty_eight_hour_blocks(
         self,
         value_func: Callable[[datetime], float],
         start_date: datetime,
@@ -514,7 +514,7 @@ class WeftGenerator:
                     continue
 
                 # Create daily blocks for this range
-                header, daily_blocks = self.create_daily_blocks(
+                header, daily_blocks = self.create_forty_eight_hour_blocks(
                     value_func=value_func,
                     start_date=range_start,
                     end_date=range_end,

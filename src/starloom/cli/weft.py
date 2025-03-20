@@ -121,7 +121,7 @@ def info(file_path: str) -> None:
         click.echo(f"Total blocks: {file_info['block_count']}")
         click.echo(f"Multi-year blocks: {file_info['multi_year_blocks']}")
         click.echo(f"Monthly blocks: {file_info['monthly_blocks']}")
-        click.echo(f"Daily blocks: {file_info['daily_blocks']}")
+        click.echo(f"Forty-eight hour blocks: {file_info['daily_blocks']}")
 
         # Date range
         start_date = file_info["start_date"]

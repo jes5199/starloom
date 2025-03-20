@@ -176,21 +176,23 @@ class WeftReader:
 
         weft_file = self.files[file_id]
 
-        # Find all daily blocks that contain this datetime
-        daily_blocks: List[FortyEightHourBlock] = []
+        # Find all forty-eight hour blocks that contain this datetime
+        forty_eight_hour_blocks: List[FortyEightHourBlock] = []
         for block in weft_file.blocks:
             if isinstance(block, FortyEightHourBlock) and block.contains(dt):
-                daily_blocks.append(block)
+                forty_eight_hour_blocks.append(block)
 
-        # If we have daily blocks, use them with interpolation
-        if daily_blocks:
+        # If we have forty-eight hour blocks, use them with interpolation
+        if forty_eight_hour_blocks:
             # Always use interpolation, even with a single block
-            return self._interpolate_daily_blocks(daily_blocks, dt, file_id)
+            return self._interpolate_forty_eight_hour_blocks(
+                forty_eight_hour_blocks, dt, file_id
+            )
 
-        # If no daily blocks, fall back to regular get_value behavior
+        # If no forty-eight hour blocks, fall back to regular get_value behavior
         return self.get_value(file_id, dt)
 
-    def _interpolate_daily_blocks(
+    def _interpolate_forty_eight_hour_blocks(
         self, blocks: List[FortyEightHourBlock], dt: datetime, file_id: str
     ) -> float:
         """
