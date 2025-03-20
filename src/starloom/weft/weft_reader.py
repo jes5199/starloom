@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, time
-from typing import Dict, List, Tuple, Optional, Any, cast
+from typing import Dict, List, Tuple, Optional, cast
 from .weft import (
     WeftFile,
     MultiYearBlock,
@@ -7,7 +7,6 @@ from .weft import (
     FortyEightHourBlock,
     RangedBehavior,
 )
-from ..horizons.quantities import EphemerisQuantity
 
 
 class WeftReader:
@@ -53,7 +52,7 @@ class WeftReader:
         if file_id in self.files:
             del self.files[file_id]
 
-    def get_info(self, file_id: str = "default") -> Dict[str, Any]:
+    def get_info(self, file_id: str) -> dict:
         """
         Get information about a loaded .weft file.
 
@@ -62,15 +61,14 @@ class WeftReader:
 
         Returns:
             Dictionary containing file information
+
+        Raises:
+            KeyError: If the file ID is not found
         """
         if file_id not in self.files:
             raise KeyError(f"No file loaded with ID {file_id}")
 
-        weft_file = self.files[file_id]
-        return {
-            "preamble": weft_file.preamble,
-            "blocks": weft_file.blocks,
-        }
+        return self.files[file_id].get_info()
 
     def get_date_range(self, file_id: str = "default") -> Tuple[datetime, datetime]:
         """
@@ -92,13 +90,21 @@ class WeftReader:
         for block in weft_file.blocks:
             if isinstance(block, MultiYearBlock):
                 block_start = datetime(block.start_year, 1, 1, tzinfo=timezone.utc)
-                block_end = datetime(block.start_year + block.duration, 1, 1, tzinfo=timezone.utc)
+                block_end = datetime(
+                    block.start_year + block.duration, 1, 1, tzinfo=timezone.utc
+                )
             elif isinstance(block, MonthlyBlock):
                 block_start = datetime(block.year, block.month, 1, tzinfo=timezone.utc)
-                block_end = datetime(block.year, block.month + 1, 1, tzinfo=timezone.utc)
+                block_end = datetime(
+                    block.year, block.month + 1, 1, tzinfo=timezone.utc
+                )
             elif isinstance(block, FortyEightHourBlock):
-                block_start = datetime.combine(block.header.start_day, time(0, tzinfo=timezone.utc))
-                block_end = datetime.combine(block.header.end_day, time(0, tzinfo=timezone.utc))
+                block_start = datetime.combine(
+                    block.header.start_day, time(0, tzinfo=timezone.utc)
+                )
+                block_end = datetime.combine(
+                    block.header.end_day, time(0, tzinfo=timezone.utc)
+                )
             else:
                 continue
 
@@ -112,13 +118,13 @@ class WeftReader:
 
         return start_date, end_date
 
-    def get_value(self, dt: datetime, file_id: str = "default") -> float:
+    def get_value(self, file_id: str, dt: datetime) -> float:
         """
         Get a value from a loaded .weft file for a specific datetime.
 
         Args:
-            dt: The datetime to get the value for (timezone-aware or naive)
             file_id: Identifier of the file to get value from
+            dt: The datetime to get the value for (timezone-aware or naive)
 
         Returns:
             The value at the given datetime
@@ -130,8 +136,7 @@ class WeftReader:
         if file_id not in self.files:
             raise KeyError(f"No file loaded with ID {file_id}")
 
-        weft_file = self.files[file_id]
-        return weft_file.evaluate(dt)
+        return self.files[file_id].evaluate(dt)
 
     def get_value_with_linear_interpolation(
         self, dt: datetime, file_id: Optional[str] = None
@@ -182,7 +187,7 @@ class WeftReader:
             return self._interpolate_daily_blocks(daily_blocks, dt, file_id)
 
         # If no daily blocks, fall back to regular get_value behavior
-        return self.get_value(dt, file_id)
+        return self.get_value(file_id, dt)
 
     def _interpolate_daily_blocks(
         self, blocks: List[FortyEightHourBlock], dt: datetime, file_id: str
