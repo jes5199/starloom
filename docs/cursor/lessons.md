@@ -50,6 +50,10 @@
   - When reusing existing modules, understand their design patterns and limitations
   - Mock appropriate external dependencies in tests to avoid network calls
   - Provide detailed error messages that help troubleshoot issues
+  - Watch for interface extensions in concrete implementations that aren't part of the base interface
+    - For example, HorizonsEphemeris.get_planet_position accepts a 'location' parameter that other implementations don't support
+    - When using different implementations interchangeably, handle these differences gracefully
+    - For CLI commands, include appropriate warnings when parameters will be ignored by certain implementations
 
 ## Enum Relationships
 
@@ -303,7 +307,15 @@ When working with the JPL Horizons API, it's important to understand the distinc
    - Use consistent formatting across similar data types
    - Consider both technical accuracy and user readability
 
-3. Formatting zodiac positions:
+3. CLI Interface Design:
+   - When working with multiple implementations of a common interface, prefer the common subset of parameters
+   - Drop implementation-specific parameters that aren't supported by all implementations
+   - Consider separate commands for specialized functionality rather than conditional logic
+   - Focus on consistency and simplicity for better user experience
+   - Document clearly which parameters work with which data sources
+   - Provide clear warning messages when certain parameters are ignored or not supported
+
+4. Formatting zodiac positions:
    - Divide the ecliptic longitude (0-360°) into 12 equal segments of 30° each
    - Map each segment to the appropriate zodiac sign (Aries starting at 0°, Taurus at 30°, etc.)
    - Convert the longitude within each sign to degrees (0-29°)

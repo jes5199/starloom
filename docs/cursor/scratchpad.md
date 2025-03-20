@@ -881,3 +881,70 @@ Removing redundant methods in LocalHorizonsStorage after adding the versatile ge
 - [ ] Look for similar opportunities for improvement in other classes
 - [ ] Consider adding utility functions for other common astronomical calculations
 - [ ] Add documentation about the julian module's functions in the project documentation 
+
+# Add Multiple Ephemeris Sources to CLI
+
+## Current Task
+Implement support for selecting different ephemeris sources in the CLI command.
+
+## Requirements
+- Allow users to choose between horizons, sqlite (local_horizons), and cached_horizons
+- Add a `--source` option to the CLI command
+- Handle parameter differences between implementations (e.g., location support)
+- Add `--data-dir` option for sources that need a data directory
+
+## Progress
+[X] Add imports for all ephemeris classes
+[X] Create a mapping of friendly names to ephemeris classes
+[X] Add `--source` option to the CLI command with choices from the mapping
+[X] Add `--data-dir` option for SQLite and cached sources
+[X] Handle parameter differences between implementations:
+  - Only pass location to HorizonsEphemeris
+  - Show appropriate warnings when location is ignored
+[X] Update documentation and examples
+[X] Show the source in the CLI output
+
+## Implementation Notes
+- Added a EPHEMERIS_SOURCES dictionary to map friendly names to classes
+- Set "horizons" as the default source
+- Added logic to handle different class initializations:
+  - SQLite and cached implementations need a data_dir parameter
+  - Other implementations use default constructor
+- Added conditional logic to handle different get_planet_position signatures:
+  - HorizonsEphemeris accepts a location parameter
+  - Other implementations don't support location
+- Added warning messages when location parameter is ignored
+- Updated example documentation
+
+## Lessons Learned
+- When implementing a common interface, watch for extensions in concrete implementations
+- Handle parameter differences gracefully with clear user feedback
+- Document implementation-specific behavior in lessons.md 
+
+# Remove Location Parameter from Ephemeris CLI
+
+## Current Task
+Remove the location parameter from the ephemeris CLI command.
+
+## Rationale
+- Location parameter was only fully supported by HorizonsEphemeris
+- Other ephemeris implementations don't support location
+- Removing it simplifies the CLI interface and eliminates conditional logic
+
+## Changes Made
+[X] Removed the `--location` option from the CLI command
+[X] Removed the Location import
+[X] Removed location parameter parsing logic
+[X] Removed conditional logic for handling different location support across implementations
+[X] Simplified the code to always call `get_planet_position` with only planet and time parameters
+[X] Updated the documentation examples
+
+## Result
+- Cleaner, more consistent CLI interface
+- All ephemeris sources now use the same parameter set
+- Simplified implementation without conditional logic for different source types
+- More maintainable codebase with fewer special cases
+
+## Next Steps
+- Consider implementing a separate command if location-specific ephemeris is needed in the future
+- Could potentially add a geocentric-only implementation of location functionality to all ephemeris sources 

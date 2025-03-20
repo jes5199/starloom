@@ -2,13 +2,26 @@
 
 import click
 from datetime import datetime, timezone
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Type
 
 from ..horizons.ephemeris import HorizonsEphemeris
 from ..horizons.planet import Planet
-from ..horizons.location import Location
 from ..ephemeris.quantities import Quantity
 from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance
+from ..ephemeris.ephemeris import Ephemeris
+from ..local_horizons.ephemeris import LocalHorizonsEphemeris
+from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
+
+
+# Define mapping of friendly names to ephemeris classes
+EPHEMERIS_SOURCES: Dict[str, Type[Ephemeris]] = {
+    "horizons": HorizonsEphemeris,
+    "sqlite": LocalHorizonsEphemeris,
+    "cached_horizons": CachedHorizonsEphemeris,
+}
+
+# Default ephemeris source
+DEFAULT_SOURCE = "horizons"
 
 
 def parse_date_input(date_str: str) -> Union[datetime, float]:
@@ -53,13 +66,21 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
     help="Date to get coordinates for. Use ISO format or Julian date. Defaults to current time.",
 )
 @click.option(
-    "--location",
-    help="Observer location (lat,lon,elev)",
+    "--source",
+    type=click.Choice(list(EPHEMERIS_SOURCES.keys())),
+    default=DEFAULT_SOURCE,
+    help=f"Ephemeris data source to use. Defaults to {DEFAULT_SOURCE}.",
+)
+@click.option(
+    "--data-dir",
+    default="./data",
+    help="Directory for local data (used with sqlite and cached_horizons sources).",
 )
 def ephemeris(
     planet: str,
     date: Optional[str] = None,
-    location: Optional[str] = None,
+    source: str = DEFAULT_SOURCE,
+    data_dir: str = "./data",
 ) -> None:
     """Get planetary position data.
 
@@ -71,8 +92,8 @@ def ephemeris(
     Specific time:
        starloom ephemeris venus --date 2025-03-19T20:00:00
 
-    With observer location:
-       starloom ephemeris venus --location 34.0522,-118.2437,0
+    Using a specific data source:
+       starloom ephemeris venus --source sqlite --data-dir ./data
     """
     # Convert planet name to enum
     try:
@@ -86,20 +107,18 @@ def ephemeris(
     else:
         time = datetime.now(timezone.utc)
 
-    # Parse location
-    loc = None
-    if location:
-        try:
-            lat, lon, elev = map(float, location.split(","))
-            loc = Location(latitude=lat, longitude=lon, elevation=elev)
-        except ValueError:
-            raise click.BadParameter("Location must be lat,lon,elev")
-
-    # Create ephemeris instance and get position
-    ephemeris_instance = HorizonsEphemeris()
+    # Create appropriate ephemeris instance based on source
+    ephemeris_class = EPHEMERIS_SOURCES.get(source)
+    if not ephemeris_class:
+        raise click.BadParameter(f"Invalid source: {source}")
+    
+    if source in ["sqlite", "cached_horizons"]:
+        ephemeris_instance = ephemeris_class(data_dir=data_dir)
+    else:
+        ephemeris_instance = ephemeris_class()
 
     try:
-        result = ephemeris_instance.get_planet_position(planet_enum.name, time, loc)
+        result = ephemeris_instance.get_planet_position(planet_enum.name, time)
 
         # Format the time
         if isinstance(time, datetime):
@@ -144,6 +163,7 @@ def ephemeris(
         distance_formatted = format_distance(distance)
 
         # Print formatted output
+        click.echo(f"Source: {source}")
         click.echo(date_str)
         click.echo(
             f"{planet_enum.name.capitalize()} {zodiac_pos}, {lat_formatted}, {distance_formatted}"
