@@ -428,4 +428,103 @@ Need to rename "observer_elements" to "orbital_elements" in all occurrences sinc
 [X] Update class/enum names from ObserverElementsQuantity to OrbitalElementsQuantity
 [X] Delete the old file once changes are complete
 
-✅ All tasks completed! 
+✅ All tasks completed!
+
+# Scratchpad for Current Task
+
+## Task: Implement Abstract Ephemeris Interface and Horizons Implementation
+
+### Goal
+Create an abstract interface for ephemeris data sources and implement it for the JPL Horizons API.
+
+### Requirements
+- Create an abstract Ephemeris class in starloom.ephemeris module
+- Implement a HorizonsEphemeris class in starloom.horizons module
+- The interface should have a method to get a planet's position (ecliptic longitude, ecliptic latitude, distance)
+- Support different time formats (None for current time, Julian date float, or datetime)
+- Add unit tests for the implementation
+
+### Plan
+[X] Create an abstract Ephemeris class in src/starloom/ephemeris/ephemeris.py
+[X] Update the ephemeris module's __init__.py to export the Ephemeris class
+[X] Implement HorizonsEphemeris class in src/starloom/horizons/ephemeris.py
+[X] Update the horizons module's __init__.py to export the HorizonsEphemeris class
+[X] Document lessons learned in lessons.md
+[X] Create unit tests for the HorizonsEphemeris implementation
+[X] Fix implementation issues and make tests pass
+
+### Implementation Issues and Fixes
+
+1. TimePoint non-existent class:
+   - Original implementation tried to use a non-existent TimePoint class
+   - Solution: Updated to use TimeSpec.from_dates() directly with datetime objects or Julian dates
+
+2. Location.GEOCENTRIC missing:
+   - Original implementation tried to use a non-existent GEOCENTRIC constant
+   - Solution: Created a geocentric_location class attribute with "@399" which is the Horizons syntax for geocentric coordinates
+
+3. Error handling expectations:
+   - Test expected KeyError for invalid planet names, but implementation raised ValueError
+   - Solution: Updated test to expect ValueError with the correct error message
+
+### Unit Test Details
+Created comprehensive tests that verify:
+1. Different planet identifier formats:
+   - String ID (e.g., "499" for Mars)
+   - Planet enum (e.g., Planet.MARS)
+   - String enum name (e.g., "MARS")
+
+2. Different time formats:
+   - Default (current time)
+   - Julian date
+   - Datetime object with timezone
+
+3. Error handling:
+   - Empty response from API
+   - Invalid planet name
+
+4. Result validation:
+   - Verifies presence of required quantities (longitude, latitude, distance)
+   - Checks actual values against expected results from fixtures
+
+### Implementation Details
+
+The implementation:
+1. Uses the HorizonsRequest to query the JPL Horizons API
+2. Converts between the module-specific EphemerisQuantity enum and the standard Quantity enum
+3. Handles different planet identifier formats (enum, name, ID)
+4. Supports multiple time formats (current time, Julian date, datetime)
+5. Provides proper error handling
+
+### Next Steps
+- Add more methods to the interface as needed (ephemeris ranges, other coordinate systems)
+- Consider implementing caching to reduce API calls for repeated requests
+- Add integration tests to verify actual API responses 
+
+## Current Task: Update HorizonsEphemeris to default to geocentric coordinates
+
+### Task Description
+The goal is to modify the `get_planet_position` method in the `HorizonsEphemeris` implementation to default to geocentric coordinates when no specific location is provided.
+
+### Progress
+[X] Modified `get_planet_position` method to default to geocentric coordinates if location is null
+[X] Fixed test issue with patching the wrong class paths
+[X] Enhanced testing strategy with proper mock objects
+[X] Ensured all tests pass, including the full test suite
+
+### Implementation Details
+1. The `get_planet_position` method in `HorizonsEphemeris` was updated to default to a geocentric location when no specific location is provided
+2. We had to fix the test file which had issues with patching
+3. Key points:
+   - We discovered that we needed to patch `starloom.horizons.ephemeris.HorizonsRequest` instead of `starloom.horizons.request.HorizonsRequest` because we need to patch the class at the point where it's imported, not where it's defined
+   - We also needed to properly patch `ObserverParser.parse` to return mock data
+   - We implemented proper checks in the tests to verify that the location parameter is correctly passed
+
+### Next Steps
+- Consider if there are any other API improvements to make
+- Document the geocentric default behavior in the docstring of relevant methods
+
+### Lessons Learned
+- When patching classes with unittest.mock, it's important to patch where they are imported, not where they're defined
+- Mock objects need to be set up properly for each test case
+- Testing location handling required careful mock setup for both the HorizonsRequest and ObserverParser classes 

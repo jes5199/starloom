@@ -4,6 +4,7 @@ from .quantities import (
     QuantityForColumnName,
 )
 from .parsers import ObserverParser, ElementsParser, OrbitalElementsQuantity
+from .ephemeris import HorizonsEphemeris
 
 __all__ = [
     "HorizonsRequestObserverQuantities",
@@ -12,4 +13,5 @@ __all__ = [
     "ObserverParser",
     "ElementsParser",
     "OrbitalElementsQuantity",
+    "HorizonsEphemeris",
 ]

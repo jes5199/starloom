@@ -1,5 +1,21 @@
 # Project-wide TODO list
 
+## Ephemeris Interface
+
+- [X] Add unit tests for the Ephemeris interface
+  - Test different planet identifiers (enum, name, ID)
+  - Test different time formats (current time, Julian date, datetime)
+  - Test error handling for API responses
+
+- [ ] Enhance the Ephemeris interface
+  - Add method for getting ephemeris ranges (multiple points)
+  - Add support for other coordinate systems
+  - Consider adding caching to reduce API calls
+
+- [ ] Additional implementations
+  - Add implementation for binary ephemeris files
+  - Add implementation for local stored ephemeris data
+
 ## Enum Naming and Documentation
 
 - [ ] Rename `EphemerisQuantity` to `HorizonsQuantity` to better reflect its purpose
@@ -14,7 +30,8 @@
 
 ## API Improvements
 
-- [ ] Review API for confusing parts
+- [X] Review API for confusing parts
+  - Update default location handling in `get_planet_position` to use geocentric coordinates
   - Add better documentation
   - Consider adding convenience methods
 

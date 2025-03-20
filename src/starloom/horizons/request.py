@@ -97,7 +97,16 @@ class HorizonsRequest:
             ),
         }
         if self.location:
-            params["SITE_COORD"] = self.location.to_horizons_format()
+            if isinstance(self.location, str):
+                # Handle special location strings (like @399 for geocentric)
+                if self.location.startswith("@"):
+                    params["CENTER"] = self.location
+                else:
+                    # Assume it's a comma-separated coordinate string or observatory code
+                    params["SITE_COORD"] = self.location
+            else:
+                # It's a Location object
+                params["SITE_COORD"] = self.location.to_horizons_format()
         if self.center:
             params["CENTER"] = self.center
         return params
