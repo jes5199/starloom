@@ -13,6 +13,7 @@ import numpy as np
 
 from .utils import evaluate_chebyshev, _ensure_timezone_aware
 
+
 class MultiYearBlock:
     """
     A block covering multiple years with a single Chebyshev polynomial.
@@ -21,7 +22,7 @@ class MultiYearBlock:
     Typically used for slow-moving objects like outer planets.
     """
 
-    marker = b"\x00\x03"  # Block type marker
+    marker = b"\x00\x03"  # Original marker
 
     def __init__(self, start_year: int, duration: int, coeffs: List[float]):
         """

@@ -3,111 +3,123 @@ FortyEightHourSectionHeader class for handling metadata for forty-eight hour blo
 """
 
 import struct
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, time
 from typing import BinaryIO
 
 
 class FortyEightHourSectionHeader:
-    """A header that precedes forty-eight hour blocks.
-    
-    This header contains metadata about the time period covered by the following
-    blocks. It is used to efficiently locate and validate blocks.
-    """
+    """Header for a forty-eight hour block."""
 
-    marker = b"\x00\x02"  # FortyEightHour section header marker
-    coefficient_count = 48  # Number of coefficients in each block
+    marker = b"\x00\x02"  # Original marker
+    coefficient_count = 48  # Default number of coefficients
 
-    def __init__(
-        self,
-        start_day: date,
-        end_day: date,
-    ):
-        """Initialize a FortyEightHour section header.
+    def __init__(self, start_day: date, end_day: date):
+        """Initialize a forty-eight hour section header.
 
         Args:
-            start_day: The start date of the section
-            end_day: The end date of the section (exclusive)
+            start_day: Start date of the section
+            end_day: End date of the section
 
         Raises:
             ValueError: If end_day is not after start_day
         """
+        if not isinstance(start_day, date):
+            raise ValueError("start_day must be a date object")
+        if not isinstance(end_day, date):
+            raise ValueError("end_day must be a date object")
         if end_day <= start_day:
-            raise ValueError("End day must be after start day")
+            raise ValueError("end_day must be after start_day")
+
         self.start_day = start_day
         self.end_day = end_day
 
     def to_bytes(self) -> bytes:
-        """Convert this header to bytes.
+        """Convert header to binary format.
 
         Returns:
-            The header as bytes
+            Binary representation of header
         """
-        data = bytearray()
-        data.extend(self.marker)
-        # Write start date
-        data.extend(struct.pack(">H", self.start_day.year))
-        data.append(self.start_day.month)
-        data.append(self.start_day.day)
-        # Write end date
-        data.extend(struct.pack(">H", self.end_day.year))
-        data.append(self.end_day.month)
-        data.append(self.end_day.day)
-        return bytes(data)
+        result = bytearray(self.marker)
+        result.extend(struct.pack(">H", self.start_day.year))
+        result.extend(struct.pack(">B", self.start_day.month))
+        result.extend(struct.pack(">B", self.start_day.day))
+        result.extend(struct.pack(">H", self.end_day.year))
+        result.extend(struct.pack(">B", self.end_day.month))
+        result.extend(struct.pack(">B", self.end_day.day))
+        return bytes(result)
 
     @classmethod
     def from_stream(cls, stream: BinaryIO) -> "FortyEightHourSectionHeader":
-        """Read a header from a binary stream.
+        """Read header from binary stream.
 
         Args:
-            stream: The binary stream to read from
+            stream: Binary stream to read from
 
         Returns:
-            A new FortyEightHourSectionHeader instance
+            New FortyEightHourSectionHeader instance
+
+        Raises:
+            ValueError: If stream data is invalid
         """
-        # Read start date
-        start_year = struct.unpack(">H", stream.read(2))[0]
-        start_month = stream.read(1)[0]
-        start_day = stream.read(1)[0]
-        # Read end date
-        end_year = struct.unpack(">H", stream.read(2))[0]
-        end_month = stream.read(1)[0]
-        end_day = stream.read(1)[0]
-        return cls(
-            start_day=date(start_year, start_month, start_day),
-            end_day=date(end_year, end_month, end_day),
-        )
+        try:
+            start_year = struct.unpack(">H", stream.read(2))[0]
+            start_month = struct.unpack(">B", stream.read(1))[0]
+            start_day = struct.unpack(">B", stream.read(1))[0]
+            end_year = struct.unpack(">H", stream.read(2))[0]
+            end_month = struct.unpack(">B", stream.read(1))[0]
+            end_day = struct.unpack(">B", stream.read(1))[0]
+
+            start = date(start_year, start_month, start_day)
+            end = date(end_year, end_month, end_day)
+
+            return cls(start_day=start, end_day=end)
+        except (struct.error, ValueError) as e:
+            raise ValueError(f"Invalid date data: {str(e)}")
 
     def contains_datetime(self, dt: datetime) -> bool:
-        """Check if a datetime falls within this section's date range.
+        """Check if datetime falls within section's range.
 
         Args:
-            dt: The datetime to check
+            dt: Datetime to check
 
         Returns:
-            True if the datetime falls within this section's date range
+            True if datetime is within range, False otherwise
         """
-        if not dt.tzinfo:
-            dt = dt.replace(tzinfo=timezone.utc)
+        # Convert to UTC if timezone-aware
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc)
+
         dt_date = dt.date()
         return self.start_day <= dt_date < self.end_day
 
     def datetime_to_hours(self, dt: datetime) -> float:
-        """Convert a datetime to normalized hours in [-1, 1].
+        """Convert datetime to normalized hours in [-1, 1].
 
         Args:
-            dt: The datetime to convert
+            dt: Datetime to convert
 
         Returns:
-            The normalized hours value in [-1, 1]
+            Normalized hours
 
         Raises:
-            ValueError: If the datetime is outside this section's range
+            ValueError: If datetime is outside section range
         """
-        if not dt.tzinfo:
-            dt = dt.replace(tzinfo=timezone.utc)
         if not self.contains_datetime(dt):
             raise ValueError("Datetime outside section range")
-        # Convert to hours since start of day
-        hours = dt.hour + dt.minute / 60.0 + dt.second / 3600.0
-        # Normalize to [-1, 1]
-        return 2.0 * (hours / 24.0) - 1.0 
+
+        # Convert to UTC if timezone-aware
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc)
+        else:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        # Calculate total seconds in the 48-hour period
+        start_dt = datetime.combine(self.start_day, time(0, 0), timezone.utc)
+        end_dt = datetime.combine(self.end_day, time(0, 0), timezone.utc)
+        total_seconds = (end_dt - start_dt).total_seconds()
+
+        # Calculate seconds elapsed since start
+        elapsed = (dt - start_dt).total_seconds()
+
+        # Convert to normalized hours in [-1, 1]
+        return 2 * (elapsed / total_seconds) - 1 

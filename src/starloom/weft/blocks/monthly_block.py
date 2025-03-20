@@ -12,6 +12,7 @@ import numpy as np
 
 from .utils import evaluate_chebyshev, _ensure_timezone_aware
 
+
 class MonthlyBlock:
     """
     A block covering a single month with a Chebyshev polynomial.
@@ -19,7 +20,7 @@ class MonthlyBlock:
     This provides medium precision and is efficient for most use cases.
     """
 
-    marker = b"\x00\x00"  # Block type marker
+    marker = b"\x00\x00"  # Original marker
 
     def __init__(self, year: int, month: int, day_count: int, coeffs: List[float]):
         """

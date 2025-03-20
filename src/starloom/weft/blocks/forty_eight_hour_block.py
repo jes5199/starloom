@@ -12,102 +12,111 @@ from .utils import evaluate_chebyshev
 
 
 class FortyEightHourBlock:
-    """A block that covers a 48-hour period with a Chebyshev polynomial.
-    
-    This block type provides high precision but uses more space than monthly blocks.
-    It is typically used for fast-moving objects like the Moon or for high-precision
-    applications.
-    """
+    """A block containing coefficients for a 48-hour period."""
 
-    marker = b"\x00\x03"  # FortyEightHour block marker
+    marker = b"\x00\x01"  # Original marker
 
-    def __init__(
-        self,
-        header: FortyEightHourSectionHeader,
-        coeffs: List[float],
-    ):
-        """Initialize a FortyEightHour block.
+    def __init__(self, header: FortyEightHourSectionHeader, coeffs: List[float]):
+        """
+        Initialize a forty-eight hour block.
 
         Args:
-            header: The section header containing the date range
-            coeffs: List of Chebyshev polynomial coefficients
+            header: The section header
+            coeffs: Chebyshev polynomial coefficients
+
+        Raises:
+            ValueError: If any coefficient is NaN
         """
         self.header = header
-        if any(np.isnan(c) for c in coeffs):
+
+        # Convert coefficients to numpy array
+        coeffs_array = np.array(coeffs, dtype=np.float64)
+
+        # Check for NaN values
+        if np.any(np.isnan(coeffs_array)):
             raise ValueError("Coefficients cannot be NaN")
-        # Store coefficients, stripping trailing zeros
-        self.coeffs = coeffs
-        # Store full coefficients for binary format
-        self._full_coeffs = np.array(coeffs + [0.0] * (
-            self.header.coefficient_count - len(coeffs)
-        ))
+
+        # If coefficients list is empty, use a single zero coefficient
+        if len(coeffs_array) == 0:
+            coeffs_array = np.array([0.0], dtype=np.float64)
+
+        # Strip trailing zeros to get significant coefficients
+        while len(coeffs_array) > 1 and coeffs_array[-1] == 0:
+            coeffs_array = coeffs_array[:-1]
+
+        self.coeffs = coeffs_array.tolist()  # Convert back to list for storage
+
+        # Pad to header's count for binary format
+        self._full_coeffs = np.pad(
+            coeffs_array, (0, self.header.coefficient_count - len(coeffs_array))
+        )
 
     def contains(self, dt: datetime) -> bool:
-        """Check if a datetime falls within this block's range.
+        """
+        Check if a datetime is within this block's range.
 
         Args:
             dt: The datetime to check
 
         Returns:
-            True if the datetime falls within this block's range
+            True if the datetime is within range
         """
-        if not dt.tzinfo:
-            dt = dt.replace(tzinfo=timezone.utc)
         return self.header.contains_datetime(dt)
 
     def to_bytes(self) -> bytes:
-        """Convert this block to bytes.
+        """
+        Convert the block to binary format.
 
         Returns:
-            The block as bytes
+            Binary representation of block
         """
-        data = bytearray()
-        data.extend(self.marker)
-        # Write coefficients
+        # Convert coefficients to big-endian bytes
+        coeffs_bytes = bytearray()
         for coeff in self._full_coeffs:
-            data.extend(struct.pack(">f", coeff))
-        return bytes(data)
+            coeffs_bytes.extend(struct.pack(">f", float(coeff)))
+        return self.marker + bytes(coeffs_bytes)
 
     @classmethod
     def from_stream(
         cls, stream: BinaryIO, header: FortyEightHourSectionHeader
     ) -> "FortyEightHourBlock":
-        """Read a block from a binary stream.
+        """
+        Read a forty-eight hour block from a binary stream.
 
         Args:
-            stream: The binary stream to read from
-            header: The section header containing the date range
+            stream: Binary stream positioned after the marker
+            header: The section header for this block
 
         Returns:
-            A new FortyEightHourBlock instance
+            A FortyEightHourBlock instance
         """
-        # Read coefficients
+        coeffs_bytes = stream.read(4 * header.coefficient_count)
+        if len(coeffs_bytes) != 4 * header.coefficient_count:
+            raise ValueError("Incomplete coefficient data")
+
         coeffs = []
-        for _ in range(header.coefficient_count):
-            coeff = struct.unpack(">f", stream.read(4))[0]
+        for i in range(0, len(coeffs_bytes), 4):
+            coeff = struct.unpack(">f", coeffs_bytes[i : i + 4])[0]
             coeffs.append(coeff)
-        # Strip trailing zeros
-        while coeffs and coeffs[-1] == 0.0:
-            coeffs.pop()
-        if not coeffs:
-            coeffs = [0.0]
+
         return cls(header=header, coeffs=coeffs)
 
     def evaluate(self, dt: datetime) -> float:
-        """Evaluate the polynomial at a specific datetime.
+        """
+        Evaluate the block's polynomial at a specific datetime.
 
         Args:
             dt: The datetime to evaluate at
 
         Returns:
-            The value of the polynomial at the given datetime
+            The interpolated value
 
         Raises:
-            ValueError: If the datetime is outside this block's range
+            ValueError: If the datetime is outside the block's range or has no timezone
         """
-        if not dt.tzinfo:
-            dt = dt.replace(tzinfo=timezone.utc)
-        if not self.contains(dt):
-            raise ValueError("Datetime outside block range")
+        if dt.tzinfo is None:
+            raise ValueError("Datetime must have timezone information")
+
+        dt = dt.astimezone(timezone.utc)
         x = self.header.datetime_to_hours(dt)
         return evaluate_chebyshev(self.coeffs, x) 
