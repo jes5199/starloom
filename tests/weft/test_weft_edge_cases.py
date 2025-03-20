@@ -5,12 +5,12 @@ import pytest
 import numpy as np
 
 # Import from starloom package
-from src.starloom.weft.weft import (
+from src.starloom.weft.weft import WeftFile
+from src.starloom.weft.blocks import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourSectionHeader,
     FortyEightHourBlock,
-    WeftFile,
 )
 
 
