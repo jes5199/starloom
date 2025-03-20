@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, cast
 from .weft import (
     WeftFile,
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourBlock,
+    RangedBehavior,
 )
 from ..horizons.quantities import EphemerisQuantity
 
@@ -19,9 +20,17 @@ class WeftReader:
     3. Multi-year blocks
     """
 
-    def __init__(self, file_path=None, file_id=None, quantity=None):
-        self.files = {}  # Map of file_id to WeftFile
-        self.quantity_map = {}  # Map of file_id to quantity
+    def __init__(
+        self,
+        file_path: Optional[str] = None,
+        file_id: Optional[str] = None,
+        quantity: Optional[EphemerisQuantity] = None,
+    ) -> None:
+        """Initialize a WeftReader instance."""
+        self.files: Dict[str, WeftFile] = {}  # Map of file_id to WeftFile
+        self.quantity_map: Dict[
+            str, EphemerisQuantity
+        ] = {}  # Map of file_id to quantity
 
         # If file_path is provided, load it
         if file_path is not None and file_id is not None:
@@ -45,7 +54,21 @@ class WeftReader:
         if quantity is not None:
             self.quantity_map[file_id] = quantity
 
-    def get_value(self, dt: datetime, file_id: str = None) -> float:
+    def get_value(self, dt: datetime, file_id: Optional[str] = None) -> float:
+        """
+        Get a value from a loaded .weft file for a specific datetime.
+
+        Args:
+            dt: The datetime to get the value for (timezone-aware or naive)
+            file_id: The key used when loading the file
+
+        Returns:
+            The value at the given datetime
+
+        Raises:
+            KeyError: If the key is not found
+            ValueError: If no block covers the given time
+        """
         # If file_id is None, use the only loaded file
         if file_id is None:
             if len(self.files) != 1:
@@ -53,20 +76,7 @@ class WeftReader:
                     "file_id must be provided when multiple files are loaded"
                 )
             file_id = next(iter(self.files.keys()))
-        """
-        Get a value from a loaded .weft file for a specific datetime.
-        
-        Args:
-            dt: The datetime to get the value for (timezone-aware or naive)
-            file_id: The key used when loading the file
-            
-        Returns:
-            The value at the given datetime
-            
-        Raises:
-            KeyError: If the key is not found
-            ValueError: If no block covers the given time
-        """
+
         # Convert to UTC if timezone-aware, or assume UTC if naive
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
@@ -79,10 +89,10 @@ class WeftReader:
         weft_file = self.files[file_id]
 
         # Find the block that contains this datetime
-        value = None
+        value: Optional[float] = None
 
         # Try daily blocks first (highest priority)
-        daily_blocks = []
+        daily_blocks: List[FortyEightHourBlock] = []
         for block in weft_file.blocks:
             if isinstance(block, FortyEightHourBlock) and block.contains(dt):
                 daily_blocks.append(block)
@@ -176,7 +186,8 @@ class WeftReader:
             # For wrapping angles, we need to interpolate carefully
             # Get the range of the wrapping behavior
             weft_file = self.files[file_id]
-            min_val, max_val = weft_file.value_behavior["range"]
+            behavior = cast(RangedBehavior, weft_file.value_behavior)
+            min_val, max_val = behavior["range"]
             range_size = max_val - min_val
 
             # For angles like [0, 360), we need to handle the case where
@@ -226,9 +237,26 @@ class WeftReader:
             return self.files[file_id].apply_value_behavior(value)
 
     def _interpolate_remaining_blocks(
-        self, blocks, block_values, block_x_values, dt, file_id
-    ):
-        """Fallback interpolation when some blocks are out of valid x range."""
+        self,
+        blocks: List[FortyEightHourBlock],
+        block_values: List[float],
+        block_x_values: List[float],
+        dt: datetime,
+        file_id: str,
+    ) -> float:
+        """
+        Fallback interpolation when some blocks are out of valid x range.
+
+        Args:
+            blocks: List of blocks to interpolate between
+            block_values: List of values from each block
+            block_x_values: List of x values for each block
+            dt: The datetime to evaluate at
+            file_id: The file ID (used to determine angle handling)
+
+        Returns:
+            The interpolated value
+        """
         valid_indices = [i for i, x in enumerate(block_x_values) if -1 <= x <= 1]
 
         if not valid_indices:
@@ -248,31 +276,31 @@ class WeftReader:
         else:
             return self._interpolate_fallback(blocks, dt, file_id)
 
-    def _interpolate_fallback(self, blocks, dt, file_id):
-        """Last resort fallback to handle interpolation when all else fails."""
-        # Find the block with midpoint closest to the target datetime
-        midpoints = [
-            datetime(b.year, b.month, b.day, 0, 0, 0, tzinfo=timezone.utc)
-            for b in blocks
-        ]
-        closest_idx = min(
-            range(len(blocks)), key=lambda i: abs((midpoints[i] - dt).total_seconds())
+    def _interpolate_fallback(
+        self, blocks: List[FortyEightHourBlock], dt: datetime, file_id: str
+    ) -> float:
+        """
+        Simple fallback interpolation method.
+
+        Args:
+            blocks: List of blocks to interpolate between
+            dt: The datetime to evaluate at
+            file_id: The file ID (used to determine angle handling)
+
+        Returns:
+            The interpolated value
+        """
+        # Just use the closest block's value
+        closest_block = min(
+            blocks,
+            key=lambda b: abs(
+                dt.timestamp()
+                - datetime(
+                    b.year, b.month, b.day, 0, 0, 0, tzinfo=timezone.utc
+                ).timestamp()
+            ),
         )
-
-        try:
-            value = blocks[closest_idx].evaluate(dt)
-            return self.files[file_id].apply_value_behavior(value)
-        except ValueError:
-            # If even that fails, return the value of the first block that contains the datetime
-            for block in blocks:
-                try:
-                    value = block.evaluate(dt)
-                    return self.files[file_id].apply_value_behavior(value)
-                except ValueError:
-                    continue
-
-            # If all else fails, raise an error
-            raise ValueError(f"Cannot interpolate value for datetime: {dt}")
+        return self.files[file_id].apply_value_behavior(closest_block.evaluate(dt))
 
     def _is_wrapping_angle(self, file_id: str) -> bool:
         """
@@ -284,10 +312,8 @@ class WeftReader:
         Returns:
             True if the file contains wrapping angle values
         """
-        if file_id not in self.files:
-            return False
-
-        return self.files[file_id].value_behavior["type"] == "wrapping"
+        weft_file = self.files[file_id]
+        return weft_file.value_behavior["type"] == "wrapping"
 
     def unload_file(self, key: str) -> None:
         """
@@ -409,7 +435,7 @@ class WeftReader:
         }
 
     def get_value_with_linear_interpolation(
-        self, dt: datetime, file_id: str = None
+        self, dt: datetime, file_id: Optional[str] = None
     ) -> float:
         """
         Get a value from a loaded .weft file for a specific datetime, always using linear interpolation
@@ -432,13 +458,21 @@ class WeftReader:
         else:
             dt = dt.astimezone(timezone.utc)
 
+        # If file_id is None, use the only loaded file
+        if file_id is None:
+            if len(self.files) != 1:
+                raise ValueError(
+                    "file_id must be provided when multiple files are loaded"
+                )
+            file_id = next(iter(self.files.keys()))
+
         if file_id not in self.files:
             raise KeyError(f"No weft file loaded for key: {file_id}")
 
         weft_file = self.files[file_id]
 
         # Find all daily blocks that contain this datetime
-        daily_blocks = []
+        daily_blocks: List[FortyEightHourBlock] = []
         for block in weft_file.blocks:
             if isinstance(block, FortyEightHourBlock) and block.contains(dt):
                 daily_blocks.append(block)
