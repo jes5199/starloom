@@ -1033,3 +1033,22 @@ Update starloom's WEFT binary ephemeris format to:
 3. Created cached_weft_generator.py with generate_weft_file function that uses CachedHorizonsEphemeris
 4. Created CLI module for the weft functionality
 5. Registered the CLI module with the main CLI 
+
+# Current Task: Simplify evaluate_chebyshev interface
+
+## Overview
+Modified evaluate_chebyshev to only accept List[float] instead of Union[List[float], NDArray[np.float32]] to simplify the interface and remove numpy dependency.
+
+## Changes Made
+[X] Modified evaluate_chebyshev in utils.py to only accept List[float]
+[X] Removed numpy array conversion in multi_year_block.py
+[X] Verified other blocks (forty_eight_hour_block.py and monthly_block.py) were already using List[float]
+[X] Verified tests were already using List[float]
+
+## Impact
+- Simplified interface by removing numpy dependency
+- No changes needed to calling code since most was already using List[float]
+- Removed unnecessary type conversion in multi_year_block.py
+
+## Next Steps
+None - task complete 

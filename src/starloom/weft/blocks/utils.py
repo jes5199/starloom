@@ -2,18 +2,14 @@
 Utility functions for Weft blocks.
 """
 
-import numpy as np
-from numpy.typing import NDArray
-from typing import List, Union
+from typing import List
 
 
-def evaluate_chebyshev(
-    coeffs: Union[List[float], NDArray[np.float32]], x: float
-) -> float:
+def evaluate_chebyshev(coeffs: List[float], x: float) -> float:
     """Evaluate a Chebyshev polynomial at x using Clenshaw's algorithm.
 
     Args:
-        coeffs: Chebyshev coefficients
+        coeffs: Chebyshev coefficients as a list of floats
         x: Point to evaluate at, must be in [-1, 1]
 
     Returns:
@@ -25,15 +21,11 @@ def evaluate_chebyshev(
     if not -1 <= x <= 1:
         raise ValueError("x must be in [-1, 1]")
 
-    # Convert coefficients to numpy array if needed
-    if not isinstance(coeffs, np.ndarray):
-        coeffs = np.array(coeffs, dtype=np.float32)
-
     # Handle empty or single coefficient case
     if len(coeffs) == 0:
         return 0.0
     if len(coeffs) == 1:
-        return float(coeffs[0])
+        return coeffs[0]
 
     # Clenshaw's algorithm
     b_k1 = 0.0  # b_{k+1}

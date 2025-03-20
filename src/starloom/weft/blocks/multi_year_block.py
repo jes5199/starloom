@@ -9,7 +9,6 @@ Typically used for slow-moving objects like outer planets.
 import struct
 from datetime import datetime
 from typing import List, BinaryIO
-import numpy as np
 
 from .utils import evaluate_chebyshev
 from starloom.space_time.pythonic_datetimes import ensure_utc
@@ -108,29 +107,17 @@ class MultiYearBlock:
         Raises:
             ValueError: If the datetime is outside the block's range
         """
-        # Ensure timezone awareness
-        dt = ensure_utc(dt)
-
         if not self.contains(dt):
-            raise ValueError(f"Datetime {dt} is outside the block's range")
+            raise ValueError("Datetime outside block range")
 
-        # Convert datetime to normalized time in [-1, 1] range
-        # x = -1 at start of period
-        # x = 1 at end of period
-
-        # Get day of year (1-366)
-        dt_tz = dt.tzinfo
-        year_start = datetime(dt.year, 1, 1, tzinfo=dt_tz)
         days_in_year = (
             366
-            if (dt.year % 4 == 0 and (dt.year % 100 != 0 or dt.year % 400 == 0))
+            if dt.year % 4 == 0 and (dt.year % 100 != 0 or dt.year % 400 == 0)
             else 365
         )
-        day_of_year = (dt - year_start).days + 1
+        day_of_year = dt.timetuple().tm_yday
 
         year_float = dt.year + (day_of_year - 1) / days_in_year
         x = 2 * ((year_float - self.start_year) / self.duration) - 1
 
-        # Ensure coefficients are in the correct format
-        coeffs = np.array(self.coeffs, dtype=np.float32)
-        return evaluate_chebyshev(coeffs, x)
+        return evaluate_chebyshev(self.coeffs, x)
