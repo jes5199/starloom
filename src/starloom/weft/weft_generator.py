@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple, Optional, Any, Callable, Union
+from typing import List, Dict, Tuple, Optional, Any, Callable, Union, TypeVar, cast
 from zoneinfo import ZoneInfo
 from numpy.polynomial import chebyshev
 import os
@@ -11,12 +11,15 @@ from .weft import (
     FortyEightHourBlock,
     WeftFile,
     unwrap_angles,
+    BlockType,
 )
 from ..horizons.quantities import (
     EphemerisQuantity,
 )
 from ..horizons.parsers import OrbitalElementsQuantity
 from ..horizons.planet import Planet
+
+T = TypeVar("T", bound=BlockType)
 
 
 class WeftGenerator:
@@ -69,12 +72,12 @@ class WeftGenerator:
         sample_times = [start_dt + i * delta for i in range(sample_count)]
 
         # Get values for each sample time
-        values = []
-        valid_times = []
+        values: List[float] = []
+        valid_times: List[datetime] = []
         for dt in sample_times:
             try:
                 value = value_func(dt)
-                if value is not None and value != "":
+                if value is not None and isinstance(value, (int, float)):
                     values.append(float(value))
                     valid_times.append(dt)
             except (ValueError, TypeError):
@@ -216,9 +219,10 @@ class WeftGenerator:
 
         # Fit Chebyshev coefficients
         coeffs = chebyshev.chebfit(x_values, values, deg=degree)
+        coeffs_list = cast(List[float], coeffs.tolist())
 
         return MultiYearBlock(
-            start_year=start_year, duration=duration, coeffs=coeffs.tolist()
+            start_year=start_year, duration=duration, coeffs=coeffs_list
         )
 
     def create_monthly_blocks(
@@ -245,7 +249,7 @@ class WeftGenerator:
             List of MonthlyBlock objects
         """
         start_month, end_month = month_range
-        blocks = []
+        blocks: List[MonthlyBlock] = []
 
         for month in range(start_month, end_month + 1):
             # Calculate days in month
@@ -263,10 +267,11 @@ class WeftGenerator:
 
             # Fit Chebyshev coefficients
             coeffs = chebyshev.chebfit(x_values, values, deg=degree)
+            coeffs_list = cast(List[float], coeffs.tolist())
 
             blocks.append(
                 MonthlyBlock(
-                    year=year, month=month, day_count=day_count, coeffs=coeffs.tolist()
+                    year=year, month=month, day_count=day_count, coeffs=coeffs_list
                 )
             )
 
@@ -332,7 +337,7 @@ class WeftGenerator:
         )
 
         # Create forty-eight hour blocks
-        blocks = []
+        blocks: List[FortyEightHourBlock] = []
         current_date = start_date
         while current_date <= end_date:
             # For forty-eight hour blocks, the time range is:
@@ -347,18 +352,23 @@ class WeftGenerator:
             )  # Midnight UTC of the following day
 
             x_values, values = self._generate_samples(
-                value_func, day_start, day_end, samples_per_day, quantity
+                value_func,
+                day_start,
+                day_end,
+                samples_per_day,
+                quantity or self.quantity,
             )
 
             # Fit Chebyshev coefficients
             coeffs = chebyshev.chebfit(x_values, values, deg=degree)
+            coeffs_list = cast(List[float], coeffs.tolist())
 
             blocks.append(
                 FortyEightHourBlock(
                     year=current_date.year,
                     month=current_date.month,
                     day=current_date.day,
-                    coeffs=coeffs.tolist(),
+                    coeffs=coeffs_list,
                     block_size=block_size,
                 )
             )
@@ -416,7 +426,7 @@ class WeftGenerator:
         Returns:
             A WeftFile with blocks at the specified precision levels
         """
-        blocks = []
+        blocks: List[BlockType] = []
 
         # Create century/multi-year blocks if enabled
         if config.get("century", {}).get("enabled", False):
@@ -498,34 +508,29 @@ class WeftGenerator:
             daily_config = config["daily"]
             date_ranges = daily_config.get("date_ranges", [])
 
-            # If no specific ranges provided, use the full start-end range
-            if not date_ranges:
-                date_ranges = [(start_date, end_date)]
-            else:
-                # Convert string dates to datetime objects if needed
-                processed_ranges = []
-                for range_start, range_end in date_ranges:
-                    if isinstance(range_start, str):
-                        range_start = datetime.fromisoformat(range_start)
-                    if isinstance(range_end, str):
-                        range_end = datetime.fromisoformat(range_end)
+            for date_range in date_ranges:
+                start_str, end_str = date_range
+                range_start = datetime.strptime(start_str, "%Y-%m-%d").replace(
+                    tzinfo=ZoneInfo("UTC")
+                )
+                range_end = datetime.strptime(end_str, "%Y-%m-%d").replace(
+                    tzinfo=ZoneInfo("UTC")
+                )
 
-                    # Clip to the overall date range
-                    range_start = max(range_start, start_date)
-                    range_end = min(range_end, end_date)
+                # Clip to overall start/end dates
+                range_start = max(range_start, start_date)
+                range_end = min(range_end, end_date)
 
-                    processed_ranges.append((range_start, range_end))
-                date_ranges = processed_ranges
+                if range_start > range_end:
+                    continue
 
-            # Create daily blocks for each range
-            for range_start, range_end in date_ranges:
+                # Create daily blocks for this range
                 header, daily_blocks = self.create_daily_blocks(
                     value_func=value_func,
                     start_date=range_start,
                     end_date=range_end,
                     samples_per_day=daily_config.get("samples_per_day", 48),
                     degree=daily_config.get("degree", 8),
-                    block_size=daily_config.get("block_size", None),
                     quantity=quantity,
                 )
                 blocks.append(header)
@@ -540,7 +545,6 @@ class WeftGenerator:
             f"generated@{now.isoformat()}\n"
         )
 
-        # Create and return the WeftFile
         return WeftFile(preamble=preamble, blocks=blocks)
 
     def save_file(self, weft_file: WeftFile, output_path: str) -> None:

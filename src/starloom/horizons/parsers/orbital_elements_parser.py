@@ -5,7 +5,7 @@ The parser handles the standard column format for orbital elements.
 """
 
 import csv
-from typing import List, Tuple, Dict, Optional, TypeVar, cast
+from typing import List, Tuple, Dict, Optional, TypeVar
 from enum import Enum
 
 T = TypeVar("T")
@@ -91,7 +91,7 @@ class ElementsParser:
             # Store header line if we find one before $$SOE
             if not in_table and "JDTDB" in line:
                 header_line = line
-                csv_lines.append(cast(str, header_line))
+                csv_lines.append(header_line)
                 continue
 
             # Store data lines
