@@ -1,6 +1,7 @@
 # generated files
 *.sqlite3
 *.weft
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

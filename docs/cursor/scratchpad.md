@@ -977,3 +977,59 @@ When running the same query twice with cached_horizons, it was making a new API 
 - Both cached_horizons and sqlite sources now work correctly
 - Second run of the same query with cached_horizons now uses the cache (no API call)
 - sqlite source can now access data cached by cached_horizons 
+
+# WEFT Update Plan
+
+## Task
+Update starloom's WEFT binary ephemeris format to:
+1. Create the core weft.py module in proper location
+2. Update imports in weft_reader.py and weft_generator.py
+3. Update references to horizons module
+4. Integrate with cached_horizons
+
+## Current Structure
+- weft_reader.py and weft_generator.py import classes from "lib.weft.weft"
+- They also import from "lib.horizons.quantities" and "lib.horizons.planet"
+- Code uses CachedHorizonsEphemeris for data access
+
+## Needed Actions
+
+### 1. Create weft.py core module
+- Create src/starloom/weft/weft.py with all necessary classes:
+  - WeftFile
+  - MultiYearBlock
+  - MonthlyBlock
+  - DailySectionHeader
+  - DailyDataBlock
+  - unwrap_angles function
+
+### 2. Update imports in weft_reader.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities"
+- Other imports to relative format
+
+### 3. Update imports in weft_generator.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities" 
+- Change from "lib.horizons.planet" to "..horizons.planet"
+
+### 4. Create integration with cached_horizons
+- Create cached_weft_generator.py with a function to generate .weft files using CachedHorizonsEphemeris
+- Add CLI commands for working with .weft files
+
+## Progress Tracking
+- [X] Locate all weft.py functionality from tests
+- [X] Create weft.py in src/starloom/weft
+- [X] Update imports in weft_reader.py
+- [X] Update imports in weft_generator.py
+- [X] Create cached_weft_generator.py with integration to CachedHorizonsEphemeris
+- [X] Create CLI module for weft files
+- [X] Register the CLI module with the main CLI
+- [X] Fix CLI integration to match existing format
+
+## Summary of Changes
+1. Created src/starloom/weft/weft.py with all the necessary classes and functions
+2. Updated imports in weft_reader.py and weft_generator.py to use relative imports
+3. Created cached_weft_generator.py with generate_weft_file function that uses CachedHorizonsEphemeris
+4. Created CLI module for the weft functionality
+5. Registered the CLI module with the main CLI 

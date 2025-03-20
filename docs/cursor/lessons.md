@@ -542,3 +542,18 @@ When working with a system that maps between enums and database models (like SQL
    - Test storage operations with the full range of potential fields
    - Include tests with edge case quantities that might not be commonly used
    - Verify both write and read operations for all supported fields 
+
+# WEFT Binary Ephemeris Format Integration
+
+- The WEFT format is a binary ephemeris format using Chebyshev polynomials for efficient storage and evaluation
+- It supports multiple precision levels: multi-year blocks, monthly blocks, and daily blocks
+- The implementation is now integrated with the CachedHorizonsEphemeris for data sourcing
+- CLI commands added for generating and using WEFT files:
+  - `starloom weft generate <planet> <quantity>` - Generate a WEFT file
+  - `starloom weft info <file_path>` - Display info about a WEFT file
+  - `starloom weft lookup <file_path> <date>` - Look up a value in a WEFT file
+
+When adding CLI modules to starloom:
+- Use type annotations for function parameters and return values
+- Don't use the `name` parameter in `@click.group()` or `@group.command()`
+- CLI main functions should return `None` 
