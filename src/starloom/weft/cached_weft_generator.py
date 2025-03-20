@@ -15,6 +15,7 @@ from ..ephemeris.quantities import Quantity
 from ..horizons.quantities import EphemerisQuantity
 from ..horizons.parsers import OrbitalElementsQuantity
 from .weft_generator import WeftGenerator
+from ..ephemeris.time_spec import TimeSpec
 
 
 def generate_weft_file(
@@ -89,12 +90,13 @@ def generate_weft_file(
     # Prefetch data if requested
     if prefetch:
         print(f"Prefetching data for {planet_name} from {start_date} to {end_date}...")
-        ephemeris.prefetch_data(
-            planet=planet_id,
-            start_time=start_date,
-            end_time=end_date,
-            step_hours=prefetch_step_hours,
+        time_spec = TimeSpec.from_range(
+            start_date=start_date,
+            end_date=end_date,
+            step_hours=prefetch_step_hours
         )
+        # This will fetch and cache all the data points we need
+        ephemeris.get_planet_positions(planet_id, time_spec)
 
     # Create default config if none provided
     if config is None:

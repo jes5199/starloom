@@ -100,36 +100,6 @@ class CachedHorizonsEphemeris(Ephemeris):
 
             return position
 
-    def prefetch_data(
-        self,
-        planet: str,
-        start_time: datetime,
-        end_time: datetime,
-        step_hours: int = 24,
-    ) -> None:
-        """
-        Prefetch ephemeris data for a planet over a time range and store it locally.
-
-        Args:
-            planet: The name or identifier of the planet.
-            start_time: The start time for the data range.
-            end_time: The end time for the data range.
-            step_hours: The time step in hours between data points.
-        """
-        current_time = start_time
-        while current_time <= end_time:
-            try:
-                # This will fetch from Horizons and store locally if not already available
-                self.get_planet_position(planet, current_time)
-                logger.info(f"Prefetched data for {planet} at {current_time}")
-            except Exception as e:
-                logger.error(
-                    f"Error prefetching data for {planet} at {current_time}: {e}"
-                )
-
-            # Move to next time point
-            current_time += timedelta(hours=step_hours)
-
     def get_planet_positions(
         self, planet: str, time_spec: TimeSpec
     ) -> Dict[float, Dict[Quantity, Any]]:

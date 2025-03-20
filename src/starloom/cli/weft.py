@@ -20,46 +20,49 @@ def weft() -> None:
 @weft.command()
 @click.argument("planet", required=True)
 @click.argument(
-    "quantity", required=True, type=click.Choice([q.name for q in EphemerisQuantity])
+    "quantity",
+    required=True,
+    type=click.Choice([q.name for q in EphemerisQuantity]),
+    default=EphemerisQuantity.ECLIPTIC_LONGITUDE.name,
 )
 @click.option(
-    "--start-date", "-s", help="Start date (YYYY-MM-DD or Julian date)", required=True
+    "--start", "-s", help="Start date (YYYY-MM-DD or Julian date)", required=True
 )
 @click.option(
-    "--end-date", "-e", help="End date (YYYY-MM-DD or Julian date)", required=True
+    "--stop", "-e", help="End date (YYYY-MM-DD or Julian date)", required=True
 )
 @click.option("--output", "-o", help="Output file path", required=True)
 @click.option("--data-dir", help="Data directory for cached horizons", default="./data")
 @click.option("--prefetch/--no-prefetch", help="Prefetch data", default=True)
 @click.option(
-    "--prefetch-step", help="Step in hours for prefetching", default=24, type=int
+    "--step", help="Step in hours for reading from ephemeris", default=1, type=int
 )
 def generate(
     planet: str,
     quantity: str,
-    start_date: str,
-    end_date: str,
+    start: str,
+    stop: str,
     output: str,
     data_dir: str,
     prefetch: bool,
-    prefetch_step: int,
+    step: int,
 ) -> None:
     """Generate a .weft binary ephemeris file."""
     print("Starting generation with parameters:")
     print(f"  Planet: {planet}")
     print(f"  Quantity: {quantity}")
-    print(f"  Start date: {start_date}")
-    print(f"  End date: {end_date}")
+    print(f"  Start date: {start}")
+    print(f"  End date: {stop}")
     print(f"  Output: {output}")
     print(f"  Data dir: {data_dir}")
     print(f"  Prefetch: {prefetch}")
-    print(f"  Prefetch step: {prefetch_step}")
+    print(f"  Step: {step}")
 
     # Parse dates
     try:
         print("Parsing dates...")
-        start_dt = parse_date_input(start_date)
-        end_dt = parse_date_input(end_date)
+        start_dt = parse_date_input(start)
+        end_dt = parse_date_input(stop)
 
         # Convert to datetime if it's a Julian date
         if isinstance(start_dt, float):
@@ -110,7 +113,7 @@ def generate(
             output_path=output,
             data_dir=data_dir,
             prefetch=prefetch,
-            prefetch_step_hours=prefetch_step,
+            step_hours=step,
         )
 
         click.echo(f"Successfully generated .weft file: {file_path}")
