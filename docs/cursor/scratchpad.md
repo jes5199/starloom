@@ -200,4 +200,24 @@ src/starloom/horizons/
 │   └── elements.py    # ELEMENTS type parser
 ├── quantities.py      # EphemerisQuantity enum
 └── types.py          # Type definitions
-``` 
+```
+
+# Julian Date Test Fix
+
+## Task
+Fix test that expects incorrect Julian date value
+
+## Progress
+[X] Identified the failing test in test_request.py
+[X] Investigated the Julian date calculation in julian_calc.py
+[X] Verified that the implementation is correct - it handles dates after 1583 properly
+[X] Updated the test to expect 2460310.5 instead of 2460309.5 for January 1, 2024
+[X] Tests now pass
+[X] Added lesson to lessons.md
+
+## Notes
+- The Julian date calculation in the codebase is correct
+- The test was expecting the wrong value (2460309.5 instead of 2460310.5)
+- For January 1, 2024 UTC, the correct Julian date is 2460310.5
+- The implementation in julian_calc.py correctly implements the Meeus algorithm
+- Always check expected values in tests when dealing with astronomical calculations 

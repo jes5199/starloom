@@ -1,8 +1,7 @@
 """CLI commands for interacting with the Horizons API."""
 
 import click
-from datetime import datetime
-import pytz
+from datetime import datetime, timezone
 from typing import Optional, List, cast, Union
 
 from ..horizons.planet import Planet
@@ -10,41 +9,98 @@ from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
 from ..horizons.request import HorizonsRequest
 from ..horizons.time_spec import TimeSpec
 from ..horizons.ephem_type import EphemType
+from ..horizons.observer_parser import ObserverParser
+from ..horizons.location import Location
 
 
-def parse_date_input(date_str: str) -> Union[datetime, float]:
-    """Parse a date string into a datetime object or Julian date.
+def parse_date_input(date_str: str) -> float:
+    """Parse date input in various formats.
 
     Args:
-        date_str: Date string to parse
+        date_str: Date string in various formats:
+            - Julian date (e.g., "2460385.333333333")
+            - ISO format with timezone (e.g., "2024-03-15T20:00:00+00:00")
+            - ISO format without timezone (e.g., "2024-03-15T20:00:00")
+            - "now"
 
     Returns:
-        Union[datetime, float]: Parsed datetime object with UTC timezone or Julian date
+        Julian date as float
+
+    Raises:
+        ValueError: If date string is invalid
     """
-    # Remove any whitespace and quotes
-    date_str = date_str.strip().strip("'")
-    
     if date_str.lower() == "now":
-        return datetime.now(pytz.UTC)
+        return datetime.now(timezone.utc).timestamp() / 86400 + 2440587.5
+
     try:
-        # Try parsing as Julian date first
-        return float(date_str)
+        # Try parsing as Julian date
+        return float(date_str.strip("' "))
     except ValueError:
+        # Try parsing as ISO format
         try:
-            # Try parsing with timezone info
             dt = datetime.fromisoformat(date_str)
             if dt.tzinfo is None:
-                # If no timezone info, assume UTC
-                dt = dt.replace(tzinfo=pytz.UTC)
-            return dt
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp() / 86400 + 2440587.5
         except ValueError:
-            raise click.BadParameter(f"Invalid date format: {date_str}")
+            raise ValueError(f"Invalid date format: {date_str}")
 
 
 @click.group()
 def horizons() -> None:
     """Commands for interacting with the JPL Horizons API."""
     pass
+
+
+@horizons.command()
+@click.argument("planet", type=click.Choice([p.name.lower() for p in Planet]))
+@click.option("--date", help="Date in various formats (Julian, ISO, or 'now')")
+@click.option("--julian", is_flag=True, help="Use Julian date format")
+@click.option("--location", help="Observer location (lat,lon,elev)")
+def ecliptic(planet: str, date: str, julian: bool, location: str):
+    """Get ecliptic coordinates for a planet."""
+    # Parse planet
+    planet = Planet[planet.upper()]
+
+    # Parse date
+    if date:
+        jd = parse_date_input(date)
+    else:
+        jd = datetime.now(timezone.utc).timestamp() / 86400 + 2440587.5
+
+    # Parse location
+    loc = None
+    if location:
+        try:
+            lat, lon, elev = map(float, location.split(","))
+            loc = Location(latitude=lat, longitude=lon, elevation=elev)
+        except ValueError:
+            raise click.BadParameter("Location must be lat,lon,elev")
+
+    # Create request
+    req = HorizonsRequest(planet, location=loc)
+    req.time_spec = TimeSpec.from_dates([datetime.fromtimestamp((jd - 2440587.5) * 86400, timezone.utc)])
+    req.use_julian = julian
+
+    # Make request
+    response = req.make_request()
+
+    # Parse response
+    parser = ObserverParser(response)
+    data = parser.parse()
+
+    # Print results
+    for jd, values in data:
+        if julian:
+            click.echo(f"JD: {jd}")
+        else:
+            dt = datetime.fromtimestamp((jd - 2440587.5) * 86400, timezone.utc)
+            click.echo(f"Date: {dt.isoformat()}")
+        click.echo(f"Distance: {values[EphemerisQuantity.DISTANCE]} AU")
+        click.echo(f"Range rate: {values[EphemerisQuantity.RANGE_RATE]} km/s")
+        click.echo(f"Ecliptic longitude: {values[EphemerisQuantity.ECLIPTIC_LONGITUDE]}°")
+        click.echo(f"Ecliptic latitude: {values[EphemerisQuantity.ECLIPTIC_LATITUDE]}°")
+        click.echo()
 
 
 @horizons.command()

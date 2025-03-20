@@ -64,9 +64,10 @@ class EphemerisQuantity(Enum):
     """Quantities that can be parsed from Horizons responses."""
     
     JULIAN_DATE = "JDUT"
-    ECLIPTIC_LONGITUDE = "L"
-    ECLIPTIC_LATITUDE = "B"
-    DISTANCE = "R"
+    DISTANCE = "delta"
+    RANGE_RATE = "deldot"
+    ECLIPTIC_LONGITUDE = "ObsEcLon"
+    ECLIPTIC_LATITUDE = "ObsEcLat"
     SOLAR_PRESENCE_CONDITION_CODE = ""  # First blank column
     TARGET_EVENT_MARKER = ""  # Second blank column
 

@@ -15,4 +15,20 @@
 6. After making changes, always:
    - Run the linter: `python -m ruff check src/`
    - Run the type checker: `python -m mypy src/`
-   - Run tests: `python -m pytest tests/` 
+   - Run tests: `python -m pytest tests/`
+
+# Lessons Learned
+
+## Julian Date Calculations
+
+When working with Julian dates in astronomical calculations:
+
+1. The correct value for January 1, 2024 UTC is 2460310.5, not 2460309.5
+2. Julian date calculations need to handle both Julian and Gregorian calendars correctly
+3. The implementation in `src/starloom/space_time/julian_calc.py` correctly handles dates after 1583 (Gregorian calendar adoption)
+4. When tests fail due to date calculation mismatches, verify the expected values rather than assuming the implementation is wrong
+
+## Date Handling
+
+- Always use timezone-aware datetime objects (UTC preferred) for astronomical calculations
+- For dates across calendar reforms, be sure to use the correct algorithm for the corresponding calendar system 

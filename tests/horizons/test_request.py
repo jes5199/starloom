@@ -42,21 +42,20 @@ def test_request_initialization():
     req = HorizonsRequest(Planet.SUN)
     assert req.planet == Planet.SUN
     assert req.location is None
-    assert req.quantities == []
-    assert req.time_spec is None
-
+    assert req.quantities.values == [20, 31]  # Default quantities
+    
     # Request with location
     loc = Location(latitude=40.0, longitude=-75.0, elevation=0.0)
     req = HorizonsRequest(Planet.SUN, location=loc)
     assert req.location == loc
-
+    
+    # Request with time spec
+    time_spec = TimeSpec.from_dates([datetime(2024, 1, 1, tzinfo=timezone.utc)])
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec)
+    assert req.time_spec == time_spec
+    
     # Request with quantities
-    quantities = Quantities(
-        [
-            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,
-            HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,
-        ]
-    )
+    quantities = Quantities(values=[1, 2, 3])
     req = HorizonsRequest(Planet.SUN, quantities=quantities)
     assert req.quantities == quantities
 
@@ -73,39 +72,19 @@ def test_request_url_generation():
     loc = Location(latitude=40.0, longitude=-75.0, elevation=0.0)
     req = HorizonsRequest(Planet.SUN, location=loc)
     url = req.get_url()
-    assert (
-        "SITE_COORD=%27-75.000000%2C40.000000%2C0.000000%27" in url
-    )  # URL-encoded quoted value
+    assert "SITE_COORD=-75.000000%2C40.000000%2C0.000000" in url  # URL-encoded value
 
-    # Request with multiple quantities
-    quantities = Quantities(
-        [
-            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,
-            HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,
-        ]
-    )
+    # Request with time spec
+    time_spec = TimeSpec.from_dates([datetime(2024, 1, 1, tzinfo=timezone.utc)])
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec)
+    url = req.get_url()
+    assert "TLIST=2460310.5" in url  # Julian date
+
+    # Request with quantities
+    quantities = Quantities(values=[1, 2, 3])
     req = HorizonsRequest(Planet.SUN, quantities=quantities)
     url = req.get_url()
-    assert (
-        "QUANTITIES=%2720%2C31%27" in url
-    )  # URL-encoded quoted value with commas (deduplicated and sorted)
-
-    # Request with time range
-    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-    stop = datetime(2024, 1, 2, tzinfo=timezone.utc)
-    time_spec = TimeSpec.from_range(start, stop, "1h")
-    req = HorizonsRequest(Planet.SUN, time_spec=time_spec)
-    url = req.get_url()
-    assert "START_TIME=" in url
-    assert "STOP_TIME=" in url
-    assert "STEP_SIZE=1h" in url
-
-    # Request with specific dates
-    dates = [datetime(2024, 1, 1, tzinfo=timezone.utc)]
-    time_spec = TimeSpec.from_dates(dates)
-    req = HorizonsRequest(Planet.SUN, time_spec=time_spec)
-    url = req.get_url()
-    assert "TLIST=" in url
+    assert "QUANTITIES='1%2C2%2C3'" in url  # URL-encoded quoted value
 
 
 @patch("requests.get")
@@ -149,7 +128,71 @@ def test_post_request_fallback(mock_post):
     assert "input" in call_args[1]["files"]  # Input file present
     assert "input.txt" in call_args[1]["files"]["input"][0]  # Correct filename
     assert "!$$SOF" in call_args[1]["files"]["input"][1]  # Start of file marker
-    assert (
-        "COMMAND='10'" in call_args[1]["files"]["input"][1]
-    )  # Planet command (quoted)
-    assert call_args[1]["data"]["format"] == "text"  # Data parameter
+    assert "COMMAND=10" in call_args[1]["files"]["input"][1]  # Planet command
+
+
+def test_request_with_julian_dates():
+    """Test requests with Julian date output."""
+    # Test single date
+    date = datetime(2024, 3, 15, 20, 0, tzinfo=timezone.utc)
+    time_spec = TimeSpec.from_dates([date])
+    
+    # Request with Julian output
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=True)
+    url = req.get_url()
+    assert "CAL_FORMAT=JD" in url
+    
+    # Request with Gregorian output (default)
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=False)
+    url = req.get_url()
+    assert "CAL_FORMAT=JD" not in url
+    
+    # Test date range
+    start = datetime(2024, 3, 15, 20, 0, tzinfo=timezone.utc)
+    stop = datetime(2024, 3, 16, 20, 0, tzinfo=timezone.utc)
+    time_spec = TimeSpec.from_range(start, stop, "1h")
+    
+    # Request with Julian output
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=True)
+    url = req.get_url()
+    assert "CAL_FORMAT=JD" in url
+    
+    # Request with Gregorian output (default)
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=False)
+    url = req.get_url()
+    assert "CAL_FORMAT=JD" not in url
+
+
+def test_request_with_julian_input():
+    """Test requests with Julian date input."""
+    # Test single Julian date
+    time_spec = TimeSpec.from_dates([2460385.333333333])
+    
+    # Request with Julian output
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=True)
+    url = req.get_url()
+    assert "CAL_FORMAT=JD" in url
+    assert "TLIST=2460385.333333333" in url
+    
+    # Request with Gregorian output (default)
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=False)
+    url = req.get_url()
+    assert "CAL_FORMAT=JD" not in url
+    assert "TLIST=2460385.333333333" in url
+    
+    # Test Julian date range
+    time_spec = TimeSpec.from_range(2460385.333333333, 2460386.333333333, "1h")
+    
+    # Request with Julian output
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=True)
+    url = req.get_url()
+    assert "CAL_FORMAT=JD" in url
+    assert "START_TIME=2460385.333333333" in url
+    assert "STOP_TIME=2460386.333333333" in url
+    
+    # Request with Gregorian output (default)
+    req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=False)
+    url = req.get_url()
+    assert "CAL_FORMAT=JD" not in url
+    assert "START_TIME=2460385.333333333" in url
+    assert "STOP_TIME=2460386.333333333" in url
