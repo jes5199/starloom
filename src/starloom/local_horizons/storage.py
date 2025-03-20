@@ -135,7 +135,9 @@ class LocalHorizonsStorage:
 
     # --- Writing methods ---
 
-    def store_ephemeris_data(self, body: str, ephemeris_data: List[Dict[str, Any]]):
+    def store_ephemeris_data(
+        self, body: str, ephemeris_data: List[Dict[str, Any]]
+    ) -> None:
         """
         Store ephemeris data for a celestial body in the local database.
 
@@ -195,7 +197,7 @@ class LocalHorizonsStorage:
 
     def store_ephemeris_quantities(
         self, body: str, time: datetime, quantities: Dict[Quantity, Any]
-    ):
+    ) -> None:
         """
         Store ephemeris data for a single time point using Quantity enum keys.
 

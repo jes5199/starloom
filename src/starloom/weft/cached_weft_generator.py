@@ -123,19 +123,26 @@ def generate_weft_file(
             # Convert EphemerisQuantity to Quantity for lookup
             for q, value in data.items():
                 if q.name == ephemeris_quantity.name:
-                    return value
-            return None
+                    if isinstance(value, (int, float)):
+                        return float(value)
+                    raise ValueError(f"Expected numeric value but got {type(value)}")
+            raise ValueError(
+                f"Quantity {ephemeris_quantity.name} not found in response"
+            )
         except Exception as e:
             print(f"Error fetching data for {planet_name} at {dt}: {e}")
-            return None
+            raise ValueError(f"Failed to get value for {planet_name} at {dt}: {e}")
 
     # Generate the file
     print(f"Generating .weft file for {planet_name} {ephemeris_quantity.name}...")
+    try:
+        planet_enum = Planet[planet_name.upper()]
+    except KeyError:
+        raise ValueError(f"Planet {planet_name} is not a valid Planet enum member")
+
     weft_file = generator.create_multi_precision_file(
         value_func=value_func,
-        body=Planet[planet_name.upper()]
-        if planet_name.upper() in Planet.__members__
-        else None,
+        body=planet_enum,
         quantity=ephemeris_quantity,
         start_date=start_date,
         end_date=end_date,

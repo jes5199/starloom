@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any, Union, List, cast
+from typing import Dict, Optional, Any, Union, List, overload
 from datetime import datetime, timezone
 
 from starloom.ephemeris import Ephemeris, Quantity
@@ -71,7 +71,7 @@ class HorizonsEphemeris(Ephemeris):
         # Create and execute the request
         request = HorizonsRequest(
             planet=planet_id,
-            location=cast(Union[Location, str], obs_location),
+            location=obs_location,  # HorizonsRequest accepts Union[Location, str]
             quantities=self.standard_quantities,
             time_spec=time_spec,
             ephem_type=EphemType.OBSERVER,
@@ -105,11 +105,18 @@ class HorizonsEphemeris(Ephemeris):
 
         return result
 
-    def _get_planet_id(self, planet: str) -> str:
+    @overload
+    def _get_planet_id(self, planet: Planet) -> str: ...
+
+    @overload
+    def _get_planet_id(self, planet: str) -> str: ...
+
+    def _get_planet_id(self, planet: Union[str, Planet]) -> str:
         """Convert various planet formats to a Horizons ID string.
 
         Args:
-            planet: The planet identifier, can be a Planet enum name or Horizons ID string
+            planet: The planet identifier, can be a Planet enum instance,
+                   a Planet enum name, or a Horizons ID string
 
         Returns:
             The Horizons ID string for the planet

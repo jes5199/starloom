@@ -8,13 +8,14 @@ from ..horizons.ephemeris import HorizonsEphemeris
 from ..horizons.planet import Planet
 from ..ephemeris.quantities import Quantity
 from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance
-from ..ephemeris.ephemeris import Ephemeris
 from ..local_horizons.ephemeris import LocalHorizonsEphemeris
 from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
 
 
-# Define mapping of friendly names to ephemeris classes
-EPHEMERIS_SOURCES: Dict[str, Type[Ephemeris]] = {
+# Define available ephemeris sources
+EPHEMERIS_SOURCES: Dict[
+    str, Type[Union[HorizonsEphemeris, LocalHorizonsEphemeris, CachedHorizonsEphemeris]]
+] = {
     "horizons": HorizonsEphemeris,
     "sqlite": LocalHorizonsEphemeris,
     "cached_horizons": CachedHorizonsEphemeris,
@@ -112,8 +113,9 @@ def ephemeris(
     if not ephemeris_class:
         raise click.BadParameter(f"Invalid source: {source}")
 
-    if source in ["sqlite", "cached_horizons"]:
-        ephemeris_instance = ephemeris_class(data_dir=data_dir)
+    # Create instance based on class type
+    if source in ("sqlite", "cached_horizons"):
+        ephemeris_instance = ephemeris_class(data_dir=data_dir)  # type: ignore
     else:
         ephemeris_instance = ephemeris_class()
 

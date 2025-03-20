@@ -15,7 +15,7 @@ class HorizonsRequest:
     def __init__(
         self,
         planet: Union[str, Planet],
-        location: Optional[Location] = None,
+        location: Optional[Union[Location, str]] = None,
         quantities: Optional[Union[Quantities, List[int]]] = None,
         time_spec: Optional[TimeSpec] = None,
         ephem_type: EphemType = EphemType.OBSERVER,
@@ -26,7 +26,8 @@ class HorizonsRequest:
 
         Args:
             planet: Target body name or ID
-            location: Optional observer location
+            location: Optional observer location. Can be a Location object or a string
+                     (e.g. '@399' for geocentric or a comma-separated coordinate string)
             quantities: Optional quantities to request
             time_spec: Optional time specification
             ephem_type: Type of ephemeris to generate

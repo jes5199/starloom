@@ -105,7 +105,7 @@ class CachedHorizonsEphemeris(Ephemeris):
         start_time: datetime,
         end_time: datetime,
         step_hours: int = 24,
-    ):
+    ) -> None:
         """
         Prefetch ephemeris data for a planet over a time range and store it locally.
 

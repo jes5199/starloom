@@ -7,12 +7,20 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     func,
 )
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class for SQLAlchemy models."""
+
+    pass
 
 
 class HorizonsOrbitalElementsRow(Base):
+    """
+    This represents orbital elements for a body.
+    """
+
     __tablename__ = "horizons_orbital_elements"
 
     # Primary key columns
