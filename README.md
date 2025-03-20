@@ -59,13 +59,50 @@ starloom horizons ecliptic venus \
     --step 1h
 ```
 
-### Output Data
-
 The output includes:
 - Distance from Earth (delta) in AU
 - Velocity relative to Earth (deldot) in km/s
 - Ecliptic longitude (ObsEcLon) in degrees
 - Ecliptic latitude (ObsEcLat) in degrees
+
+### Orbital Elements
+
+The `elements` command retrieves heliocentric orbital elements for planets. Like the `ecliptic` command, you can query for a single time or a range of times.
+
+#### Single Time Query
+
+```bash
+# Get current orbital elements
+starloom horizons elements mars --date now
+
+# Get orbital elements at a specific time (ISO format)
+starloom horizons elements mars --date 2025-03-19T20:00:00
+```
+
+#### Time Range Query
+
+```bash
+starloom horizons elements mars \
+    --start 2025-03-19T20:00:00 \
+    --stop 2025-03-19T22:00:00 \
+    --step 1h
+```
+
+The output includes:
+- Eccentricity (EC)
+- Periapsis distance (QR) in km
+- Inclination (IN) in degrees
+- Longitude of Ascending Node (OM) in degrees
+- Argument of Perifocus (W) in degrees
+- Time of periapsis (Tp) as Julian Day Number
+- Mean motion (N) in degrees/sec
+- Mean anomaly (MA) in degrees
+- True anomaly (TA) in degrees
+- Semi-major axis (A) in km
+- Apoapsis distance (AD) in km
+- Sidereal orbit period (PR) in seconds
+
+All elements are geometric osculating elements with respect to the Sun, referenced to the ecliptic and mean equinox of J2000.0.
 
 ### Supported Planets
 
