@@ -214,7 +214,9 @@ class WeftReader:
         midpoints = []
         for block in blocks:
             # Get the midpoint time for this block
-            start_time = datetime.combine(block.header.start_day, time(12, 0), timezone.utc)
+            start_time = datetime.combine(
+                block.header.start_day, time(12, 0), timezone.utc
+            )
             midpoints.append(start_time)
 
         # Convert midpoints to timestamps for easier calculation
@@ -359,7 +361,9 @@ class WeftReader:
             blocks,
             key=lambda b: abs(
                 dt.timestamp()
-                - datetime.combine(b.header.start_day, time(), tzinfo=timezone.utc).timestamp()
+                - datetime.combine(
+                    b.header.start_day, time(), tzinfo=timezone.utc
+                ).timestamp()
             ),
         )
         return self.files[file_id].apply_value_behavior(closest_block.evaluate(dt))

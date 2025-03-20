@@ -310,9 +310,6 @@ class WeftGenerator:
             end_date.year, end_date.month, end_date.day, tzinfo=ZoneInfo("UTC")
         )
 
-        # Calculate number of days
-        days = (end_date - start_date).days + 1
-
         # If block_size not specified, compute it based on coefficient count
         if block_size is None:
             # Header bytes: marker(2) + year(2) + month(1) + day(1) = 6 bytes

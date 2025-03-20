@@ -59,7 +59,9 @@ class WeftFile:
         self,
         preamble: str,
         blocks: Sequence[BlockType],
-        value_behavior: Union[RangedBehavior, UnboundedBehavior] = UnboundedBehavior(type="unbounded"),
+        value_behavior: Union[RangedBehavior, UnboundedBehavior] = UnboundedBehavior(
+            type="unbounded"
+        ),
     ):
         """Initialize a .weft file.
 
