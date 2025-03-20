@@ -1,20 +1,12 @@
 from typing import Dict, Optional, Union
 import requests
-from enum import Enum
 from urllib.parse import urlencode
 
 from .quantities import Quantities
 from .location import Location
 from .time_spec import TimeSpec
 from .planet import Planet
-
-
-class EphemType(Enum):
-    OBSERVER = "OBSERVER"
-    VECTORS = "VECTORS"
-    ELEMENTS = "ELEMENTS"
-    SPK = "SPK"
-    APPROACH = "APPROACH"
+from .ephem_type import EphemType
 
 
 class HorizonsRequest:
@@ -26,6 +18,8 @@ class HorizonsRequest:
         location: Optional[Location] = None,
         quantities: Optional[Quantities] = None,
         time_spec: Optional[TimeSpec] = None,
+        ephem_type: EphemType = EphemType.OBSERVER,
+        center: Optional[str] = None,
     ) -> None:
         """Initialize a Horizons request.
 
@@ -34,11 +28,15 @@ class HorizonsRequest:
             location: Optional observer location
             quantities: Optional quantities to request
             time_spec: Optional time specification
+            ephem_type: Type of ephemeris to generate
+            center: Optional center body for orbital elements (e.g. '10' for Sun)
         """
         self.planet = planet
         self.location = location
         self.quantities = quantities or Quantities()
         self.time_spec = time_spec
+        self.ephem_type = ephem_type
+        self.center = center
         self.params: Dict[str, str] = {}
         self.base_url = "https://ssd.jpl.nasa.gov/api/horizons.api"
         self.post_url = "https://ssd.jpl.nasa.gov/api/horizons_file.api"
@@ -74,7 +72,7 @@ class HorizonsRequest:
             "format": "text",
             "MAKE_EPHEM": "YES",
             "OBJ_DATA": "NO",
-            "EPHEM_TYPE": "OBSERVER",
+            "EPHEM_TYPE": self.ephem_type.value,
             "ANG_FORMAT": "DEG",
             "TIME_DIGITS": "FRACSEC",
             "EXTRA_PREC": "YES",
@@ -85,6 +83,8 @@ class HorizonsRequest:
         }
         if self.location:
             params["SITE_COORD"] = f"'{self.location.to_horizons_format()}'"
+        if self.center:
+            params["CENTER"] = f"'{self.center}'"
         return params
 
     def make_request(self) -> str:
