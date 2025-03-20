@@ -149,9 +149,7 @@ class HorizonsRequest:
         Returns:
             Dict[str, str]: Dictionary of time parameter names and values
         """
-        if not self.time_spec:
-            return {}
-        params = self.time_spec.to_params()
+        params = self.time_spec_param.to_params()
         if self.use_julian:
             params["CAL_FORMAT"] = "JD"
         return params
