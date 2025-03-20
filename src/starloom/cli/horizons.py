@@ -208,7 +208,16 @@ def elements(
     step: Optional[str] = None,
     julian: bool = False,
 ) -> None:
-    """Get orbital elements for a planet."""
+    """Get orbital elements for a planet.
+
+    Examples:
+
+    Single time point query:
+       starloom horizons elements mars --date 2025-03-19T20:00:00
+
+    Multiple time points or range query:
+       starloom horizons elements mars --start 2025-03-19T20:00:00 --stop 2025-03-19T22:00:00 --step 1h
+    """
     # Convert planet name to enum
     try:
         planet_enum = Planet[planet.upper()]
@@ -236,9 +245,14 @@ def elements(
             step_str,
         )
     else:
-        raise click.BadParameter(
-            "Must specify either --date or all of --start, --stop, and --step"
-        )
+        # If no time is specified, use current time
+        if not date and not (start and stop and step):
+            now = datetime.now(timezone.utc)
+            time_spec = TimeSpec.from_dates([now])
+        else:
+            raise click.BadParameter(
+                "Must specify either --date or all of --start, --stop, and --step"
+            )
 
     # Create and make request
     quantities = Quantities(
