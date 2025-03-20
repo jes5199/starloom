@@ -14,7 +14,7 @@ from .utils import evaluate_chebyshev
 class FortyEightHourBlock:
     """A block containing coefficients for a 48-hour period."""
 
-    marker = b"\x00\x01"  # Original marker
+    marker = b"\x00\x01"  # Block type marker
 
     def __init__(self, header: FortyEightHourSectionHeader, coeffs: List[float]):
         """

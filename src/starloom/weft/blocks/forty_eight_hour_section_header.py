@@ -10,7 +10,7 @@ from typing import BinaryIO
 class FortyEightHourSectionHeader:
     """Header for a forty-eight hour block."""
 
-    marker = b"\x00\x02"  # Original marker
+    marker = b"\x00\x02"  # Block type marker
     coefficient_count = 48  # Default number of coefficients
 
     def __init__(self, start_day: date, end_day: date):

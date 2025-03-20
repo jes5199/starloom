@@ -22,7 +22,7 @@ class MultiYearBlock:
     Typically used for slow-moving objects like outer planets.
     """
 
-    marker = b"\x00\x03"  # Original marker
+    marker = b"\x00\x03"  # Block type marker
 
     def __init__(self, start_year: int, duration: int, coeffs: List[float]):
         """

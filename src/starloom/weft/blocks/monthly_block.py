@@ -20,7 +20,7 @@ class MonthlyBlock:
     This provides medium precision and is efficient for most use cases.
     """
 
-    marker = b"\x00\x00"  # Original marker
+    marker = b"\x00\x00"  # Block type marker
 
     def __init__(self, year: int, month: int, day_count: int, coeffs: List[float]):
         """
