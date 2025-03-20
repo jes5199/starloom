@@ -4,7 +4,7 @@ import csv
 import unittest
 from pathlib import Path
 
-from starloom.horizons.orbital_elements_parser import (
+from starloom.parsers.orbital_elements_parser import (
     ElementsParser,
     OrbitalElementsQuantity,
 )

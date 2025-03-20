@@ -228,4 +228,4 @@ class ElementsParser:
         Returns:
             List of (Julian date, values) tuples
         """
-        return self.parse() 
+        return self.parse()

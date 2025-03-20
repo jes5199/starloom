@@ -3,7 +3,7 @@
 import unittest
 from pathlib import Path
 
-from starloom.horizons.observer_parser import ObserverParser
+from starloom.parsers.observer_parser import ObserverParser
 from starloom.horizons.quantities import EphemerisQuantity
 
 

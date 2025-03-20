@@ -6,7 +6,7 @@ The parser can handle different column formats and dynamically maps column names
 
 import csv
 from typing import List, Tuple, Dict, Optional
-from .quantities import (
+from starloom.horizons.quantities import (
     EphemerisQuantity,
     QuantityForColumnName,
     EphemerisQuantityToQuantity,
