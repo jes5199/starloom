@@ -10,9 +10,30 @@ to store astronomical values efficiently. It supports multiple levels of precisi
 
 import struct
 from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Any, BinaryIO
+from typing import List, BinaryIO, Union, Tuple, Literal, Optional, TypedDict, cast
 from io import BytesIO
 import re
+
+# Define block types
+BlockType = Union[
+    "MultiYearBlock",
+    "MonthlyBlock",
+    "FortyEightHourSectionHeader",
+    "FortyEightHourBlock",
+]
+
+
+# Define value behavior types
+class RangedBehavior(TypedDict):
+    type: Union[Literal["wrapping"], Literal["bounded"]]
+    range: Tuple[float, float]
+
+
+class UnboundedBehavior(TypedDict):
+    type: Literal["unbounded"]
+
+
+ValueBehavior = Union[RangedBehavior, UnboundedBehavior]
 
 
 def evaluate_chebyshev(coeffs: List[float], x: float) -> float:
@@ -633,7 +654,7 @@ class WeftFile:
     This represents a complete .weft file including preamble and multiple blocks.
     """
 
-    def __init__(self, preamble: str, blocks: List[Any]):
+    def __init__(self, preamble: str, blocks: List[BlockType]):
         """
         Initialize a .weft file.
 
@@ -643,34 +664,30 @@ class WeftFile:
         """
         self.preamble = preamble.rstrip("\n")
         self.blocks = blocks
-        self.value_behavior = self._parse_value_behavior(preamble)
+        self.value_behavior: ValueBehavior = self._parse_value_behavior(preamble)
 
-    def _parse_value_behavior(self, preamble: str) -> Dict[str, Any]:
-        """
-        Parse value behavior specifications from the preamble.
-
-        Args:
-            preamble: The file preamble
-
-        Returns:
-            Dictionary describing the value behavior
-        """
+    def _parse_value_behavior(self, preamble: str) -> ValueBehavior:
+        """Parse value behavior from preamble."""
         # Default behavior (unbounded)
-        behavior = {"type": "unbounded"}
+        behavior: UnboundedBehavior = {"type": "unbounded"}
 
         # Check for wrapping behavior
         wrapping_match = re.search(r"wrapping\[([^,]+),([^]]+)\]", preamble)
         if wrapping_match:
             min_val = float(wrapping_match.group(1))
             max_val = float(wrapping_match.group(2))
-            behavior = {"type": "wrapping", "range": (min_val, max_val)}
+            return cast(
+                RangedBehavior, {"type": "wrapping", "range": (min_val, max_val)}
+            )
 
         # Check for bounded behavior
         bounded_match = re.search(r"bounded\[([^,]+),([^]]+)\]", preamble)
         if bounded_match:
             min_val = float(bounded_match.group(1))
             max_val = float(bounded_match.group(2))
-            behavior = {"type": "bounded", "range": (min_val, max_val)}
+            return cast(
+                RangedBehavior, {"type": "bounded", "range": (min_val, max_val)}
+            )
 
         return behavior
 
@@ -684,15 +701,15 @@ class WeftFile:
         Returns:
             The value after applying wrapping/bounding
         """
-        behavior_type = self.value_behavior.get("type", "unbounded")
-
-        if behavior_type == "wrapping":
-            min_val, max_val = self.value_behavior["range"]
+        if self.value_behavior["type"] == "wrapping":
+            behavior = cast(RangedBehavior, self.value_behavior)
+            min_val, max_val = behavior["range"]
             range_size = max_val - min_val
             return min_val + ((value - min_val) % range_size)
 
-        elif behavior_type == "bounded":
-            min_val, max_val = self.value_behavior["range"]
+        elif self.value_behavior["type"] == "bounded":
+            behavior = cast(RangedBehavior, self.value_behavior)
+            min_val, max_val = behavior["range"]
             return max(min_val, min(value, max_val))
 
         # Default: unbounded
@@ -716,15 +733,7 @@ class WeftFile:
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "WeftFile":
-        """
-        Parse a .weft file from binary data.
-
-        Args:
-            data: Binary data to parse
-
-        Returns:
-            A WeftFile instance
-        """
+        """Parse a .weft file from binary data."""
         # Find the end of the preamble
         preamble_end = data.find(b"\n")
         if preamble_end == -1:
@@ -734,11 +743,11 @@ class WeftFile:
         preamble = data[:preamble_end].decode("utf-8")
 
         # Parse blocks
-        blocks = []
+        blocks: List[BlockType] = []
         pos = preamble_end + 1
 
         # Keep track of current daily section header for block size
-        current_daily_header = None
+        current_daily_header: Optional[FortyEightHourSectionHeader] = None
 
         while pos < len(data):
             # Read marker
@@ -748,6 +757,7 @@ class WeftFile:
             marker = data[pos : pos + 2]
             pos += 2
 
+            block: BlockType
             if marker == MultiYearBlock.marker:
                 # Read multi-year block
                 stream = BytesIO(data[pos:])
@@ -785,7 +795,7 @@ class WeftFile:
                 pos += current_daily_header.block_size - 2
 
             else:
-                raise ValueError(f"Unknown block marker: {marker}")
+                raise ValueError(f"Unknown block marker: {marker!r}")
 
         return cls(preamble=preamble, blocks=blocks)
 
