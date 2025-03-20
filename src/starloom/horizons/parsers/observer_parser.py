@@ -39,8 +39,8 @@ class ObserverParser:
             response: Response text from Horizons API
         """
         self.response = response
-        self._headers = None
-        self._column_map = None
+        self._headers: Optional[List[str]] = None
+        self._column_map: Optional[Dict[int, EphemerisQuantity]] = None
 
     def _extract_csv_lines(self) -> List[str]:
         """Extract CSV lines from the Horizons response.
@@ -55,8 +55,8 @@ class ObserverParser:
         $$EOE
         *******************************************************************************
         """
-        csv_lines = []
-        header_line = None
+        csv_lines: List[str] = []
+        header_line: Optional[str] = None
         in_table = False
 
         for line in self.response.split("\n"):
@@ -96,7 +96,8 @@ class ObserverParser:
 
             reader = csv.reader(csv_lines)
             try:
-                self._headers = next(reader)
+                headers = next(reader)
+                self._headers = [h.strip() for h in headers]
             except StopIteration:
                 self._headers = []
 
@@ -156,7 +157,7 @@ class ObserverParser:
             return self._column_map
 
         headers = self._get_headers()
-        result = {}
+        result: Dict[int, EphemerisQuantity] = {}
         blank_columns_seen = 0
 
         for i, header in enumerate(headers):
@@ -186,7 +187,7 @@ class ObserverParser:
         Returns:
             List of (Julian date, values) tuples
         """
-        data = []
+        data: List[Tuple[float, Dict[EphemerisQuantity, str]]] = []
         csv_lines = self._extract_csv_lines()
 
         if not csv_lines:
@@ -214,7 +215,7 @@ class ObserverParser:
             except (ValueError, IndexError):
                 continue
 
-            values = {}
+            values: Dict[EphemerisQuantity, str] = {}
             for col_idx, quantity in col_map.items():
                 if col_idx < len(row):
                     values[quantity] = row[col_idx].strip()
@@ -258,7 +259,7 @@ class ObserverParser:
         if not data:
             raise KeyError(f"Quantity {quantity} not found")
 
-        result = []
+        result: List[Tuple[float, str]] = []
         for jd, values in data:
             if quantity in values:
                 result.append((jd, values[quantity]))

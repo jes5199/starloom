@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any, Union
+from typing import Dict, Optional, Any, Union, List, cast
 from datetime import datetime, timezone
 
 from starloom.ephemeris import Ephemeris, Quantity
@@ -23,10 +23,10 @@ class HorizonsEphemeris(Ephemeris):
     planetary positions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize a HorizonsEphemeris instance."""
         # Define the standard quantities we'll request from Horizons
-        self.standard_quantities = [
+        self.standard_quantities: List[int] = [
             HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,  # 31
             HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,  # 20
         ]
@@ -71,7 +71,7 @@ class HorizonsEphemeris(Ephemeris):
         # Create and execute the request
         request = HorizonsRequest(
             planet=planet_id,
-            location=obs_location,
+            location=cast(Union[Location, str], obs_location),
             quantities=self.standard_quantities,
             time_spec=time_spec,
             ephem_type=EphemType.OBSERVER,
@@ -91,7 +91,7 @@ class HorizonsEphemeris(Ephemeris):
         _, values = data_points[0]
 
         # Convert the EphemerisQuantity keys to Quantity keys
-        result = {}
+        result: Dict[Quantity, Any] = {}
         for ephemeris_quantity, value in values.items():
             try:
                 # Convert the quantity enum and add to the result
@@ -106,7 +106,14 @@ class HorizonsEphemeris(Ephemeris):
         return result
 
     def _get_planet_id(self, planet: str) -> str:
-        """Convert various planet formats to a Horizons ID string."""
+        """Convert various planet formats to a Horizons ID string.
+
+        Args:
+            planet: The planet identifier, can be a Planet enum name or Horizons ID string
+
+        Returns:
+            The Horizons ID string for the planet
+        """
         # If it's already a Planet enum instance
         if isinstance(planet, Planet):
             return planet.value
@@ -121,7 +128,19 @@ class HorizonsEphemeris(Ephemeris):
     def _create_time_spec(
         self, time_point: Optional[Union[float, datetime]]
     ) -> TimeSpec:
-        """Create a TimeSpec from the provided time point."""
+        """Create a TimeSpec from the provided time point.
+
+        Args:
+            time_point: The time point to create a TimeSpec for.
+                       Can be None (current time), a Julian date float,
+                       or a datetime object.
+
+        Returns:
+            A TimeSpec object for the given time point
+
+        Raises:
+            TypeError: If time_point is not None, float, or datetime
+        """
         if time_point is None:
             # Use current time with UTC timezone
             now = datetime.now(timezone.utc)
@@ -138,8 +157,17 @@ class HorizonsEphemeris(Ephemeris):
         else:
             raise TypeError(f"Unsupported time type: {type(time_point)}")
 
-    def _convert_value(self, value: str, quantity: Quantity) -> Any:
-        """Convert string values from Horizons to appropriate types."""
+    def _convert_value(self, value: str, quantity: Quantity) -> Union[float, str]:
+        """Convert string values from Horizons to appropriate types.
+
+        Args:
+            value: The string value to convert
+            quantity: The quantity type to convert to
+
+        Returns:
+            The converted value as float for numeric quantities,
+            or the original string for other quantities
+        """
         if quantity in (
             Quantity.ECLIPTIC_LONGITUDE,
             Quantity.ECLIPTIC_LATITUDE,

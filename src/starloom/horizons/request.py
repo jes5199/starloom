@@ -68,7 +68,16 @@ class HorizonsRequest:
                 params["CAL_FORMAT"] = "JD"
 
         # First encode everything except single quotes
-        def quote_except_quotes(x, *args):
+        def quote_except_quotes(x: str, *args: str) -> str:
+            """Quote URL component, preserving single quotes.
+
+            Args:
+                x: String to quote
+                *args: Additional arguments (unused)
+
+            Returns:
+                Quoted string with preserved single quotes
+            """
             if x == "'":
                 return x
             return urlencode({"": x}, safe="'")[1:]
