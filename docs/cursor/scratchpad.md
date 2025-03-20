@@ -528,3 +528,49 @@ The goal is to modify the `get_planet_position` method in the `HorizonsEphemeris
 - When patching classes with unittest.mock, it's important to patch where they are imported, not where they're defined
 - Mock objects need to be set up properly for each test case
 - Testing location handling required careful mock setup for both the HorizonsRequest and ObserverParser classes 
+
+# Create New CLI Module for Ephemeris
+
+## Current Task
+Create a new CLI module for ephemeris in the starloom package.
+
+## Plan
+[X] Examine the existing CLI structure
+[X] Create a new ephemeris.py file in the CLI module
+[X] Implement the basic CLI command structure
+[X] Connect the new module to the main CLI
+[X] Test the new CLI module
+
+## Current Progress
+- Created ephemeris.py with a basic CLI command structure
+- Added a `position` command that fetches planet positions
+- Connected the ephemeris module to the main CLI
+- Used HorizonsEphemeris implementation as the data source
+- Added proper error handling for API failures
+- All tasks completed successfully
+
+## Key Features
+- Reused the parse_date_input functionality from the horizons CLI
+- Added support for location-based observation
+- Improved error handling with user-friendly messages
+- Properly integrated with the main CLI 
+
+# Fix Ephemeris CLI QUANTITIES Parameter Issue
+
+## Current Task
+Fix an issue with the HorizonsEphemeris implementation where the QUANTITIES parameter was using incorrect values.
+
+## Problem
+The API was returning "Cannot read QUANTITIES" errors because the URL included EphemerisQuantity enum values ('.value') instead of the required HorizonsRequestObserverQuantities values.
+
+## Solution
+[X] Update the HorizonsEphemeris class to use HorizonsRequestObserverQuantities instead of EphemerisQuantity values
+[X] Replace standard_quantities list in HorizonsEphemeris with correct enum values:
+  - HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value (31)
+  - HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value (20)
+
+## Notes
+- The Horizons API expects numeric codes for the QUANTITIES parameter (e.g., 31,20)
+- EphemerisQuantity contains the column names that appear in the response (e.g., "ObsEcLon")
+- HorizonsRequestObserverQuantities contains the numeric codes needed for the request
+- This is an important distinction between what we ask for and what we parse 

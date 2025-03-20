@@ -10,6 +10,7 @@ from .ephem_type import EphemType
 from .quantities import (
     EphemerisQuantity,
     EphemerisQuantityToQuantity,
+    HorizonsRequestObserverQuantities,
 )
 from .parsers.observer_parser import ObserverParser
 
@@ -27,9 +28,8 @@ class HorizonsEphemeris(Ephemeris):
         """Initialize a HorizonsEphemeris instance."""
         # Define the standard quantities we'll request from Horizons
         self.standard_quantities = [
-            EphemerisQuantity.ECLIPTIC_LONGITUDE.value,
-            EphemerisQuantity.ECLIPTIC_LATITUDE.value,
-            EphemerisQuantity.DISTANCE.value,
+            HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,  # 31
+            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,     # 20
         ]
 
         # Geocentric location uses special Horizons syntax

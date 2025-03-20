@@ -231,3 +231,49 @@ When developing command-line interfaces with Click:
 - When working with astronomical calculations, it's important to use timezone-aware datetime objects
 - If using datetime.now(), add timezone information using datetime.timezone.utc or another appropriate timezone
 - Julian dates are a common format in astronomy and can be used as an alternative to datetime objects 
+
+## CLI Module Development
+
+1. When creating a new CLI module in a Click-based application:
+   - Create a new Python file in the CLI module directory
+   - Define a Click group function with the module name
+   - Add commands to the group with appropriate decorators
+   - Import and register the new module in the main CLI's `__init__.py`
+
+2. When implementing CLI commands that use existing functionality:
+   - Follow the patterns established in existing CLI modules
+   - Reuse common utilities (like date parsing functions)
+   - Provide helpful documentation and examples
+   - Include proper error handling with user-friendly messages
+
+3. For CLIs that interact with APIs:
+   - Convert user-friendly inputs to the format required by the API
+   - Provide sane defaults where appropriate
+   - Format the output of API responses for readability
+   - Consider adding flags to control output format 
+
+## Horizons API Quantity Handling
+
+When working with the JPL Horizons API, it's important to understand the distinction between request quantity codes and response column names:
+
+1. Request quantity codes:
+   - For OBSERVER ephemeris type, you must use numeric codes defined in HorizonsRequestObserverQuantities enum
+   - Example: HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value (31)
+   - These codes must be sent as numbers in the QUANTITIES parameter (e.g., "31,20")
+   - The Horizons API will reject string-based quantity values with "Cannot read QUANTITIES" error
+
+2. Response column names:
+   - The EphemerisQuantity enum contains the actual column names that appear in the response
+   - Example: EphemerisQuantity.ECLIPTIC_LONGITUDE.value ("ObsEcLon")
+   - These are used for parsing the response, not for making the request
+   - There's a mapping between request quantity codes and response column names
+
+3. Common mistake:
+   - Using EphemerisQuantity values (column names) in the QUANTITIES parameter of the request
+   - This results in a malformed URL with strings instead of numeric codes
+   - The API will respond with "Cannot read QUANTITIES" error
+
+4. Best practice:
+   - Use HorizonsRequestObserverQuantities for making requests
+   - Use EphemerisQuantity for parsing responses
+   - Maintain a clear mapping between the two for consistency 
