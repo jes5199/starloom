@@ -36,6 +36,10 @@ def julian_to_datetime(jd: float) -> datetime:
     )
 
 
+# Alias for julian_to_datetime
+datetime_from_julian = julian_to_datetime
+
+
 def julian_to_julian_parts(jd: float) -> Tuple[int, float]:
     """Split Julian date into integer and fractional parts.
 

@@ -3,6 +3,10 @@
 
 import subprocess
 from pathlib import Path
+from datetime import datetime
+import pytz
+
+from starloom.space_time.julian import julian_from_datetime
 
 # Configuration
 FIXTURES_DIR = Path("tests/fixtures")
@@ -10,6 +14,11 @@ SINGLE_TIME = "2025-03-19T20:00:00"
 START_TIME = "2025-03-19T20:00:00"
 STOP_TIME = "2025-03-19T22:00:00"
 STEP = "1h"
+
+# Convert times to Julian dates
+SINGLE_JD = julian_from_datetime(datetime.fromisoformat(SINGLE_TIME).replace(tzinfo=pytz.UTC))
+START_JD = julian_from_datetime(datetime.fromisoformat(START_TIME).replace(tzinfo=pytz.UTC))
+STOP_JD = julian_from_datetime(datetime.fromisoformat(STOP_TIME).replace(tzinfo=pytz.UTC))
 
 # Planets to generate data for
 PLANETS = {"ecliptic": ["venus", "mars"], "elements": ["mars", "jupiter"]}
@@ -25,7 +34,7 @@ def run_command(cmd):
 
 def generate_single_time_data(command, planet):
     """Generate data for a single time point."""
-    cmd = ["starloom", "horizons", command, planet, "--date", SINGLE_TIME]
+    cmd = ["starloom", "horizons", command, planet, "--date", str(SINGLE_JD), "--julian"]
     output = run_command(cmd)
     return output
 
@@ -38,11 +47,12 @@ def generate_time_range_data(command, planet):
         command,
         planet,
         "--start",
-        START_TIME,
+        str(START_JD),
         "--stop",
-        STOP_TIME,
+        str(STOP_JD),
         "--step",
         STEP,
+        "--julian",
     ]
     output = run_command(cmd)
     return output

@@ -3,7 +3,7 @@
 import click
 from datetime import datetime
 import pytz
-from typing import Optional, List, cast
+from typing import Optional, List, cast, Union
 
 from ..horizons.planet import Planet
 from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
@@ -12,28 +12,33 @@ from ..horizons.time_spec import TimeSpec
 from ..horizons.ephem_type import EphemType
 
 
-def parse_date_input(date_str: str) -> datetime:
-    """Parse a date string into a datetime object.
+def parse_date_input(date_str: str) -> Union[datetime, float]:
+    """Parse a date string into a datetime object or Julian date.
 
     Args:
         date_str: Date string to parse
 
     Returns:
-        datetime: Parsed datetime object with UTC timezone
+        Union[datetime, float]: Parsed datetime object with UTC timezone or Julian date
     """
+    # Remove any whitespace and quotes
+    date_str = date_str.strip().strip("'")
+    
     if date_str.lower() == "now":
         return datetime.now(pytz.UTC)
     try:
-        # Try parsing with timezone info
-        dt = datetime.fromisoformat(date_str)
-        if dt.tzinfo is None:
-            # If no timezone info, assume UTC
-            dt = dt.replace(tzinfo=pytz.UTC)
-        return dt
+        # Try parsing as Julian date first
+        return float(date_str)
     except ValueError:
-        raise click.BadParameter(
-            f"Invalid date format: {date_str}. Use ISO format (YYYY-MM-DDTHH:MM:SS)"
-        )
+        try:
+            # Try parsing with timezone info
+            dt = datetime.fromisoformat(date_str)
+            if dt.tzinfo is None:
+                # If no timezone info, assume UTC
+                dt = dt.replace(tzinfo=pytz.UTC)
+            return dt
+        except ValueError:
+            raise click.BadParameter(f"Invalid date format: {date_str}")
 
 
 @click.group()
@@ -48,26 +53,33 @@ def horizons() -> None:
     "--date",
     "-d",
     multiple=True,
-    help="Date(s) to get coordinates for. Can be specified multiple times.",
+    default=(),
+    help="Date(s) to get coordinates for. Can be specified multiple times. Use ISO format or Julian date.",
 )
 @click.option(
     "--start",
-    help="Start date for range (ISO format)",
+    help="Start date for range (ISO format or Julian date)",
 )
 @click.option(
     "--stop",
-    help="Stop date for range (ISO format)",
+    help="Stop date for range (ISO format or Julian date)",
 )
 @click.option(
     "--step",
     help="Step size for range (e.g. '1d', '1h', '30m')",
 )
+@click.option(
+    "--julian",
+    is_flag=True,
+    help="Use Julian dates in output",
+)
 def ecliptic(
     planet: str,
-    date: Optional[List[str]] = None,
+    date: tuple[str, ...],
     start: Optional[str] = None,
     stop: Optional[str] = None,
     step: Optional[str] = None,
+    julian: bool = False,
 ) -> None:
     """Get ecliptic coordinates for a planet."""
     # Convert planet name to enum
@@ -104,16 +116,21 @@ def ecliptic(
         ]
     )
     request = HorizonsRequest(
-        planet=planet_enum.value,
+        planet=planet_enum,
         quantities=quantities,
         time_spec=time_spec,
+        use_julian=julian,
     )
 
     try:
         response = request.make_request()
         click.echo(response)
     except Exception as e:
-        raise click.ClickException(str(e))
+        import traceback
+        click.echo(f"Error: {str(e)}", err=True)
+        click.echo("\nTraceback:", err=True)
+        click.echo(traceback.format_exc(), err=True)
+        raise click.ClickException("Command failed")
 
 
 @horizons.command()
@@ -122,26 +139,33 @@ def ecliptic(
     "--date",
     "-d",
     multiple=True,
-    help="Date(s) to get coordinates for. Can be specified multiple times.",
+    default=(),
+    help="Date(s) to get coordinates for. Can be specified multiple times. Use ISO format or Julian date.",
 )
 @click.option(
     "--start",
-    help="Start date for range (ISO format)",
+    help="Start date for range (ISO format or Julian date)",
 )
 @click.option(
     "--stop",
-    help="Stop date for range (ISO format)",
+    help="Stop date for range (ISO format or Julian date)",
 )
 @click.option(
     "--step",
     help="Step size for range (e.g. '1d', '1h', '30m')",
 )
+@click.option(
+    "--julian",
+    is_flag=True,
+    help="Use Julian dates in output",
+)
 def elements(
     planet: str,
-    date: Optional[List[str]] = None,
+    date: tuple[str, ...],
     start: Optional[str] = None,
     stop: Optional[str] = None,
     step: Optional[str] = None,
+    julian: bool = False,
 ) -> None:
     """Get orbital elements for a planet."""
     # Convert planet name to enum
@@ -183,10 +207,15 @@ def elements(
         time_spec=time_spec,
         ephem_type=EphemType.ELEMENTS,
         center="10",  # Sun is the center body for orbital elements
+        use_julian=julian,
     )
 
     try:
         response = request.make_request()
         click.echo(response)
     except Exception as e:
-        raise click.ClickException(str(e))
+        import traceback
+        click.echo(f"Error: {str(e)}", err=True)
+        click.echo("\nTraceback:", err=True)
+        click.echo(traceback.format_exc(), err=True)
+        raise click.ClickException("Command failed")

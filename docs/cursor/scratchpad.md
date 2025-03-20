@@ -150,4 +150,54 @@ Create a script to generate fixture data using the starloom CLI for both eclipti
     - mars_single.json
     - mars_range.json
     - jupiter_single.json
-    - jupiter_range.json 
+    - jupiter_range.json
+
+# Horizons Parser Rework
+
+## Current Code Analysis
+- Parser for standard Horizons ephemeris responses
+- Handles CSV-like data format with $$SOE/$$EOE markers
+- Supports multiple quantities (EphemerisQuantity enum)
+- Handles blank columns for special markers
+- Uses Julian dates for time tracking
+
+## Areas for Improvement
+1. Code Organization
+   - Move to src/starloom/horizons/parsers/
+   - Split into multiple files for better organization
+   - Create base parser class for common functionality
+
+2. Type System
+   - Add more comprehensive type hints
+   - Consider using TypedDict for structured data
+   - Add validation for input data
+
+3. Error Handling
+   - Add proper error handling for malformed data
+   - Add validation for required fields
+   - Add logging for debugging
+
+4. Performance
+   - Cache parsed data instead of re-parsing
+   - Optimize CSV parsing
+   - Consider using pandas for large datasets
+
+## Implementation Plan
+[ ] Create base parser class
+[ ] Implement OBSERVER type parser
+[ ] Add proper error handling
+[ ] Add data validation
+[ ] Add tests
+[ ] Add documentation
+
+## File Structure
+```
+src/starloom/horizons/
+├── parsers/
+│   ├── __init__.py
+│   ├── base.py        # Base parser class
+│   ├── observer.py    # OBSERVER type parser
+│   └── elements.py    # ELEMENTS type parser
+├── quantities.py      # EphemerisQuantity enum
+└── types.py          # Type definitions
+``` 

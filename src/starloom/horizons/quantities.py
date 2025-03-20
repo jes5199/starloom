@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Dict, Union
 from dataclasses import dataclass
 
 from ..ephemeris import Quantity
@@ -58,6 +58,17 @@ class HorizonsRequestObserverQuantities(Enum):
     RATE_INERTIAL_RA_DEC = 46
     SKY_MOTION_ANGULAR_RATE_DIRECTION_POSITION_ANGLE_PATH_ANGLE = 47
     SKY_BRIGHTNESS_TARGET_VISUAL_SNR = 48
+
+
+class EphemerisQuantity(Enum):
+    """Quantities that can be parsed from Horizons responses."""
+    
+    JULIAN_DATE = "JDUT"
+    ECLIPTIC_LONGITUDE = "L"
+    ECLIPTIC_LATITUDE = "B"
+    DISTANCE = "R"
+    SOLAR_PRESENCE_CONDITION_CODE = ""  # First blank column
+    TARGET_EVENT_MARKER = ""  # Second blank column
 
 
 # Mapping from Horizons column names to Quantity enum values
@@ -144,27 +155,41 @@ RequestQuantityForQuantity: dict[
 }
 
 
+# Map column names to quantities
+EphemerisQuantityForColumnName: Dict[str, EphemerisQuantity] = {
+    q.value: q for q in EphemerisQuantity if q.value
+}
+
+
 @dataclass
 class Quantities:
     """A collection of quantities to request from Horizons."""
 
     values: List[int]
 
-    def __init__(self, values: Optional[List[int]] = None) -> None:
+    def __init__(self, values: Optional[Union[List[int], None]] = None) -> None:
         """Initialize quantities.
 
         Args:
             values: List of quantity codes to request
         """
-        self.values = values or []
+        self.values = values if values is not None else [
+            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,  # 20
+            HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,  # 31
+        ]
 
     def to_string(self) -> str:
         """Convert quantities to string format for Horizons API.
+        If there are multiple quantities, they will be quoted.
 
         Returns:
-            str: Comma-separated list of quantity codes
+            str: Comma-separated list of quantity codes, quoted if multiple
         """
-        return ",".join(str(v) for v in sorted(set(self.values)))
+        quantities_str = ",".join(str(v) for v in sorted(set(self.values)))
+        # Add single quotes if there's more than one quantity
+        if len(self.values) > 1:
+            quantities_str = f"'{quantities_str}'"
+        return quantities_str
 
     def __eq__(self, other: object) -> bool:
         """Compare quantities with another object.
@@ -176,7 +201,7 @@ class Quantities:
             bool: True if equal, False otherwise
         """
         if isinstance(other, list):
-            return list(self.values) == other
+            return self.values == other
         if isinstance(other, Quantities):
             return self.values == other.values
         return NotImplemented

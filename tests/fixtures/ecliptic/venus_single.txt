@@ -1,10 +1,11 @@
+Request URL: https://ssd.jpl.nasa.gov/api/horizons.api?format=text&MAKE_EPHEM=YES&OBJ_DATA=NO&EPHEM_TYPE=OBSERVER&ANG_FORMAT=DEG&TIME_DIGITS=FRACSEC&EXTRA_PREC=YES&CSV_FORMAT=YES&COMMAND=299&QUANTITIES=%2720%2C31%27&TLIST=2460754.3333333335&CAL_FORMAT=JD
 API VERSION: 1.2
 API SOURCE: NASA/JPL Horizons API
 
 
 
 *******************************************************************************
-Ephemeris / API_USER Wed Mar 19 18:30:10 2025 Pasadena, USA      / Horizons    
+Ephemeris / API_USER Wed Mar 19 18:54:16 2025 Pasadena, USA      / Horizons    
 *******************************************************************************
 Target body name: Venus (299)                     {source: DE441}
 Center body name: Earth (399)                     {source: DE441}
@@ -26,7 +27,7 @@ Rel. light bend : Sun                             {source: DE441}
 Rel. lght bnd GM: 1.3271E+11 km^3/s^2                                          
 Atmos refraction: NO (AIRLESS)
 RA format       : DEG
-Time format     : CAL 
+Time format     : JD  
 Calendar mode   : Mixed Julian/Gregorian
 EOP file        : eop.250319.p250615                                           
 EOP coverage    : DATA-BASED 1962-JAN-20 TO 2025-MAR-19. PREDICTS-> 2025-JUN-14
@@ -35,13 +36,13 @@ Table cut-offs 1: Elevation (-90.0deg=NO ),Airmass (>38.000=NO), Daylight (NO )
 Table cut-offs 2: Solar elongation (  0.0,180.0=NO ),Local Hour Angle( 0.0=NO )
 Table cut-offs 3: RA/DEC angular rate (     0.0=NO )                           
 Table format    : Comma Separated Values (spreadsheet)
-**************************************************************************************
- Date__(UT)__HR:MN:SC.fff, , ,            delta,     deldot,     ObsEcLon,   ObsEcLat,
-**************************************************************************************
+*******************************************************************************
+Date_________JDUT, , ,            delta,     deldot,     ObsEcLon,   ObsEcLat,
+******************************************************************************
 $$SOE
- 2025-Mar-19 20:00:00.000, , , 0.28178474111494, -1.4462092,    4.6578683,  8.5530776,
+2460754.333333333, , , 0.28178474111494, -1.4462092,    4.6578683,  8.5530776,
 $$EOE
-**************************************************************************************
+*******************************************************************************
 Column meaning:
  
 TIME
@@ -105,5 +106,5 @@ Computations by ...
                   scripts        https://ssd.jpl.nasa.gov/ftp/ssd/SCRIPTS
     Author      : Jon.D.Giorgini@jpl.nasa.gov
 
-**************************************************************************************
+*******************************************************************************
 

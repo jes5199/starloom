@@ -1,10 +1,11 @@
+Request URL: https://ssd.jpl.nasa.gov/api/horizons.api?format=text&MAKE_EPHEM=YES&OBJ_DATA=NO&EPHEM_TYPE=ELEMENTS&ANG_FORMAT=DEG&TIME_DIGITS=FRACSEC&EXTRA_PREC=YES&CSV_FORMAT=YES&COMMAND=599&CENTER=10&QUANTITIES=%2720%2C41%27&TLIST=2460754.3333333335&CAL_FORMAT=JD
 API VERSION: 1.2
 API SOURCE: NASA/JPL Horizons API
 
 
 
 *******************************************************************************
-Ephemeris / API_USER Wed Mar 19 18:30:12 2025 Pasadena, USA      / Horizons
+Ephemeris / API_USER Wed Mar 19 18:54:18 2025 Pasadena, USA      / Horizons
 *******************************************************************************
 Target body name: Jupiter (599)                   {source: jup365_merged}
 Center body name: Sun (10)                        {source: jup365_merged}

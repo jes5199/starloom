@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
 import requests
 from urllib.parse import urlencode
 
@@ -16,10 +16,11 @@ class HorizonsRequest:
         self,
         planet: Union[str, Planet],
         location: Optional[Location] = None,
-        quantities: Optional[Quantities] = None,
+        quantities: Optional[Union[Quantities, List[int]]] = None,
         time_spec: Optional[TimeSpec] = None,
         ephem_type: EphemType = EphemType.OBSERVER,
         center: Optional[str] = None,
+        use_julian: bool = False,
     ) -> None:
         """Initialize a Horizons request.
 
@@ -30,13 +31,15 @@ class HorizonsRequest:
             time_spec: Optional time specification
             ephem_type: Type of ephemeris to generate
             center: Optional center body for orbital elements (e.g. '10' for Sun)
+            use_julian: Whether to use Julian dates in output
         """
         self.planet = planet
         self.location = location
-        self.quantities = quantities or Quantities()
+        self.quantities = Quantities(quantities) if isinstance(quantities, list) else (quantities or Quantities())
         self.time_spec = time_spec
         self.ephem_type = ephem_type
         self.center = center
+        self.use_julian = use_julian
         self.params: Dict[str, str] = {}
         self.base_url = "https://ssd.jpl.nasa.gov/api/horizons.api"
         self.post_url = "https://ssd.jpl.nasa.gov/api/horizons_file.api"
@@ -51,16 +54,20 @@ class HorizonsRequest:
         """
         params = self._get_base_params()
         # Convert quantities to string format expected by Horizons
-        if isinstance(self.quantities, list):
-            params["QUANTITIES"] = (
-                f"'{','.join(str(q.value) for q in self.quantities)}'"
-            )
-        else:
-            params["QUANTITIES"] = f"'{self.quantities.to_string()}'"
+        params["QUANTITIES"] = self.quantities.to_string()
         # Add time parameters
         if self.time_spec:
             params.update(self.time_spec.to_params())
-        return f"{self.base_url}?{urlencode(params)}"
+            if self.use_julian:
+                params["CAL_FORMAT"] = "JD"
+        # First encode everything except single quotes
+        def quote_except_quotes(x, *args):
+            if x == "'":
+                return x
+            return urlencode({'': x}, safe="'")[1:]
+        url = f"{self.base_url}?{urlencode(params, quote_via=quote_except_quotes)}"
+        print(f"Request URL: {url}")  # Debug logging
+        return url
 
     def _get_base_params(self) -> Dict[str, str]:
         """Get base parameters for request.
@@ -82,9 +89,9 @@ class HorizonsRequest:
             ),
         }
         if self.location:
-            params["SITE_COORD"] = f"'{self.location.to_horizons_format()}'"
+            params["SITE_COORD"] = self.location.to_horizons_format()
         if self.center:
-            params["CENTER"] = f"'{self.center}'"
+            params["CENTER"] = self.center
         return params
 
     def make_request(self) -> str:
@@ -108,7 +115,10 @@ class HorizonsRequest:
         """
         if not self.time_spec:
             return {}
-        return self.time_spec.to_params()
+        params = self.time_spec.to_params()
+        if self.use_julian:
+            params["CAL_FORMAT"] = "JD"
+        return params
 
     def _make_post_request(self) -> str:
         """Make POST request to Horizons API.
@@ -134,7 +144,7 @@ class HorizonsRequest:
         params = {**self._get_base_params(), **self._get_time_params()}
         for key, value in params.items():
             if key != "format":  # Exclude 'format' from the input file
-                lines.append(f"{key}='{value}'")
+                lines.append(f"{key}={value}")
 
         lines.append("\n")
         return "\n".join(lines)
@@ -148,6 +158,14 @@ class HorizonsRequest:
         Returns:
             bool: True if equal, False otherwise
         """
-        if not isinstance(other, list):
+        if not isinstance(other, HorizonsRequest):
             return NotImplemented
-        return list(self.quantities.values) == other
+        return (
+            self.planet == other.planet
+            and self.location == other.location
+            and self.quantities == other.quantities
+            and self.time_spec == other.time_spec
+            and self.ephem_type == other.ephem_type
+            and self.center == other.center
+            and self.use_julian == other.use_julian
+        )
