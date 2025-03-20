@@ -12,12 +12,12 @@ from ..weft.blocks import MultiYearBlock, MonthlyBlock, FortyEightHourSectionHea
 
 
 @click.group()
-def weft_cli() -> None:
+def weft() -> None:
     """Commands for working with .weft binary ephemeris files."""
     pass
 
 
-@weft_cli.command()
+@weft.command()
 @click.argument("planet", required=True)
 @click.argument(
     "quantity", required=True, type=click.Choice([q.name for q in EphemerisQuantity])
@@ -117,7 +117,7 @@ def generate(
         raise click.ClickException(f"Error generating .weft file: {e}")
 
 
-@weft_cli.command()
+@weft.command()
 @click.argument("file_path", required=True, type=click.Path(exists=True))
 def info(file_path: str) -> None:
     """Display information about a .weft file."""
@@ -183,7 +183,7 @@ def info(file_path: str) -> None:
         raise click.ClickException(f"Error reading .weft file: {e}")
 
 
-@weft_cli.command()
+@weft.command()
 @click.argument("file_path", required=True, type=click.Path(exists=True))
 @click.argument("date", required=True)
 def lookup(file_path: str, date: str) -> None:
