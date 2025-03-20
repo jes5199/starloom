@@ -1,0 +1,210 @@
+# .weft v0.02 Binary Ephemeris Format
+
+## Overview
+
+`.weft` is a compact binary format for storing ephemeris data using **Chebyshev polynomials**.
+Each file represents a **single astronomical value** (e.g., ecliptic longitude of Mercury) over a period of time.
+
+`.weft` supports three types of data blocks:
+
+- **Multi-year blocks (`0x00 03`)** – Efficient long-term storage for slow-moving objects.
+- **Monthly blocks (`0x00 00`)** – Standard resolution, balancing precision and storage.
+- **Daily blocks (`0x00 02` and `0x00 01`)** – High-precision storage for fast-moving objects.
+
+Files can freely switch between **multi-year, monthly, and daily blocks**, allowing hybrid datasets.
+
+---
+
+## File Structure
+
+A `.weft` file consists of a **UTF-8 preamble** followed by binary data blocks.
+All values in the data section are stored in “network” (big-endian) byte order. Negative integers are stored in ones-complement. Floating point numbers follow the IEEE 754 standard.
+
+### Example Preamble:
+```
+#weft! v0.02 mercury jpl:199 2000s 32bit longitude wrapping[0,360] chebychevs generated@22-02-22T21:58:19\n
+```
+
+- `#weft! v0.02` – Required identifier and format version.
+- `mercury` – Object name (e.g., a planet).
+- `jpl:199` – Data source (e.g., JPL DE199).
+- `2000s` – Time span covered.
+- `32bit` – Data precision.
+- `longitude` – Data type (e.g., longitude, latitude, illumination).
+- Value behavior:
+  - `wrapping[0,360]` – Values wrap around in range [0, 360)
+  - `wrapping[-180,180]` – Values wrap around in range [-180, 180)
+  - `bounded[0,100]` – Values are bounded with explicit range (e.g., illumination [0, 100])
+  - `bounded[-90,90]` – Values are bounded with explicit range (e.g., latitude [-90, 90])
+  - (no indicator) – Values are unbounded (e.g., distance, velocity)
+- `chebychevs` – Polynomial method.
+- `generated@22-02-22T21:58:19` – Timestamp of file creation.
+
+After the preamble, the file contains binary blocks.
+
+---
+
+## Multi-Year Blocks (`0x00 03`)
+
+Multi-year blocks provide **efficient long-term storage** by covering an arbitrary number of years.
+
+### Format:
+```
+0x00 03 (2 bytes)           # Block marker
+Start year (2 bytes)        # 16-bit signed integer
+Duration (2 bytes)          # Number of years covered
+Coefficient count (4 bytes) # 32-bit unsigned integer
+Chebyshev Coefficients      # Variable number of 32-bit floating-point values
+```
+
+### Time Scaling:
+x = 2 * ((years since start + fractional year) / duration in years) - 1
+
+- `x = -1.0` at **midnight UTC on January 1 of the first year**.
+- `x = 0.0` at **the middle of the period**.
+- `x = +1.0` at **midnight UTC on January 1 after the period ends**.
+
+**Multi-year blocks do not need to be in chronological order.**
+
+---
+
+## Monthly Blocks (`0x00 00`)
+
+Monthly blocks provide **a balance of storage efficiency and precision**.
+
+### Format:
+```
+0x00 00 (2 bytes)           # Block marker
+Year (2 bytes)              # 16-bit signed integer
+Month (1 byte)              # 1 = Jan, 12 = Dec
+Day count (1 byte)          # Number of days in the month
+Coefficient count (4 bytes) # 32-bit unsigned integer
+Chebyshev Coefficients      # Variable number of 32-bit floating-point values
+```
+
+### Time Scaling:
+x = 2 * ((days since start of month + fractional day) / total days in month) - 1
+
+- `x = -1.0` at **midnight UTC on the first day of the month**.
+- `x = 0.0` at **mid-month**.
+- `x = +1.0` at **midnight UTC on the first day of the next month**.
+
+**Monthly blocks do not need to be in chronological order.**
+
+---
+
+## Daily Blocks (`0x00 02` and `0x00 01`)
+
+Daily blocks provide **high precision** by storing **one polynomial per day**.
+
+### Daily Section Header (`0x00 02`)
+
+A `0x00 02` block **marks the start of a section containing daily blocks**.
+
+#### Format:
+```
+0x00 02 (2 bytes)          # Section header marker
+Start year (2 bytes)
+Start month (1 byte)
+Start day (1 byte)
+End year (2 bytes)
+End month (1 byte)
+End day (1 byte)
+Block size (2 bytes)       # Defines size of each daily block
+Block count (4 bytes)      # Number of daily blocks in this section
+```
+
+A `0x00 02` block **does not contain data**—it defines the date range of the **following** `0x00 01` blocks.
+
+### Daily Data Block (`0x00 01`)
+
+#### Format:
+```
+0x00 01 (2 bytes)          # Block marker
+Year (2 bytes)
+Month (1 byte)
+Day (1 byte)
+Chebyshev Coefficients     # Fixed-size, 4-byte floats
+Padding (if needed)        # Zero-filled to ensure uniform block size
+```
+
+### Time Scaling:
+x = (seconds since midnight UTC) / 43,200 - 1
+
+- `x = -1.0` at **midnight UTC on the previous day**.
+- `x = 0.0` at **midnight UTC on the current day**.
+- `x = +1.0` at **midnight UTC on the next day**.
+
+**Daily blocks must be in strict chronological order.**
+
+Note that each day covers a 48 hour period!
+Normally there will be 2 daily chebychevs covering a specific datetime - in that case,
+when reading a value, calculate both! and linearly interpolate between the two.
+
+---
+
+## Mathematical Interpolation
+
+Each block stores **Chebyshev polynomial coefficients**, which allow efficient evaluation at any given time.
+
+### Chebyshev Polynomials of the First Kind:
+```
+T₀(x) = 1
+T₁(x) = x
+Tₙ₊₁(x) = 2x Tₙ(x) - Tₙ₋₁(x)
+```
+
+### Computing the Ephemeris Value:
+```python
+def T(n, x):
+    if n == 0:
+        return 1
+    if n == 1:
+        return x
+    return 2 * x * T(n-1, x) - T(n-2, x)
+
+result = sum(coeffs[n] * T(n, x) for n in range(len(coeffs)))
+
+# Apply wrapping behavior based on preamble
+if is_wrapping:
+    result = result % 360.0  # Normalize to [0, 360)
+elif is_bounded:
+    result = max(-90.0, min(90.0, result))  # Clamp to [-90, 90]
+```
+
+### Value Behavior
+
+The preamble specifies how values should be handled:
+
+1. **Wrapping Values** (e.g., longitude):
+   - Values wrap around within a specified range
+   - Supported ranges:
+     - `wrapping[0,360]`: [0, 360) range
+       - Example: 361° becomes 1°
+       - Example: -1° becomes 359°
+     - `wrapping[-180,180]`: [-180, 180) range
+       - Example: 181° becomes -179°
+       - Example: -181° becomes 179°
+
+2. **Bounded Values** (e.g., latitude, illumination):
+   - Values are clamped to their valid range
+   - Range is explicitly specified in the preamble
+   - Examples:
+     - Latitude: `bounded[-90,90]` (clamps to [-90, 90])
+     - Illumination: `bounded[0,100]` (clamps to [0, 100])
+
+3. **Unbounded Values** (e.g., distance, velocity):
+   - Values are used as-is without modification
+   - No range constraints
+   - Example: 123.45 stays 123.45
+
+## Summary of Features
+
+* Multi-year, monthly, and daily data blocks
+* Explicit block markers (0x00 03, 0x00 00, 0x00 02, 0x00 01) for easy parsing
+* Daily section headers (0x00 02) define time ranges for efficient lookup
+* Fixed-size daily blocks enable O(1) seeking
+* Flexible multi-year and monthly blocks allow efficient long-term storage
+* Blocks are aligned to 16-bit boundaries
+* Value wrapping behavior specified in preamble
+* Fully backward-compatible with .weft v0.01
