@@ -9,7 +9,7 @@ from typing import List, Tuple, Dict
 from enum import Enum
 
 
-class ObserverElementsQuantity(Enum):
+class OrbitalElementsQuantity(Enum):
     """Quantities that appear in Elements ephemeris responses."""
 
     JULIAN_DATE = "JDTDB"
@@ -41,8 +41,8 @@ class ElementsParser:
     Example:
         parser = ElementsParser(horizons_response)
         jd, values = parser.parse()[0]  # Get first data point
-        eccentricity = values.get(ObserverElementsQuantity.ECCENTRICITY)
-        semi_major_axis = values.get(ObserverElementsQuantity.SEMI_MAJOR_AXIS)
+        eccentricity = values.get(OrbitalElementsQuantity.ECCENTRICITY)
+        semi_major_axis = values.get(OrbitalElementsQuantity.SEMI_MAJOR_AXIS)
     """
 
     def __init__(self, response: str):
@@ -100,8 +100,8 @@ class ElementsParser:
 
     def _map_columns_to_quantities(
         self, headers: List[str]
-    ) -> Dict[int, ObserverElementsQuantity]:
-        """Maps column indices to their corresponding ObserverElementsQuantity.
+    ) -> Dict[int, OrbitalElementsQuantity]:
+        """Maps column indices to their corresponding OrbitalElementsQuantity.
 
         Args:
             headers: List of column headers
@@ -116,7 +116,7 @@ class ElementsParser:
 
         for i, header in enumerate(headers):
             header = header.strip()
-            for quantity in ObserverElementsQuantity:
+            for quantity in OrbitalElementsQuantity:
                 if quantity.value == header:
                     result[i] = quantity
                     break
@@ -124,7 +124,7 @@ class ElementsParser:
         self._column_map = result
         return result
 
-    def parse(self) -> List[Tuple[float, Dict[ObserverElementsQuantity, str]]]:
+    def parse(self) -> List[Tuple[float, Dict[OrbitalElementsQuantity, str]]]:
         """Parse response into list of (Julian date, values) tuples.
 
         Returns:
@@ -151,7 +151,7 @@ class ElementsParser:
         # Find column index for Julian date
         jd_col = None
         for col_idx, quantity in col_map.items():
-            if quantity == ObserverElementsQuantity.JULIAN_DATE:
+            if quantity == OrbitalElementsQuantity.JULIAN_DATE:
                 jd_col = col_idx
                 break
 
@@ -177,7 +177,7 @@ class ElementsParser:
 
         return data
 
-    def get_value(self, quantity: ObserverElementsQuantity) -> str:
+    def get_value(self, quantity: OrbitalElementsQuantity) -> str:
         """Get value for a specific quantity from the first data point.
 
         Args:
@@ -196,7 +196,7 @@ class ElementsParser:
             raise KeyError(f"Quantity {quantity} not found")
         return data[0][1][quantity]
 
-    def get_values(self, quantity: ObserverElementsQuantity) -> List[Tuple[float, str]]:
+    def get_values(self, quantity: OrbitalElementsQuantity) -> List[Tuple[float, str]]:
         """Get all values for a specific quantity.
 
         Args:
@@ -222,10 +222,10 @@ class ElementsParser:
 
         return result
 
-    def get_all_values(self) -> List[Tuple[float, Dict[ObserverElementsQuantity, str]]]:
+    def get_all_values(self) -> List[Tuple[float, Dict[OrbitalElementsQuantity, str]]]:
         """Get all values for all quantities.
 
         Returns:
             List of (Julian date, values) tuples
         """
-        return self.parse()
+        return self.parse() 

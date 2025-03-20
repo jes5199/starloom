@@ -4,13 +4,13 @@ import csv
 import unittest
 from pathlib import Path
 
-from starloom.horizons.observer_elements_parser import (
+from starloom.horizons.orbital_elements_parser import (
     ElementsParser,
-    ObserverElementsQuantity,
+    OrbitalElementsQuantity,
 )
 
 
-class TestObserverElementsParser(unittest.TestCase):
+class TestOrbitalElementsParser(unittest.TestCase):
     """Test ElementsParser."""
 
     def setUp(self):
@@ -47,20 +47,20 @@ class TestObserverElementsParser(unittest.TestCase):
 
         # Verify that the expected quantities are mapped
         expected_quantities = [
-            ObserverElementsQuantity.JULIAN_DATE,
-            ObserverElementsQuantity.CALENDAR_DATE,
-            ObserverElementsQuantity.ECCENTRICITY,
-            ObserverElementsQuantity.PERIAPSIS_DISTANCE,
-            ObserverElementsQuantity.INCLINATION,
-            ObserverElementsQuantity.ASCENDING_NODE_LONGITUDE,
-            ObserverElementsQuantity.ARGUMENT_OF_PERIAPSIS,
-            ObserverElementsQuantity.TIME_OF_PERIAPSIS,
-            ObserverElementsQuantity.MEAN_MOTION,
-            ObserverElementsQuantity.MEAN_ANOMALY,
-            ObserverElementsQuantity.TRUE_ANOMALY,
-            ObserverElementsQuantity.SEMI_MAJOR_AXIS,
-            ObserverElementsQuantity.APOAPSIS_DISTANCE,
-            ObserverElementsQuantity.ORBITAL_PERIOD,
+            OrbitalElementsQuantity.JULIAN_DATE,
+            OrbitalElementsQuantity.CALENDAR_DATE,
+            OrbitalElementsQuantity.ECCENTRICITY,
+            OrbitalElementsQuantity.PERIAPSIS_DISTANCE,
+            OrbitalElementsQuantity.INCLINATION,
+            OrbitalElementsQuantity.ASCENDING_NODE_LONGITUDE,
+            OrbitalElementsQuantity.ARGUMENT_OF_PERIAPSIS,
+            OrbitalElementsQuantity.TIME_OF_PERIAPSIS,
+            OrbitalElementsQuantity.MEAN_MOTION,
+            OrbitalElementsQuantity.MEAN_ANOMALY,
+            OrbitalElementsQuantity.TRUE_ANOMALY,
+            OrbitalElementsQuantity.SEMI_MAJOR_AXIS,
+            OrbitalElementsQuantity.APOAPSIS_DISTANCE,
+            OrbitalElementsQuantity.ORBITAL_PERIOD,
         ]
 
         for col_idx, quantity in col_map.items():
@@ -77,25 +77,25 @@ class TestObserverElementsParser(unittest.TestCase):
 
         # Check that all the quantities are present
         expected_quantities = [
-            ObserverElementsQuantity.JULIAN_DATE,
-            ObserverElementsQuantity.CALENDAR_DATE,
-            ObserverElementsQuantity.ECCENTRICITY,
-            ObserverElementsQuantity.PERIAPSIS_DISTANCE,
-            ObserverElementsQuantity.INCLINATION,
-            ObserverElementsQuantity.ASCENDING_NODE_LONGITUDE,
-            ObserverElementsQuantity.ARGUMENT_OF_PERIAPSIS,
-            ObserverElementsQuantity.TIME_OF_PERIAPSIS,
-            ObserverElementsQuantity.MEAN_MOTION,
-            ObserverElementsQuantity.MEAN_ANOMALY,
-            ObserverElementsQuantity.TRUE_ANOMALY,
-            ObserverElementsQuantity.SEMI_MAJOR_AXIS,
-            ObserverElementsQuantity.APOAPSIS_DISTANCE,
-            ObserverElementsQuantity.ORBITAL_PERIOD,
+            OrbitalElementsQuantity.JULIAN_DATE,
+            OrbitalElementsQuantity.CALENDAR_DATE,
+            OrbitalElementsQuantity.ECCENTRICITY,
+            OrbitalElementsQuantity.PERIAPSIS_DISTANCE,
+            OrbitalElementsQuantity.INCLINATION,
+            OrbitalElementsQuantity.ASCENDING_NODE_LONGITUDE,
+            OrbitalElementsQuantity.ARGUMENT_OF_PERIAPSIS,
+            OrbitalElementsQuantity.TIME_OF_PERIAPSIS,
+            OrbitalElementsQuantity.MEAN_MOTION,
+            OrbitalElementsQuantity.MEAN_ANOMALY,
+            OrbitalElementsQuantity.TRUE_ANOMALY,
+            OrbitalElementsQuantity.SEMI_MAJOR_AXIS,
+            OrbitalElementsQuantity.APOAPSIS_DISTANCE,
+            OrbitalElementsQuantity.ORBITAL_PERIOD,
         ]
 
         for quantity in expected_quantities:
             if (
-                quantity != ObserverElementsQuantity.JULIAN_DATE
+                quantity != OrbitalElementsQuantity.JULIAN_DATE
             ):  # already in jd variable
                 self.assertIn(quantity, values)
 
@@ -111,35 +111,35 @@ class TestObserverElementsParser(unittest.TestCase):
         # Check specific values
         self.assertEqual(jd, 2460754.333333333)
 
-        if ObserverElementsQuantity.ECCENTRICITY in values:
+        if OrbitalElementsQuantity.ECCENTRICITY in values:
             self.assertEqual(
-                values[ObserverElementsQuantity.ECCENTRICITY], "4.829493868247705E-02"
+                values[OrbitalElementsQuantity.ECCENTRICITY], "4.829493868247705E-02"
             )
 
-        if ObserverElementsQuantity.PERIAPSIS_DISTANCE in values:
+        if OrbitalElementsQuantity.PERIAPSIS_DISTANCE in values:
             self.assertEqual(
-                values[ObserverElementsQuantity.PERIAPSIS_DISTANCE],
+                values[OrbitalElementsQuantity.PERIAPSIS_DISTANCE],
                 "7.408137812767066E+08",
             )
 
-        if ObserverElementsQuantity.INCLINATION in values:
+        if OrbitalElementsQuantity.INCLINATION in values:
             self.assertEqual(
-                values[ObserverElementsQuantity.INCLINATION], "1.303298428030365E+00"
+                values[OrbitalElementsQuantity.INCLINATION], "1.303298428030365E+00"
             )
 
     def test_get_value(self):
         """Test get_value method."""
         parser = ElementsParser(self.jupiter_single_response)
 
-        eccentricity = parser.get_value(ObserverElementsQuantity.ECCENTRICITY)
+        eccentricity = parser.get_value(OrbitalElementsQuantity.ECCENTRICITY)
         self.assertEqual(eccentricity, "4.829493868247705E-02")
 
         periapsis_distance = parser.get_value(
-            ObserverElementsQuantity.PERIAPSIS_DISTANCE
+            OrbitalElementsQuantity.PERIAPSIS_DISTANCE
         )
         self.assertEqual(periapsis_distance, "7.408137812767066E+08")
 
-        inclination = parser.get_value(ObserverElementsQuantity.INCLINATION)
+        inclination = parser.get_value(OrbitalElementsQuantity.INCLINATION)
         self.assertEqual(inclination, "1.303298428030365E+00")
 
     def test_get_values(self):
@@ -147,7 +147,7 @@ class TestObserverElementsParser(unittest.TestCase):
         parser = ElementsParser(self.jupiter_single_response)
 
         # Get values for a specific quantity
-        eccentricities = parser.get_values(ObserverElementsQuantity.ECCENTRICITY)
+        eccentricities = parser.get_values(OrbitalElementsQuantity.ECCENTRICITY)
         self.assertEqual(len(eccentricities), 1)
 
         # Check format of the result
@@ -168,19 +168,19 @@ class TestObserverElementsParser(unittest.TestCase):
 
         # Check that we have all the expected quantities
         expected_quantities = [
-            ObserverElementsQuantity.CALENDAR_DATE,
-            ObserverElementsQuantity.ECCENTRICITY,
-            ObserverElementsQuantity.PERIAPSIS_DISTANCE,
-            ObserverElementsQuantity.INCLINATION,
-            ObserverElementsQuantity.ASCENDING_NODE_LONGITUDE,
-            ObserverElementsQuantity.ARGUMENT_OF_PERIAPSIS,
-            ObserverElementsQuantity.TIME_OF_PERIAPSIS,
-            ObserverElementsQuantity.MEAN_MOTION,
-            ObserverElementsQuantity.MEAN_ANOMALY,
-            ObserverElementsQuantity.TRUE_ANOMALY,
-            ObserverElementsQuantity.SEMI_MAJOR_AXIS,
-            ObserverElementsQuantity.APOAPSIS_DISTANCE,
-            ObserverElementsQuantity.ORBITAL_PERIOD,
+            OrbitalElementsQuantity.CALENDAR_DATE,
+            OrbitalElementsQuantity.ECCENTRICITY,
+            OrbitalElementsQuantity.PERIAPSIS_DISTANCE,
+            OrbitalElementsQuantity.INCLINATION,
+            OrbitalElementsQuantity.ASCENDING_NODE_LONGITUDE,
+            OrbitalElementsQuantity.ARGUMENT_OF_PERIAPSIS,
+            OrbitalElementsQuantity.TIME_OF_PERIAPSIS,
+            OrbitalElementsQuantity.MEAN_MOTION,
+            OrbitalElementsQuantity.MEAN_ANOMALY,
+            OrbitalElementsQuantity.TRUE_ANOMALY,
+            OrbitalElementsQuantity.SEMI_MAJOR_AXIS,
+            OrbitalElementsQuantity.APOAPSIS_DISTANCE,
+            OrbitalElementsQuantity.ORBITAL_PERIOD,
         ]
 
         for quantity in expected_quantities:

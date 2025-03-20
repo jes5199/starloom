@@ -141,3 +141,12 @@ When developing command-line interfaces with Click:
 - The CSV module handles comma-separated parsing better than manual string splitting, especially for complex data
 - When working with astronomical data, it's important to handle scientific notation properly (e.g., 4.829493868247705E-02)
 - Parsing astronomical data requires careful error handling for missing or malformed values 
+
+## Naming Conventions
+
+- Correctly named the module related to orbital elements as `orbital_elements_parser.py` (previously incorrectly named as `observer_elements_parser.py`)
+- The corresponding enum class is `OrbitalElementsQuantity` (previously incorrectly named as `ObserverElementsQuantity`)
+- When renaming modules, need to check for:
+  - File imports in __init__.py
+  - References in test files 
+  - Class/enum names and usages throughout the codebase 

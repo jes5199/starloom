@@ -414,3 +414,18 @@ Enhance `EphemerisQuantity` mapping and fix the observer parser integration.
 [ ] If needed, rename `EphemerisQuantity` to `HorizonsQuantity` (as noted in TODO.md)
 [ ] Add more documentation about the enums and their relationships
 [ ] Consider enhancing test cases with more variations of API response formats 
+
+# Starloom Tasks
+
+## Current Task: Rename Observer Elements to Orbital Elements
+
+Need to rename "observer_elements" to "orbital_elements" in all occurrences since it was a typo.
+
+### Plan:
+[X] Create a new file `orbital_elements_parser.py` with updated content
+[X] Update imports in other files
+[X] Update test files
+[X] Update class/enum names from ObserverElementsQuantity to OrbitalElementsQuantity
+[X] Delete the old file once changes are complete
+
+✅ All tasks completed! 
