@@ -3,7 +3,7 @@ Unit tests for the LocalHorizonsEphemeris and LocalHorizonsStorage classes.
 """
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import tempfile
 
@@ -23,7 +23,7 @@ class TestLocalHorizonsStorage(unittest.TestCase):
 
         # Define test data
         self.test_planet = "mars"
-        self.test_time = datetime(2025, 3, 19, 20, 0, 0)
+        self.test_time = datetime(2025, 3, 19, 20, 0, 0, tzinfo=timezone.utc)
 
         # Define sample position data
         self.sample_position = {
@@ -74,41 +74,28 @@ class TestLocalHorizonsStorage(unittest.TestCase):
         # Create a list of data points
         data_points = []
         for i in range(3):
-            time_point = datetime(2025, 3, 19, 20 + i, 0, 0)
-
-            # Calculate Julian date components using the storage utility
-            jd_float = self.storage._datetime_to_julian(time_point)
-            jd_int = int(jd_float)
-            jd_frac = jd_float - jd_int
-
+            time_point = datetime(2025, 3, 19, 20 + i, 0, 0, tzinfo=timezone.utc)
             data_point = {
-                "julian_date": jd_int,
-                "julian_date_fraction": jd_frac,
-                "date_time": time_point.isoformat(),
-                "right_ascension": 230.0 + i * 0.1,
-                "declination": -15.0 + i * 0.05,
-                "ecliptic_longitude": 120.0 + i * 0.2,
-                "ecliptic_latitude": 1.5 + i * 0.01,
-                "delta": 1.5 + i * 0.001,
+                Quantity.ECLIPTIC_LONGITUDE: 120.5 + i,
+                Quantity.ECLIPTIC_LATITUDE: 1.5 + i,
+                Quantity.DELTA: 1.5 + i,
+                Quantity.RIGHT_ASCENSION: 230.0 + i,
+                Quantity.DECLINATION: -15.0 + i,
             }
-            data_points.append(data_point)
+            data_points.append((time_point, data_point))
 
-        # Store the data
-        self.storage.store_ephemeris_data(self.test_planet, data_points)
+        # Store all data points
+        for time_point, data_point in data_points:
+            self.storage.store_ephemeris_quantities(
+                self.test_planet, time_point, data_point
+            )
 
         # Retrieve and verify each data point
-        for i in range(3):
-            time_point = datetime(2025, 3, 19, 20 + i, 0, 0)
+        for time_point, expected_data in data_points:
             result = self.storage.get_ephemeris_data(self.test_planet, time_point)
-
-            # Verify key values
-            self.assertAlmostEqual(
-                result[Quantity.ECLIPTIC_LONGITUDE], 120.0 + i * 0.2, places=1
-            )
-            self.assertAlmostEqual(
-                result[Quantity.ECLIPTIC_LATITUDE], 1.5 + i * 0.01, places=2
-            )
-            self.assertAlmostEqual(result[Quantity.DELTA], 1.5 + i * 0.001, places=3)
+            # Verify only the quantities we stored
+            for quantity in expected_data:
+                self.assertAlmostEqual(result[quantity], expected_data[quantity])
 
     def test_data_not_found(self):
         """Test retrieving data that doesn't exist."""
@@ -128,7 +115,7 @@ class TestLocalHorizonsEphemeris(unittest.TestCase):
 
         # Define test data
         self.test_planet = "mars"
-        self.test_time = datetime(2025, 3, 19, 20, 0, 0)
+        self.test_time = datetime(2025, 3, 19, 20, 0, 0, tzinfo=timezone.utc)
 
         # Define sample position data
         self.sample_position = {
@@ -184,9 +171,9 @@ class TestLocalHorizonsEphemeris(unittest.TestCase):
     def test_time_not_found(self):
         """Test retrieving a time that doesn't exist."""
         # Attempt to retrieve a non-existent time
-        nonexistent_time = datetime(2025, 3, 20, 20, 0, 0)
+        test_time = datetime(2025, 3, 19, 21, 0, 0, tzinfo=timezone.utc)
         with self.assertRaises(ValueError):
-            self.ephemeris.get_planet_position(self.test_planet, nonexistent_time)
+            self.ephemeris.get_planet_position(self.test_planet, test_time)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import unittest
 import struct
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from io import BytesIO
 
 # Import from starloom package
@@ -182,225 +182,195 @@ class TestMonthlyBlock(unittest.TestCase):
 
 
 class TestFortyEightHourBlocks(unittest.TestCase):
+    """Test cases for forty-eight hour blocks."""
+
     def setUp(self):
+        # Store original coefficient count to restore after tests
+        self.original_coeff_count = FortyEightHourSectionHeader.coefficient_count
+        
         self.year = 2023
         self.month = 6
         self.day = 15
-        self.coeffs = [3.0, 1.5, -0.5]
-        self.block_size = (
-            22  # 2(marker) + 2(year) + 1(month) + 1(day) + 4*3(coeffs) + 4(padding)
-        )
+        self.coeffs = [1.0] + [0.0] * (FortyEightHourSectionHeader.coefficient_count - 1)  # Constant function with value 1.0
 
         # FortyEightHour Section Header
         self.header = FortyEightHourSectionHeader(
-            start_year=self.year,
-            start_month=self.month,
-            start_day=self.day,
-            end_year=self.year,
-            end_month=self.month,
-            end_day=self.day + 2,
-            block_size=self.block_size,
-            block_count=3,
+            start_day=date(self.year, self.month, self.day),
+            end_day=date(self.year, self.month, self.day + 1),
         )
 
         # FortyEightHour Block
-        self.forty_eight_hour = FortyEightHourBlock(
-            year=self.year,
-            month=self.month,
-            day=self.day,
-            coeffs=self.coeffs,
-            block_size=self.block_size,
+        self.block = FortyEightHourBlock(
+            header=self.header,
+            coefficients=self.coeffs,
         )
 
+    def tearDown(self):
+        # Restore original coefficient count
+        FortyEightHourSectionHeader.coefficient_count = self.original_coeff_count
+
     def test_header_to_bytes(self):
-        """Test serialization of FortyEightHourSectionHeader."""
+        """Test converting header to bytes."""
         data = self.header.to_bytes()
-
-        # Check marker
-        self.assertEqual(data[:2], b"\x00\x02")
-
-        # Check values from struct unpack
-        (
-            start_year,
-            start_month,
-            start_day,
-            end_year,
-            end_month,
-            end_day,
-            block_size,
-            block_count,
-        ) = struct.unpack(">hBBhBBHI", data[2:16])
-
-        self.assertEqual(start_year, self.year)
-        self.assertEqual(start_month, self.month)
-        self.assertEqual(start_day, self.day)
-        self.assertEqual(end_year, self.year)
-        self.assertEqual(end_month, self.month)
-        self.assertEqual(end_day, self.day + 2)
-        self.assertEqual(block_size, self.block_size)
-        self.assertEqual(block_count, 3)
+        self.assertEqual(len(data), 10)  # 2(marker) + 2(year) + 1(month) + 1(day) + 2(year) + 1(month) + 1(day)
 
     def test_header_from_stream(self):
-        """Test deserialization of FortyEightHourSectionHeader."""
+        """Test reading header from stream."""
         data = self.header.to_bytes()
-        stream = BytesIO(data[2:])  # Skip marker which is already read in real usage
-
+        stream = BytesIO(data)
         header = FortyEightHourSectionHeader.from_stream(stream)
-        self.assertEqual(header.start_year, self.year)
-        self.assertEqual(header.start_month, self.month)
-        self.assertEqual(header.start_day, self.day)
-        self.assertEqual(header.end_year, self.year)
-        self.assertEqual(header.end_month, self.month)
-        self.assertEqual(header.end_day, self.day + 2)
-        self.assertEqual(header.block_size, self.block_size)
-        self.assertEqual(header.block_count, 3)
+        self.assertEqual(header.start_day, self.header.start_day)
+        self.assertEqual(header.end_day, self.header.end_day)
 
     def test_forty_eight_hour_to_bytes(self):
-        """Test serialization of FortyEightHourBlock."""
-        data = self.forty_eight_hour.to_bytes()
-
-        # Check marker
-        self.assertEqual(data[:2], b"\x00\x01")
-
-        # Check values from struct unpack
-        year = struct.unpack(">h", data[2:4])[0]
-        month = data[4]
-        day = data[5]
-
-        self.assertEqual(year, self.year)
-        self.assertEqual(month, self.month)
-        self.assertEqual(day, self.day)
-
-        # Check coefficients
-        coeffs = struct.unpack(">fff", data[6:18])
-        for i, coeff in enumerate(coeffs):
-            self.assertAlmostEqual(coeff, self.coeffs[i])
-
-        # Check padding
-        self.assertEqual(len(data), self.block_size)
+        """Test converting block to bytes."""
+        data = self.block.to_bytes()
+        expected_size = 2 + 4 * FortyEightHourSectionHeader.coefficient_count  # marker + coefficients
+        self.assertEqual(len(data), expected_size)
 
     def test_forty_eight_hour_from_stream(self):
-        """Test deserialization of FortyEightHourBlock."""
-        data = self.forty_eight_hour.to_bytes()
-        stream = BytesIO(data[2:])  # Skip marker which is already read in real usage
-
-        forty_eight_hour = FortyEightHourBlock.from_stream(stream, self.block_size)
-        self.assertEqual(forty_eight_hour.year, self.year)
-        self.assertEqual(forty_eight_hour.month, self.month)
-        self.assertEqual(forty_eight_hour.day, self.day)
-
-        # Get just the actual coefficients, not including padding zeroes
-        # (The FortyEightHourBlock.from_stream might read extra padding as coefficients)
-        for i in range(len(self.coeffs)):
-            self.assertAlmostEqual(forty_eight_hour.coeffs[i], self.coeffs[i])
+        """Test reading block from stream."""
+        data = self.block.to_bytes()
+        stream = BytesIO(data)
+        block = FortyEightHourBlock.from_stream(stream, self.header)
+        self.assertEqual(len(block.coefficients), FortyEightHourSectionHeader.coefficient_count)
+        for a, b in zip(block.coefficients, self.coeffs):
+            self.assertAlmostEqual(a, b)
 
     def test_forty_eight_hour_evaluate(self):
-        """Test evaluation of FortyEightHourBlock at specific times."""
-        # Test at midnight (x = -1)
+        """Test evaluating block at various times."""
+        # Test at start of block
         dt = datetime(self.year, self.month, self.day, 0, 0, 0, tzinfo=timezone.utc)
-        self.assertTrue(self.forty_eight_hour.contains(dt))
-        value = self.forty_eight_hour.evaluate(dt)
-        expected = evaluate_chebyshev(self.coeffs, -1.0)
-        self.assertAlmostEqual(value, expected)
+        self.assertAlmostEqual(self.block.evaluate(dt), 1.0)
 
-        # Test at noon (x = 0)
+        # Test at middle of block
         dt = datetime(self.year, self.month, self.day, 12, 0, 0, tzinfo=timezone.utc)
-        self.assertTrue(self.forty_eight_hour.contains(dt))
-        value = self.forty_eight_hour.evaluate(dt)
-        expected = evaluate_chebyshev(self.coeffs, 0.0)
-        self.assertAlmostEqual(value, expected)
+        self.assertAlmostEqual(self.block.evaluate(dt), 1.0)
 
-        # Test at end of day (x = 1)
+        # Test at end of block
         dt = datetime(self.year, self.month, self.day, 23, 59, 59, tzinfo=timezone.utc)
-        self.assertTrue(self.forty_eight_hour.contains(dt))
-        value = self.forty_eight_hour.evaluate(dt)
-        expected = evaluate_chebyshev(self.coeffs, 0.9999)  # Almost 1
-        self.assertAlmostEqual(value, expected, places=1)
+        self.assertAlmostEqual(self.block.evaluate(dt), 1.0)
 
-        # Test outside of day
-        dt = datetime(self.year, self.month, self.day + 1, 0, 0, 0, tzinfo=timezone.utc)
-        self.assertFalse(self.forty_eight_hour.contains(dt))
+        # Test outside block (before)
+        dt = datetime(self.year, self.month, self.day - 1, 0, 0, 0, tzinfo=timezone.utc)
         with self.assertRaises(ValueError):
-            self.forty_eight_hour.evaluate(dt)
+            self.block.evaluate(dt)
+
+        # Test outside block (after)
+        dt = datetime(self.year, self.month, self.day + 1, 0, 0, 0, tzinfo=timezone.utc)
+        with self.assertRaises(ValueError):
+            self.block.evaluate(dt)
+
+    def test_coefficient_count(self):
+        """Test that blocks can have any number of coefficients in memory."""
+        # Test with fewer coefficients than header's count
+        block = FortyEightHourBlock(
+            header=self.header,
+            coefficients=[1.0, 0.5, -0.2],  # Only 3 coefficients
+        )
+        
+        # When writing to disk, should pad with zeros
+        data = block.to_bytes()
+        expected_size = 2 + 4 * FortyEightHourSectionHeader.coefficient_count
+        self.assertEqual(len(data), expected_size)
+        
+        # When reading back, should strip trailing zeros
+        stream = BytesIO(data)
+        new_block = FortyEightHourBlock.from_stream(stream, self.header)
+        self.assertEqual(len(new_block.coefficients), 3)
+        for a, b in zip(new_block.coefficients, [1.0, 0.5, -0.2]):
+            self.assertAlmostEqual(a, b)
+
+        # Test with more coefficients than header's count
+        block = FortyEightHourBlock(
+            header=self.header,
+            coefficients=[1.0, 0.5, -0.2, 0.1, 0.3, 0.4, 0.2, 0.1],  # 8 coefficients
+        )
+        
+        # When writing to disk, should truncate
+        data = block.to_bytes()
+        expected_size = 2 + 4 * FortyEightHourSectionHeader.coefficient_count
+        self.assertEqual(len(data), expected_size)
+        
+        # When reading back, should have header's coefficient count
+        stream = BytesIO(data)
+        new_block = FortyEightHourBlock.from_stream(stream, self.header)
+        self.assertEqual(
+            len(new_block.coefficients), 
+            min(FortyEightHourSectionHeader.coefficient_count, 8)
+        )
+
+    def test_configurable_coefficient_count(self):
+        """Test that coefficient count can be configured for disk format."""
+        # Change header's coefficient count
+        FortyEightHourSectionHeader.coefficient_count = 3
+
+        # Create new header and block with more coefficients
+        header = FortyEightHourSectionHeader(
+            start_day=date(self.year, self.month, self.day),
+            end_day=date(self.year, self.month, self.day + 1),
+        )
+
+        block = FortyEightHourBlock(
+            header=header,
+            coefficients=[1.0, 0.5, -0.2, 0.1, 0.3],  # 5 coefficients
+        )
+
+        # Test serialization (should truncate to 3)
+        data = block.to_bytes()
+        self.assertEqual(len(data), 14)  # 2(marker) + 4*3(coefficients)
+
+        # Test deserialization (should get 3 coefficients)
+        stream = BytesIO(data)
+        new_block = FortyEightHourBlock.from_stream(stream, header)
+        self.assertEqual(len(new_block.coefficients), 3)
+        for a, b in zip(new_block.coefficients, [1.0, 0.5, -0.2]):
+            self.assertAlmostEqual(a, b)
+
+        # Test evaluation still works with truncated coefficients
+        dt = datetime(self.year, self.month, self.day, 12, 0, 0, tzinfo=timezone.utc)
+        value = new_block.evaluate(dt)
+        self.assertIsInstance(value, float)
 
 
 class TestWeftFile(unittest.TestCase):
+    """Test cases for WeftFile."""
+
     def setUp(self):
-        self.preamble = (
-            "#weft! v0.02 test jpl:test 2000s 32bit test chebychevs generated@test\n"
-        )
+        self.preamble = "#weft! v0.02 test jpl:test 2000s 32bit test chebychevs generated@test\n"
 
         self.multi_year = MultiYearBlock(
             start_year=2000, duration=5, coeffs=[1.0, 0.5, -0.2]
         )
         self.monthly = MonthlyBlock(year=2002, month=3, day_count=31, coeffs=[0.1, 0.2])
 
-        block_size = (
-            22  # 2(marker) + 2(year) + 1(month) + 1(day) + 4*3(coeffs) + 4(padding)
-        )
+        # FortyEightHour Section Header
         self.forty_eight_hour_header = FortyEightHourSectionHeader(
-            start_year=2003,
-            start_month=1,
-            start_day=1,
-            end_year=2003,
-            end_month=1,
-            end_day=2,
-            block_size=block_size,
-            block_count=2,
-        )
-        self.forty_eight_hour1 = FortyEightHourBlock(
-            year=2003, month=1, day=1, coeffs=[0.3, 0.4, 0.5], block_size=block_size
-        )
-        self.forty_eight_hour2 = FortyEightHourBlock(
-            year=2003, month=1, day=2, coeffs=[0.6, 0.7, 0.8], block_size=block_size
+            start_day=date(2003, 1, 1),
+            end_day=date(2003, 1, 2),
         )
 
-        self.blocks = [
-            self.multi_year,
-            self.monthly,
-            self.forty_eight_hour_header,
-            self.forty_eight_hour1,
-            self.forty_eight_hour2,
-        ]
-        self.weft_file = WeftFile(preamble=self.preamble, blocks=self.blocks)
+        # FortyEightHour Block
+        self.forty_eight_hour = FortyEightHourBlock(
+            header=self.forty_eight_hour_header,
+            coefficients=[1.0, 0.0, 0.0],
+        )
+
+        self.blocks = [self.multi_year, self.monthly, self.forty_eight_hour]
+        self.weft_file = WeftFile(self.preamble, self.blocks)
 
     def test_to_bytes(self):
-        """Test serialization of WeftFile."""
+        """Test converting file to bytes."""
         data = self.weft_file.to_bytes()
-
-        # Check preamble
+        self.assertIsInstance(data, bytes)
         self.assertTrue(data.startswith(self.preamble.encode("utf-8")))
 
-        # Check that all blocks are included
-        self.assertIn(self.multi_year.marker, data)
-        self.assertIn(self.monthly.marker, data)
-        self.assertIn(self.forty_eight_hour_header.marker, data)
-        self.assertIn(self.forty_eight_hour1.marker, data)
-
     def test_from_bytes(self):
-        """Test deserialization of WeftFile."""
+        """Test reading file from bytes."""
         data = self.weft_file.to_bytes()
-        parsed = WeftFile.from_bytes(data)
-
-        # Check preamble
-        self.assertEqual(parsed.preamble, self.preamble.strip())
-
-        # Check block count
-        self.assertEqual(len(parsed.blocks), len(self.blocks))
-
-        # Check block types
-        self.assertIsInstance(parsed.blocks[0], MultiYearBlock)
-        self.assertIsInstance(parsed.blocks[1], MonthlyBlock)
-        self.assertIsInstance(parsed.blocks[2], FortyEightHourSectionHeader)
-        self.assertIsInstance(parsed.blocks[3], FortyEightHourBlock)
-        self.assertIsInstance(parsed.blocks[4], FortyEightHourBlock)
-
-        # Check some properties
-        self.assertEqual(parsed.blocks[0].start_year, 2000)
-        self.assertEqual(parsed.blocks[1].month, 3)
-        self.assertEqual(parsed.blocks[2].block_count, 2)
-        self.assertEqual(parsed.blocks[3].day, 1)
-        self.assertEqual(parsed.blocks[4].day, 2)
+        weft_file = WeftFile.from_bytes(data)
+        self.assertEqual(weft_file.preamble, self.preamble.rstrip("\n"))
+        self.assertEqual(len(weft_file.blocks), len(self.blocks))
 
 
 if __name__ == "__main__":

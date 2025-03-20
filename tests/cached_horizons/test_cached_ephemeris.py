@@ -3,7 +3,7 @@ Unit tests for the CachedHorizonsEphemeris class.
 """
 
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 from pathlib import Path
 import tempfile
@@ -24,7 +24,7 @@ class TestCachedHorizonsEphemeris(unittest.TestCase):
 
         # Define test data
         self.test_planet = "mars"
-        self.test_time = datetime(2025, 3, 19, 20, 0, 0)
+        self.test_time = datetime(2025, 3, 19, 20, 0, 0, tzinfo=timezone.utc)
 
         # Define sample position data
         self.sample_position = {
