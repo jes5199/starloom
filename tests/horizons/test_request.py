@@ -6,7 +6,7 @@ from starloom.horizons.request import HorizonsRequest
 from starloom.horizons.location import Location
 from starloom.horizons.planet import Planet
 from starloom.horizons.time_spec import TimeSpec
-from starloom.horizons.quantities import HorizonsRequestObserverQuantities, Quantities
+from starloom.horizons.quantities import Quantities
 
 
 def test_location_validation():

@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Union
 from enum import Enum
 
-from starloom.space_time.julian import julian_from_datetime, datetime_from_julian
+from starloom.space_time.julian import julian_from_datetime
 
 
 class TimeSpecType(Enum):
@@ -48,12 +48,15 @@ class TimeSpec:
                 if isinstance(self.start_time, float):
                     params["START_TIME"] = str(self.start_time)
                 else:
-                    params["START_TIME"] = self.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+                    # Format using the format from the Horizons docs: 'YYYY-MMM-DD HH:MM'
+                    # Example from docs: '2035-Jul-12 10:17:19.373'
+                    params["START_TIME"] = f"'{self.start_time.strftime('%Y-%b-%d %H:%M')}'"
             if self.stop_time is not None:
                 if isinstance(self.stop_time, float):
                     params["STOP_TIME"] = str(self.stop_time)
                 else:
-                    params["STOP_TIME"] = self.stop_time.strftime("%Y-%m-%dT%H:%M:%S")
+                    # Format using the format from the Horizons docs: 'YYYY-MMM-DD HH:MM'
+                    params["STOP_TIME"] = f"'{self.stop_time.strftime('%Y-%b-%d %H:%M')}'"
             if self.step_size is not None:
                 params["STEP_SIZE"] = self.step_size
 

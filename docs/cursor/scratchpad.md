@@ -1,3 +1,35 @@
+# Fixing Horizons CLI Test Failures
+
+## Current Task
+Fix the failing tests in the Horizons CLI module.
+
+## Issue Analysis
+We have three failing tests:
+1. `test_parse_date_input` - The test expects `parse_date_input` to return a datetime object for ISO format dates, but it currently returns a Julian date float
+2. `test_time_range_query` - The API cannot interpret the date format correctly
+3. `test_elements_time_range_query` - Also fails due to date format issues
+
+## Root Causes
+1. `parse_date_input` function currently always returns Julian dates as floats, but the test expects datetime objects for ISO format dates
+2. The TimeSpec.to_params() method is formatting datetime objects incorrectly for the Horizons API
+
+## Plan
+[X] Fix `parse_date_input` to return datetime objects for ISO format inputs
+[X] Fix TimeSpec.to_params() to format dates in a way the Horizons API understands
+[X] Run tests to verify the fixes
+
+## Details
+- `parse_date_input` now returns the appropriate type based on input (datetime for ISO dates, float for Julian dates)
+- TimeSpec.to_params() now uses the proper format for the Horizons API ('YYYY-MMM-DD HH:MM')
+- The date format needs to be enclosed in single quotes as shown in the Horizons API documentation
+- All tests are now passing
+
+## Lessons Learned
+- The JPL Horizons API expects dates in a very specific format, and it's important to read their documentation carefully
+- The format needed was 'YYYY-MMM-DD HH:MM' with single quotes around it, not with braces
+- Always check the API documentation for the exact format expected
+- When tests fail, check the error messages carefully to understand what the API expects
+
 # Horizons Request Module Refactoring
 
 ## Current Task

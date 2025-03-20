@@ -32,3 +32,24 @@ When working with Julian dates in astronomical calculations:
 
 - Always use timezone-aware datetime objects (UTC preferred) for astronomical calculations
 - For dates across calendar reforms, be sure to use the correct algorithm for the corresponding calendar system 
+
+## JPL Horizons API
+
+When working with the JPL Horizons API:
+
+1. The API requires dates in a very specific format:
+   - Format: 'YYYY-MMM-DD HH:MM' (e.g., '2035-Jul-12 10:17:19.373')
+   - Month should be a three-letter abbreviation with the first letter capitalized (e.g., Jan, Feb, Mar)
+   - The entire date string should be enclosed in single quotes
+   - Don't use curly braces for optional parts as suggested in some error messages
+
+2. When using API parameters that expect dates:
+   - START_TIME, STOP_TIME: Use quoted date format, e.g. START_TIME='2025-Mar-19 20:00'
+   - TLIST: For numeric Julian dates, just use the value directly
+   - Be careful with URL encoding when submitting requests
+   
+3. The API responses include error messages that can help identify formatting issues:
+   - Watch for messages like "Cannot interpret date" or "Too many constants"
+   - Error messages may suggest using a format like "YYYY-MMM-DD {HH:MN}", but the braces are not literal
+   
+4. Use Julian dates as a reliable alternative when date formatting is problematic 

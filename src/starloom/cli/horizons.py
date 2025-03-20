@@ -2,7 +2,7 @@
 
 import click
 from datetime import datetime, timezone
-from typing import Optional, List, cast, Union
+from typing import Optional, cast, Union
 
 from ..horizons.planet import Planet
 from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
@@ -13,7 +13,7 @@ from ..horizons.observer_parser import ObserverParser
 from ..horizons.location import Location
 
 
-def parse_date_input(date_str: str) -> float:
+def parse_date_input(date_str: str) -> Union[datetime, float]:
     """Parse date input in various formats.
 
     Args:
@@ -24,13 +24,13 @@ def parse_date_input(date_str: str) -> float:
             - "now"
 
     Returns:
-        Julian date as float
+        Either a datetime object (for ISO format or "now") or a float (for Julian date)
 
     Raises:
         ValueError: If date string is invalid
     """
     if date_str.lower() == "now":
-        return datetime.now(timezone.utc).timestamp() / 86400 + 2440587.5
+        return datetime.now(timezone.utc)
 
     try:
         # Try parsing as Julian date
@@ -41,7 +41,7 @@ def parse_date_input(date_str: str) -> float:
             dt = datetime.fromisoformat(date_str)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
-            return dt.timestamp() / 86400 + 2440587.5
+            return dt
         except ValueError:
             raise ValueError(f"Invalid date format: {date_str}")
 
@@ -154,9 +154,14 @@ def ecliptic(
         start_str = cast(str, start)
         stop_str = cast(str, stop)
         step_str = cast(str, step)
+        
+        # Parse dates and convert datetime objects to Julian dates if needed
+        start_date = parse_date_input(start_str)
+        stop_date = parse_date_input(stop_str)
+        
         time_spec = TimeSpec.from_range(
-            parse_date_input(start_str),
-            parse_date_input(stop_str),
+            start_date,
+            stop_date,
             step_str,
         )
     else:
@@ -240,9 +245,14 @@ def elements(
         start_str = cast(str, start)
         stop_str = cast(str, stop)
         step_str = cast(str, step)
+        
+        # Parse dates and convert datetime objects to Julian dates if needed
+        start_date = parse_date_input(start_str)
+        stop_date = parse_date_input(stop_str)
+        
         time_spec = TimeSpec.from_range(
-            parse_date_input(start_str),
-            parse_date_input(stop_str),
+            start_date,
+            stop_date,
             step_str,
         )
     else:
