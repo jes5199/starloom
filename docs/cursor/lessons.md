@@ -250,7 +250,16 @@ When developing command-line interfaces with Click:
    - Convert user-friendly inputs to the format required by the API
    - Provide sane defaults where appropriate
    - Format the output of API responses for readability
-   - Consider adding flags to control output format 
+   - Consider adding flags to control output format
+
+4. Simplifying CLI command structure:
+   - For simpler, more intuitive command interfaces, use direct commands instead of nested subcommands
+   - When you want to enable syntax like `app command arg` instead of `app command subcommand arg`:
+     * Use a simple `@click.command()` instead of the group + command pattern
+     * Register this command directly with the main CLI
+     * Make the command function name match the command name for clarity
+   - This approach reduces command complexity while preserving functionality
+   - Consider the command hierarchy carefully based on user experience goals
 
 ## Horizons API Quantity Handling
 

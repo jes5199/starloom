@@ -4,8 +4,6 @@ import click
 from datetime import datetime, timezone
 from typing import Optional, Union
 
-from ..ephemeris.ephemeris import Ephemeris
-from ..ephemeris.quantities import Quantity
 from ..horizons.ephemeris import HorizonsEphemeris
 from ..horizons.planet import Planet
 from ..horizons.location import Location
@@ -44,13 +42,7 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
             raise ValueError(f"Invalid date format: {date_str}")
 
 
-@click.group()
-def ephemeris() -> None:
-    """Commands for working with ephemeris data sources."""
-    pass
-
-
-@ephemeris.command()
+@click.command()
 @click.argument("planet")
 @click.option(
     "--date",
@@ -62,7 +54,7 @@ def ephemeris() -> None:
     "--location",
     help="Observer location (lat,lon,elev)",
 )
-def position(
+def ephemeris(
     planet: str,
     date: Optional[str] = None,
     location: Optional[str] = None,
@@ -72,13 +64,13 @@ def position(
     Examples:
 
     Current time:
-       starloom ephemeris position venus
+       starloom ephemeris venus
 
     Specific time:
-       starloom ephemeris position venus --date 2025-03-19T20:00:00
+       starloom ephemeris venus --date 2025-03-19T20:00:00
 
     With observer location:
-       starloom ephemeris position venus --location 34.0522,-118.2437,0
+       starloom ephemeris venus --location 34.0522,-118.2437,0
     """
     # Convert planet name to enum
     try:
@@ -103,10 +95,10 @@ def position(
 
     # Create ephemeris instance and get position
     ephemeris_instance = HorizonsEphemeris()
-    
+
     try:
         result = ephemeris_instance.get_planet_position(planet_enum.name, time, loc)
-        
+
         # Print the results
         click.echo(f"Position of {planet} at {time}:")
         for quantity, value in result.items():
@@ -117,8 +109,11 @@ def position(
                 click.echo(f"{quantity.name}: {value}")
     except ValueError as e:
         click.echo(f"Error: {str(e)}", err=True)
-        click.echo("The API request failed. Check your internet connection or try again later.", err=True)
+        click.echo(
+            "The API request failed. Check your internet connection or try again later.",
+            err=True,
+        )
         exit(1)
     except Exception as e:
         click.echo(f"Unexpected error: {str(e)}", err=True)
-        exit(1) 
+        exit(1)

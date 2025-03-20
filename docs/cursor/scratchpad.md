@@ -1,3 +1,39 @@
+# Simplify Ephemeris CLI Command
+
+## Current Task
+Simplify the ephemeris CLI command to allow `starloom ephemeris venus` instead of `starloom ephemeris position venus`.
+
+## Changes
+[X] Modified ephemeris.py to use a direct command instead of a command group with subcommands
+[X] Changed from `@click.group()` + `@ephemeris.command()` to a single `@click.command()`
+[X] Renamed the function from `position` to `ephemeris` to match the command name
+[X] Updated the documentation examples to reflect the new usage pattern
+
+## Notes
+- This simplifies the user experience by reducing command complexity
+- The command now follows a more intuitive pattern: `starloom ephemeris venus [options]`
+- All functionality is preserved, only the command structure is changed
+
+# Fix Ephemeris CLI QUANTITIES Parameter Issue
+
+## Current Task
+Fix an issue with the HorizonsEphemeris implementation where the QUANTITIES parameter was using incorrect values.
+
+## Problem
+The API was returning "Cannot read QUANTITIES" errors because the URL included EphemerisQuantity enum values ('.value') instead of the required HorizonsRequestObserverQuantities values.
+
+## Solution
+[X] Update the HorizonsEphemeris class to use HorizonsRequestObserverQuantities instead of EphemerisQuantity values
+[X] Replace standard_quantities list in HorizonsEphemeris with correct enum values:
+  - HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value (31)
+  - HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value (20)
+
+## Notes
+- The Horizons API expects numeric codes for the QUANTITIES parameter (e.g., 31,20)
+- EphemerisQuantity contains the column names that appear in the response (e.g., "ObsEcLon")
+- HorizonsRequestObserverQuantities contains the numeric codes needed for the request
+- This is an important distinction between what we ask for and what we parse 
+
 # Fixing Horizons CLI Test Failures
 
 ## Current Task
@@ -554,23 +590,3 @@ Create a new CLI module for ephemeris in the starloom package.
 - Added support for location-based observation
 - Improved error handling with user-friendly messages
 - Properly integrated with the main CLI 
-
-# Fix Ephemeris CLI QUANTITIES Parameter Issue
-
-## Current Task
-Fix an issue with the HorizonsEphemeris implementation where the QUANTITIES parameter was using incorrect values.
-
-## Problem
-The API was returning "Cannot read QUANTITIES" errors because the URL included EphemerisQuantity enum values ('.value') instead of the required HorizonsRequestObserverQuantities values.
-
-## Solution
-[X] Update the HorizonsEphemeris class to use HorizonsRequestObserverQuantities instead of EphemerisQuantity values
-[X] Replace standard_quantities list in HorizonsEphemeris with correct enum values:
-  - HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value (31)
-  - HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value (20)
-
-## Notes
-- The Horizons API expects numeric codes for the QUANTITIES parameter (e.g., 31,20)
-- EphemerisQuantity contains the column names that appear in the response (e.g., "ObsEcLon")
-- HorizonsRequestObserverQuantities contains the numeric codes needed for the request
-- This is an important distinction between what we ask for and what we parse 

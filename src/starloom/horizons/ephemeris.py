@@ -8,7 +8,6 @@ from .location import Location
 from .time_spec import TimeSpec
 from .ephem_type import EphemType
 from .quantities import (
-    EphemerisQuantity,
     EphemerisQuantityToQuantity,
     HorizonsRequestObserverQuantities,
 )
@@ -29,7 +28,7 @@ class HorizonsEphemeris(Ephemeris):
         # Define the standard quantities we'll request from Horizons
         self.standard_quantities = [
             HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,  # 31
-            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,     # 20
+            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,  # 20
         ]
 
         # Geocentric location uses special Horizons syntax
