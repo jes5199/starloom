@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 from .quantities import Quantities
 from .location import Location
 from .time_spec import TimeSpec
+from .time_spec_param import HorizonsTimeSpecParam
 from .planet import Planet
 from .ephem_type import EphemType
 
@@ -18,6 +19,7 @@ class HorizonsRequest:
         location: Optional[Union[Location, str]] = None,
         quantities: Optional[Union[Quantities, List[int]]] = None,
         time_spec: Optional[TimeSpec] = None,
+        time_spec_param: Optional[HorizonsTimeSpecParam] = None,
         ephem_type: EphemType = EphemType.OBSERVER,
         center: Optional[str] = None,
         use_julian: bool = False,
@@ -30,6 +32,7 @@ class HorizonsRequest:
                      (e.g. '@399' for geocentric or a comma-separated coordinate string)
             quantities: Optional quantities to request
             time_spec: Optional time specification
+            time_spec_param: Optional Horizons-specific time parameter formatter
             ephem_type: Type of ephemeris to generate
             center: Optional center body for orbital elements (e.g. '10' for Sun)
             use_julian: Whether to use Julian dates in output
@@ -42,6 +45,9 @@ class HorizonsRequest:
             else (quantities or Quantities())
         )
         self.time_spec = time_spec
+        self.time_spec_param = time_spec_param or (
+            HorizonsTimeSpecParam(time_spec) if time_spec else None
+        )
         self.ephem_type = ephem_type
         self.center = center
         self.use_julian = use_julian
@@ -63,8 +69,8 @@ class HorizonsRequest:
         if self.ephem_type == EphemType.OBSERVER:
             params["QUANTITIES"] = self.quantities.to_string()
         # Add time parameters
-        if self.time_spec:
-            params.update(self.time_spec.to_params())
+        if self.time_spec_param:
+            params.update(self.time_spec_param.to_params())
             if self.use_julian:
                 params["CAL_FORMAT"] = "JD"
 
@@ -197,6 +203,7 @@ class HorizonsRequest:
             and self.location == other.location
             and self.quantities == other.quantities
             and self.time_spec == other.time_spec
+            and self.time_spec_param == other.time_spec_param
             and self.ephem_type == other.ephem_type
             and self.center == other.center
             and self.use_julian == other.use_julian

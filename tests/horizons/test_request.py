@@ -6,6 +6,7 @@ from starloom.horizons.request import HorizonsRequest
 from starloom.horizons.location import Location
 from starloom.horizons.planet import Planet
 from starloom.horizons.time_spec import TimeSpec
+from starloom.horizons.time_spec_param import HorizonsTimeSpecParam
 from starloom.horizons.quantities import Quantities
 
 
@@ -53,6 +54,14 @@ def test_request_initialization():
     time_spec = TimeSpec.from_dates([datetime(2024, 1, 1, tzinfo=timezone.utc)])
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec)
     assert req.time_spec == time_spec
+    assert isinstance(req.time_spec_param, HorizonsTimeSpecParam)
+
+    # Request with explicit time spec param
+    time_spec_param = HorizonsTimeSpecParam(time_spec)
+    req = HorizonsRequest(
+        Planet.SUN, time_spec=time_spec, time_spec_param=time_spec_param
+    )
+    assert req.time_spec_param == time_spec_param
 
     # Request with quantities
     quantities = Quantities(values=[1, 2, 3])
