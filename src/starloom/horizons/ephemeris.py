@@ -12,6 +12,7 @@ from .quantities import (
     HorizonsRequestObserverQuantities,
 )
 from .parsers.observer_parser import ObserverParser
+from .time_spec_param import HorizonsTimeSpecParam
 
 
 class HorizonsEphemeris(Ephemeris):
@@ -74,6 +75,7 @@ class HorizonsEphemeris(Ephemeris):
             location=obs_location,  # HorizonsRequest accepts Union[Location, str]
             quantities=self.standard_quantities,
             time_spec=time_spec,
+            time_spec_param=HorizonsTimeSpecParam(time_spec),
             ephem_type=EphemType.OBSERVER,
             use_julian=True,
         )
@@ -102,6 +104,73 @@ class HorizonsEphemeris(Ephemeris):
             except KeyError:
                 # Skip quantities that don't have a mapping
                 continue
+
+        return result
+
+    def get_planet_positions(
+        self,
+        planet: str,
+        time_spec: TimeSpec,
+        location: Optional[Union[Location, str]] = None,
+    ) -> Dict[float, Dict[Quantity, Any]]:
+        """
+        Get a planet's positions for multiple times defined by a TimeSpec.
+
+        Args:
+            planet: The name or identifier of the planet.
+                   Can be a Planet enum value, enum name, or the Horizons ID string.
+            time_spec: TimeSpec object defining the times to get positions for.
+            location: Optional observer location. If None, geocentric coordinates are used (viewed from Earth's center).
+                     Can be a Location object or a Horizons location string (e.g., "@399" for geocentric).
+
+        Returns:
+            A dictionary mapping Julian dates (as floats) to position data dictionaries.
+            Each position data dictionary includes at minimum:
+            - Quantity.ECLIPTIC_LONGITUDE
+            - Quantity.ECLIPTIC_LATITUDE
+            - Quantity.DELTA (distance from Earth)
+        """
+        # Determine the planet ID for the request
+        planet_id = self._get_planet_id(planet)
+
+        # Use geocentric location if none provided
+        obs_location = location if location is not None else self.geocentric_location
+
+        # Create and execute the request
+        request = HorizonsRequest(
+            planet=planet_id,
+            location=obs_location,
+            quantities=self.standard_quantities,
+            time_spec=time_spec,
+            time_spec_param=HorizonsTimeSpecParam(time_spec),
+            ephem_type=EphemType.OBSERVER,
+            use_julian=True,
+        )
+
+        response = request.make_request()
+
+        # Parse the response
+        parser = ObserverParser(response)
+        data_points = parser.parse()
+
+        if not data_points:
+            raise ValueError(f"No data returned from Horizons for planet {planet}")
+
+        # Convert each data point to the required format
+        result: Dict[float, Dict[Quantity, Any]] = {}
+        for jd, values in data_points:
+            position_data: Dict[Quantity, Any] = {}
+            for ephemeris_quantity, value in values.items():
+                try:
+                    # Convert the quantity enum and add to the result
+                    standard_quantity = EphemerisQuantityToQuantity[ephemeris_quantity]
+                    position_data[standard_quantity] = self._convert_value(
+                        value, standard_quantity
+                    )
+                except KeyError:
+                    # Skip quantities that don't have a mapping
+                    continue
+            result[jd] = position_data
 
         return result
 

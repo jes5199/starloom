@@ -8,6 +8,7 @@ from starloom.horizons.planet import Planet
 from starloom.horizons.location import Location
 from starloom.horizons.quantities import EphemerisQuantity
 from starloom.ephemeris import Quantity
+from starloom.ephemeris.time_spec import TimeSpec
 
 
 def read_fixture_file(filename):
@@ -32,6 +33,12 @@ def venus_single_response():
 
 
 @pytest.fixture
+def mars_range_response():
+    """Return the Mars range position fixture response."""
+    return read_fixture_file("ecliptic/mars_range.txt")
+
+
+@pytest.fixture
 def mock_parser_result():
     """Return a mock parser result with some data."""
     # Create a dict with some test values
@@ -42,6 +49,28 @@ def mock_parser_result():
     }
     # The parser returns a list of tuples (julian_date, values_dict)
     return [(2460754.333333333, values)]
+
+
+@pytest.fixture
+def mock_parser_range_result():
+    """Return a mock parser result with multiple data points."""
+    base_jd = 2460754.333333333
+    base_values = {
+        EphemerisQuantity.ECLIPTIC_LONGITUDE: "110.1170172",
+        EphemerisQuantity.ECLIPTIC_LATITUDE: "2.9890069",
+        EphemerisQuantity.DISTANCE: "1.02563816",
+    }
+
+    # Create three data points with slightly different values
+    data_points = []
+    for i in range(3):
+        values = {
+            EphemerisQuantity.ECLIPTIC_LONGITUDE: f"{float(base_values[EphemerisQuantity.ECLIPTIC_LONGITUDE]) + i}",
+            EphemerisQuantity.ECLIPTIC_LATITUDE: f"{float(base_values[EphemerisQuantity.ECLIPTIC_LATITUDE]) + i / 10}",
+            EphemerisQuantity.DISTANCE: f"{float(base_values[EphemerisQuantity.DISTANCE]) + i / 100}",
+        }
+        data_points.append((base_jd + i / 24, values))  # Add 1 hour between points
+    return data_points
 
 
 class TestHorizonsEphemeris:
@@ -311,3 +340,182 @@ class TestHorizonsEphemeris:
                 mock_request_class.assert_called_once()
                 args, kwargs = mock_request_class.call_args
                 assert kwargs["location"] == "@399"  # Geocentric location
+
+    @patch("starloom.horizons.request.HorizonsRequest.make_request")
+    def test_get_planet_positions_with_time_spec(
+        self, mock_make_request, mock_parser_range_result
+    ):
+        """Test getting planet positions for a time range."""
+        # Setup
+        mock_make_request.return_value = "mock response"
+        with patch(
+            "starloom.horizons.parsers.observer_parser.ObserverParser.parse",
+            return_value=mock_parser_range_result,
+        ):
+            ephemeris = HorizonsEphemeris()
+
+            # Create a TimeSpec for the test
+            start_time = datetime(2025, 3, 19, 20, 0, 0, tzinfo=timezone.utc)
+            stop_time = datetime(2025, 3, 19, 22, 0, 0, tzinfo=timezone.utc)
+            time_spec = TimeSpec(
+                start_time=start_time, stop_time=stop_time, step_size="1h"
+            )
+
+            # Execute
+            result = ephemeris.get_planet_positions(Planet.MARS, time_spec)
+
+            # Verify
+            assert len(result) == 3  # Should have 3 data points
+
+            # Check that each data point has the required quantities
+            for jd, position_data in result.items():
+                assert Quantity.ECLIPTIC_LONGITUDE in position_data
+                assert Quantity.ECLIPTIC_LATITUDE in position_data
+                assert Quantity.DELTA in position_data
+
+                # Verify values are floats
+                assert isinstance(position_data[Quantity.ECLIPTIC_LONGITUDE], float)
+                assert isinstance(position_data[Quantity.ECLIPTIC_LATITUDE], float)
+                assert isinstance(position_data[Quantity.DELTA], float)
+
+    @patch("starloom.horizons.request.HorizonsRequest.make_request")
+    def test_get_planet_positions_with_custom_location(
+        self, mock_make_request, mock_parser_range_result
+    ):
+        """Test getting planet positions with a custom location."""
+        # Setup
+        mock_make_request.return_value = "mock response"
+        with patch(
+            "starloom.horizons.parsers.observer_parser.ObserverParser.parse",
+            return_value=mock_parser_range_result,
+        ):
+            with patch(
+                "starloom.horizons.ephemeris.HorizonsRequest"
+            ) as mock_request_class:
+                mock_request = MagicMock()
+                mock_request.make_request.return_value = "some response"
+                mock_request_class.return_value = mock_request
+
+                ephemeris = HorizonsEphemeris()
+
+                # Create a TimeSpec and Location for the test
+                time_spec = TimeSpec(
+                    start_time=datetime(2025, 3, 19, 20, 0, 0, tzinfo=timezone.utc),
+                    stop_time=datetime(2025, 3, 19, 22, 0, 0, tzinfo=timezone.utc),
+                    step_size="1h",
+                )
+                custom_location = Location(
+                    latitude=40.7128, longitude=-74.0060, elevation=0.0
+                )  # NYC
+
+                # Execute
+                result = ephemeris.get_planet_positions(
+                    Planet.MARS, time_spec, location=custom_location
+                )
+
+                # Verify
+                assert len(result) == 3  # Should have 3 data points
+
+                # Verify the request was made with the custom location
+                mock_request_class.assert_called_once()
+                args, kwargs = mock_request_class.call_args
+                assert kwargs["location"] == custom_location
+
+    @patch("starloom.horizons.request.HorizonsRequest.make_request")
+    def test_get_planet_positions_with_location_string(
+        self, mock_make_request, mock_parser_range_result
+    ):
+        """Test getting planet positions with a location string."""
+        # Setup
+        mock_make_request.return_value = "mock response"
+        with patch(
+            "starloom.horizons.parsers.observer_parser.ObserverParser.parse",
+            return_value=mock_parser_range_result,
+        ):
+            with patch(
+                "starloom.horizons.ephemeris.HorizonsRequest"
+            ) as mock_request_class:
+                mock_request = MagicMock()
+                mock_request.make_request.return_value = "some response"
+                mock_request_class.return_value = mock_request
+
+                ephemeris = HorizonsEphemeris()
+
+                time_spec = TimeSpec(
+                    start_time=datetime(2025, 3, 19, 20, 0, 0, tzinfo=timezone.utc),
+                    stop_time=datetime(2025, 3, 19, 22, 0, 0, tzinfo=timezone.utc),
+                    step_size="1h",
+                )
+                location_string = "@399/1"  # Geocentric with aberration correction
+
+                # Execute
+                result = ephemeris.get_planet_positions(
+                    Planet.MARS, time_spec, location=location_string
+                )
+
+                # Verify
+                assert len(result) == 3  # Should have 3 data points
+
+                # Verify the request was made with the location string
+                mock_request_class.assert_called_once()
+                args, kwargs = mock_request_class.call_args
+                assert kwargs["location"] == location_string
+
+    def test_default_location_is_geocentric_for_positions(self):
+        """Test that default location is geocentric for get_planet_positions."""
+        # Create our mock data
+        mock_data = [
+            (
+                2460754.333333333,
+                {
+                    EphemerisQuantity.ECLIPTIC_LONGITUDE: "110.1170172",
+                    EphemerisQuantity.ECLIPTIC_LATITUDE: "2.9890069",
+                    EphemerisQuantity.DISTANCE: "1.02563816",
+                },
+            )
+        ]
+
+        # We need to patch exactly where the method is used in ephemeris.py
+        with patch(
+            "starloom.horizons.parsers.observer_parser.ObserverParser.parse",
+            return_value=mock_data,
+        ):
+            with patch(
+                "starloom.horizons.ephemeris.HorizonsRequest"
+            ) as mock_request_class:
+                mock_request = MagicMock()
+                mock_request.make_request.return_value = "some response"
+                mock_request_class.return_value = mock_request
+
+                ephemeris = HorizonsEphemeris()
+                time_spec = TimeSpec(
+                    start_time=datetime(2025, 3, 19, 20, 0, 0, tzinfo=timezone.utc),
+                    stop_time=datetime(2025, 3, 19, 22, 0, 0, tzinfo=timezone.utc),
+                    step_size="1h",
+                )
+
+                # Execute
+                ephemeris.get_planet_positions(Planet.VENUS, time_spec)
+
+                # Verify
+                mock_request_class.assert_called_once()
+                args, kwargs = mock_request_class.call_args
+                assert kwargs["location"] == "@399"  # Geocentric location
+
+    @patch("starloom.horizons.request.HorizonsRequest.make_request")
+    def test_get_planet_positions_empty_response(self, mock_make_request):
+        """Test error handling for an empty response."""
+        # Setup
+        mock_make_request.return_value = "$$SOE\n$$EOE"  # Empty data section
+        ephemeris = HorizonsEphemeris()
+        time_spec = TimeSpec(
+            start_time=datetime(2025, 3, 19, 20, 0, 0, tzinfo=timezone.utc),
+            stop_time=datetime(2025, 3, 19, 22, 0, 0, tzinfo=timezone.utc),
+            step_size="1h",
+        )
+
+        # Execute and verify
+        with pytest.raises(
+            ValueError, match="No data returned from Horizons for planet"
+        ):
+            ephemeris.get_planet_positions(Planet.MARS, time_spec)
