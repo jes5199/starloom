@@ -54,6 +54,11 @@ When working with the JPL Horizons API:
    
 4. Use Julian dates as a reliable alternative when date formatting is problematic 
 
+4. Parameters relevant to specific ephemeris types:
+   - The QUANTITIES parameter is only relevant for OBSERVER ephem_type
+   - When using other ephemeris types (VECTORS, ELEMENTS, SPK, APPROACH), the QUANTITIES parameter is ignored by the API
+   - Be sure to only include parameters that are relevant to the specific ephemeris type being requested
+
 ## Click CLI Development
 
 When developing command-line interfaces with Click:

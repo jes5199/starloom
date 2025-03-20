@@ -360,3 +360,22 @@ Renamed ElementsQuantity to ObserverElementsQuantity and TestElementsParser to T
 - Both parser files and classes now follow the same naming convention with "Observer" prefix
 - These changes complete the naming standardization started with renaming the file
 - Consistent naming makes the codebase more maintainable and easier to understand 
+
+# Update HorizonsRequest for Quantities Parameter Logic
+
+## Current Task
+Modify the `HorizonsRequest` class to only include the quantities parameter when using the `OBSERVER` ephem_type, since it gets ignored for other ephem types.
+
+## Plan
+[X] Examine the get_url and _get_base_params methods in HorizonsRequest class
+[X] Update the logic to only include quantities when ephem_type is OBSERVER
+  - Updated `get_url` method to only add quantities for OBSERVER ephem type
+  - Updated `_format_post_data` method to do the same for POST requests
+[X] Test the changes to ensure they work correctly
+  - All tests in tests/horizons/test_request.py pass
+  - All tests in the horizons module continue to pass
+
+## Notes
+- The modification was simple and straightforward
+- The tests continue to pass, confirming that our changes don't break existing functionality
+- This implementation is more efficient as it avoids sending unnecessary parameters to the API 

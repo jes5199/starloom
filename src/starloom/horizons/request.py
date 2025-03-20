@@ -58,7 +58,9 @@ class HorizonsRequest:
         """
         params = self._get_base_params()
         # Convert quantities to string format expected by Horizons
-        params["QUANTITIES"] = self.quantities.to_string()
+        # Only include quantities when ephem_type is OBSERVER
+        if self.ephem_type == EphemType.OBSERVER:
+            params["QUANTITIES"] = self.quantities.to_string()
         # Add time parameters
         if self.time_spec:
             params.update(self.time_spec.to_params())
@@ -148,6 +150,11 @@ class HorizonsRequest:
 
         # Add all parameters
         params = {**self._get_base_params(), **self._get_time_params()}
+
+        # Add quantities only for OBSERVER ephem type
+        if self.ephem_type == EphemType.OBSERVER:
+            params["QUANTITIES"] = self.quantities.to_string()
+
         for key, value in params.items():
             if key != "format":  # Exclude 'format' from the input file
                 lines.append(f"{key}={value}")
