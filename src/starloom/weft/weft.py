@@ -12,7 +12,6 @@ import struct
 from datetime import datetime, timezone, time, date
 from typing import List, BinaryIO, Union, Tuple, Literal, TypedDict
 from io import BytesIO
-import math
 import numpy as np
 
 # Define block types
@@ -522,34 +521,26 @@ class FortyEightHourBlock:
             coeffs: Chebyshev polynomial coefficients
 
         Raises:
-            ValueError: If coefficients length doesn't match header's count or if any coefficient is NaN
+            ValueError: If any coefficient is NaN
         """
         self.header = header
 
-        # Validate minimum coefficient count
-        if len(coeffs) < 3:
-            raise ValueError("At least 3 coefficients are required")
+        # Convert coefficients to numpy array
+        coeffs = np.array(coeffs, dtype=np.float64)
 
         # Check for NaN values
-        if any(math.isnan(c) for c in coeffs):
-            raise ValueError("Coefficients cannot contain NaN values")
+        if np.any(np.isnan(coeffs)):
+            raise ValueError("Coefficients cannot be NaN")
 
-        # Convert to numpy array for efficient operations
-        coeffs_array = np.array(coeffs, dtype=np.float32)
+        # If coefficients list is empty, use a single zero coefficient
+        if len(coeffs) == 0:
+            coeffs = np.array([0.0])
 
-        # Find last non-zero coefficient
-        last_nonzero = -1
-        for i in range(len(coeffs_array) - 1, -1, -1):
-            if abs(coeffs_array[i]) > 1e-10:  # Use small epsilon for float comparison
-                last_nonzero = i
-                break
+        # Strip trailing zeros to get significant coefficients
+        while len(coeffs) > 1 and coeffs[-1] == 0:
+            coeffs = coeffs[:-1]
 
-        # Keep only significant coefficients
-        self.coeffs = coeffs_array[: last_nonzero + 1]
-
-        # If all coefficients are effectively zero, keep just the first one
-        if len(self.coeffs) == 0:
-            self.coeffs = coeffs_array[:1]
+        self.coeffs = coeffs
 
         # Pad to header's count for binary format
         self._full_coeffs = np.pad(

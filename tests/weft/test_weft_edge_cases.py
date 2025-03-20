@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime, timedelta, timezone, date
 import tempfile
 import pytest
+import numpy as np
 
 # Import from starloom package
 from src.starloom.weft.weft import (
@@ -32,15 +33,22 @@ class TestWeftEdgeCases(unittest.TestCase):
 
     def test_incorrect_block_sizes(self):
         """Test handling of blocks with incorrect sizes."""
-        # Create a block with too few coefficients
-        with self.assertRaises(ValueError):
-            FortyEightHourBlock(
-                header=FortyEightHourSectionHeader(
-                    start_day=date(2023, 1, 1),
-                    end_day=date(2023, 1, 2),
-                ),
-                coeffs=[1.0, 2.0],  # Less than 3 coefficients
-            )
+        # Create a block with empty coefficients list
+        header = FortyEightHourSectionHeader(
+            start_day=date(2023, 1, 1),
+            end_day=date(2023, 1, 2),
+        )
+        block = FortyEightHourBlock(
+            header=header,
+            coeffs=[],  # Empty list is valid, will be padded with zeros
+        )
+        # Should have one coefficient (zero)
+        self.assertEqual(len(block.coeffs), 1)
+        self.assertEqual(block.coeffs[0], 0.0)
+
+        # Full coefficients should be padded to header's count
+        self.assertEqual(len(block._full_coeffs), header.coefficient_count)
+        self.assertTrue(np.all(block._full_coeffs == 0.0))
 
     def test_invalid_coefficients(self):
         """Test handling of invalid coefficient values."""
