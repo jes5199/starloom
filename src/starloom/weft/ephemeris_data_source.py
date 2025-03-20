@@ -17,11 +17,11 @@ from ..horizons.quantities import EphemerisQuantity
 class EphemerisDataSource:
     """
     A data source that manages ephemeris data for Weft file generation.
-    
+
     This class handles fetching and filtering data for different block types,
     ensuring efficient data access patterns.
     """
-    
+
     def __init__(
         self,
         ephemeris: Ephemeris,
@@ -33,7 +33,7 @@ class EphemerisDataSource:
     ):
         """
         Initialize the data source.
-        
+
         Args:
             ephemeris: The ephemeris source to use
             planet_id: The planet ID to get data for
@@ -48,92 +48,87 @@ class EphemerisDataSource:
         self.start_date = start_date
         self.end_date = end_date
         self.step_hours = step_hours
-        
+
         # Create TimeSpec for data fetching
         self.time_spec = TimeSpec.from_range(
-            start=start_date,
-            stop=end_date,
-            step=f"{step_hours}h"
+            start=start_date, stop=end_date, step=f"{step_hours}h"
         )
-        
+
         print(f"Fetching ephemeris data from {start_date} to {end_date}...")
         self.data = ephemeris.get_planet_positions(planet_id, self.time_spec)
-        
+
         # Sort timestamps for binary search
         self.timestamps = sorted(self.data.keys())
-        
+
     def get_value_at(self, dt: datetime) -> float:
         """
         Get the value at a specific datetime.
-        
+
         Args:
             dt: The datetime to get the value for
-            
+
         Returns:
             The interpolated value at that datetime
-            
+
         Raises:
             ValueError: If the datetime is outside the data range
         """
         if dt < self.start_date or dt > self.end_date:
             raise ValueError(f"Datetime {dt} is outside data range")
-            
+
         # Find nearest timestamps
         idx = bisect.bisect_left(self.timestamps, dt)
-        
+
         if idx == 0:
             # Use first value if before first timestamp
             t1 = self.timestamps[0]
             return float(self.data[t1][self.quantity])
-            
+
         if idx == len(self.timestamps):
             # Use last value if after last timestamp
             t1 = self.timestamps[-1]
             return float(self.data[t1][self.quantity])
-            
+
         # Interpolate between surrounding timestamps
         t1 = self.timestamps[idx - 1]
         t2 = self.timestamps[idx]
-        
+
         v1 = float(self.data[t1][self.quantity])
         v2 = float(self.data[t2][self.quantity])
-        
+
         # Linear interpolation
         total_seconds = (t2 - t1).total_seconds()
         elapsed_seconds = (dt - t1).total_seconds()
         fraction = elapsed_seconds / total_seconds
-        
+
         return v1 + (v2 - v1) * fraction
-        
+
     def get_values_in_range(
-        self,
-        start: datetime,
-        end: datetime,
-        step_hours: Optional[int] = None
+        self, start: datetime, end: datetime, step_hours: Optional[int] = None
     ) -> List[Tuple[datetime, float]]:
         """
         Get values within a date range at specified intervals.
-        
+
         Args:
             start: Start datetime
             end: End datetime
             step_hours: Optional step size in hours (defaults to source step_hours)
-            
+
         Returns:
             List of (datetime, value) tuples
         """
         if step_hours is None:
             step_hours = self.step_hours
-            
+
         if start < self.start_date:
             start = self.start_date
         if end > self.end_date:
             end = self.end_date
-            
+
         values = []
         current = start
         while current <= end:
             values.append((current, self.get_value_at(current)))
             current += timedelta(hours=step_hours)
-            
-        return values 
+
+        return values
