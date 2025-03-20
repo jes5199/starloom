@@ -6,6 +6,7 @@ from .horizons import horizons
 from .ephemeris import ephemeris
 from .weft import weft_cli
 
+
 @click.group()
 def cli() -> None:
     """Starloom CLI."""

@@ -151,7 +151,9 @@ class WeftReader:
         weights = []
         for i, block in enumerate(blocks):
             # Calculate time distance from block's midpoint in hours
-            time_diff = abs(target_ts - midpoint_ts[i]) / 3600  # Convert seconds to hours
+            time_diff = (
+                abs(target_ts - midpoint_ts[i]) / 3600
+            )  # Convert seconds to hours
             # Weight decreases linearly from 1 at midpoint to 0 at 24 hours away
             weight = max(0.0, 1.0 - time_diff / 24.0)
             weights.append(weight)
@@ -406,7 +408,9 @@ class WeftReader:
             "end_date": date_range[1],
         }
 
-    def get_value_with_linear_interpolation(self, dt: datetime, file_id: str = None) -> float:
+    def get_value_with_linear_interpolation(
+        self, dt: datetime, file_id: str = None
+    ) -> float:
         """
         Get a value from a loaded .weft file for a specific datetime, always using linear interpolation
         between overlapping blocks.

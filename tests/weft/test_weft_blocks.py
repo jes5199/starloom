@@ -309,7 +309,7 @@ class TestFortyEightHourBlocks(unittest.TestCase):
         value = self.forty_eight_hour.evaluate(dt)
         expected = evaluate_chebyshev(self.coeffs, 0.0)
         self.assertAlmostEqual(value, expected)
-        
+
         # Test at end of day (x = 1)
         dt = datetime(self.year, self.month, self.day, 23, 59, 59, tzinfo=timezone.utc)
         self.assertTrue(self.forty_eight_hour.contains(dt))

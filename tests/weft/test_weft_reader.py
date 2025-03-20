@@ -78,7 +78,7 @@ class TestWeftReader(unittest.TestCase):
         self.single_monthly = WeftFile(
             preamble="#weft! v0.02 test 2023-06 monthly\n", blocks=[self.monthly]
         )
-        
+
         # Create WeftFile for daily precision test
         self.single_daily = WeftFile(
             preamble="#weft! v0.02 test 2023-06-15 daily\n",
@@ -245,7 +245,9 @@ class TestWeftReader(unittest.TestCase):
         self.reader.load_file(self.temp_files[2], "daily")
 
         # Test on different days
-        dt1 = datetime(self.year, self.month, self.day, self.hour, 0, 0)  # Noon on June 15
+        dt1 = datetime(
+            self.year, self.month, self.day, self.hour, 0, 0
+        )  # Noon on June 15
         value1 = self.reader.get_value(dt1, "daily")
         # At noon, both blocks have equal influence:
         # June 15 block: x=0.5, value=evaluate_chebyshev([300.0, 30.0, -15.0], 0.5) = 322.5
@@ -254,7 +256,9 @@ class TestWeftReader(unittest.TestCase):
         expected1 = 356.25
         self.assertAlmostEqual(value1, expected1)
 
-        dt2 = datetime(self.year, self.month, self.day + 1, self.hour, 0, 0)  # Noon on June 16
+        dt2 = datetime(
+            self.year, self.month, self.day + 1, self.hour, 0, 0
+        )  # Noon on June 16
         value2 = self.reader.get_value(dt2, "daily")
         # At noon, both blocks have equal influence:
         # June 16 block: x=0.5, value=evaluate_chebyshev([400.0, 40.0, -20.0], 0.5) = 430.0
@@ -294,7 +298,9 @@ class TestWeftReader(unittest.TestCase):
         self.assertLess(value, 110.0)  # Upper bound based on multi-year coefficients
 
         # This date is only covered by multi-year
-        dt = datetime(2021, self.month, self.day, self.hour, 0, 0)  # Within the multi-year block's range
+        dt = datetime(
+            2021, self.month, self.day, self.hour, 0, 0
+        )  # Within the multi-year block's range
 
         # Should use the multi-year block
         value = self.reader.get_value(dt, "multi_precision")
@@ -318,8 +324,12 @@ class TestWeftReader(unittest.TestCase):
         dt2 = datetime(self.year, self.month, self.day, 12, 0, 0)
         value2 = self.reader.get_value_with_linear_interpolation(dt2, "interpolation")
         # At noon, both blocks have equal influence
-        june15_value = evaluate_chebyshev([10.0, 0.0, 0.0], 0.5)  # Noon for June 15 block
-        june16_value = evaluate_chebyshev([20.0, 0.0, 0.0], -0.5)  # Noon for June 16 block
+        june15_value = evaluate_chebyshev(
+            [10.0, 0.0, 0.0], 0.5
+        )  # Noon for June 15 block
+        june16_value = evaluate_chebyshev(
+            [20.0, 0.0, 0.0], -0.5
+        )  # Noon for June 16 block
         expected2 = (june15_value + june16_value) / 2  # Equal weights at noon
         self.assertAlmostEqual(value2, expected2)
 
@@ -327,8 +337,12 @@ class TestWeftReader(unittest.TestCase):
         dt3 = datetime(self.year, self.month, self.day, 18, 0, 0)
         value3 = self.reader.get_value_with_linear_interpolation(dt3, "interpolation")
         # At 6pm, June 15 block has more influence
-        june15_value = evaluate_chebyshev([10.0, 0.0, 0.0], 0.75)  # 6pm for June 15 block
-        june16_value = evaluate_chebyshev([20.0, 0.0, 0.0], -0.25)  # 6pm for June 16 block
+        june15_value = evaluate_chebyshev(
+            [10.0, 0.0, 0.0], 0.75
+        )  # 6pm for June 15 block
+        june16_value = evaluate_chebyshev(
+            [20.0, 0.0, 0.0], -0.25
+        )  # 6pm for June 16 block
         # Should be weighted more toward June 15's value
         self.assertGreater(value3, (june15_value + june16_value) / 2)
 

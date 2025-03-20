@@ -339,10 +339,12 @@ class WeftGenerator:
             # x = -1.0 at midnight UTC of the specified day (00:00:00)
             # x = 0.0 at noon UTC of the specified day (12:00:00)
             # x = 1.0 at midnight UTC of the following day (00:00:00)
-            
+
             # We need to sample the 24-hour period of the specified day
             day_start = current_date  # Midnight UTC of the specified day
-            day_end = current_date + timedelta(days=1)  # Midnight UTC of the following day
+            day_end = current_date + timedelta(
+                days=1
+            )  # Midnight UTC of the following day
 
             x_values, values = self._generate_samples(
                 value_func, day_start, day_end, samples_per_day, quantity

@@ -13,7 +13,7 @@ from .weft import (
     FortyEightHourSectionHeader,
     FortyEightHourBlock,
     evaluate_chebyshev,
-    unwrap_angles
+    unwrap_angles,
 )
 
 from .weft_reader import WeftReader
@@ -23,12 +23,12 @@ from .cached_weft_generator import generate_weft_file
 __all__ = [
     "WeftFile",
     "MultiYearBlock",
-    "MonthlyBlock", 
+    "MonthlyBlock",
     "FortyEightHourSectionHeader",
     "FortyEightHourBlock",
     "evaluate_chebyshev",
     "unwrap_angles",
     "WeftReader",
     "WeftGenerator",
-    "generate_weft_file"
-] 
+    "generate_weft_file",
+]

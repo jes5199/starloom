@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 import tempfile
 import os
+import struct
 
 # Import from starloom package
 from src.starloom.weft.weft import (
@@ -95,9 +96,8 @@ class TestWeftEdgeCases(unittest.TestCase):
     def test_invalid_coefficients(self):
         """Test handling of invalid coefficient values."""
         # NaN coefficient
-        file_path = os.path.join(self.temp_dir.name, "nan_coeff.weft")
         with self.assertRaises(ValueError):
-            block = MultiYearBlock(
+            MultiYearBlock(
                 start_year=2000, duration=10, coeffs=[float("nan"), 1.0, 2.0]
             )
 
@@ -131,10 +131,7 @@ class TestWeftEdgeCases(unittest.TestCase):
 
         # Test February 29th in non-leap year (should raise error)
         with self.assertRaises(ValueError):
-            try:
-                dt3 = datetime(2021, 2, 29)
-            except ValueError:
-                raise ValueError("Invalid date: February 29th in non-leap year")
+            datetime(2021, 2, 29)  # This will raise ValueError directly
 
     def test_timezone_handling(self):
         """Test handling of different timezone inputs."""

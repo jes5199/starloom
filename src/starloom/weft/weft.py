@@ -66,30 +66,30 @@ def unwrap_angles(angles: List[float]) -> List[float]:
 
     # Make a copy to avoid modifying the original
     unwrapped = [angles[0]]
-    
+
     for i in range(1, len(angles)):
         # Calculate the smallest angular difference
-        diff = angles[i] - angles[i-1]
-        
+        diff = angles[i] - angles[i - 1]
+
         # Normalize to [-180, 180]
         if diff > 180:
             diff -= 360
         elif diff < -180:
             diff += 360
-            
+
         # Add the normalized difference to the previous unwrapped value
-        unwrapped.append(unwrapped[i-1] + diff)
-        
+        unwrapped.append(unwrapped[i - 1] + diff)
+
     return unwrapped
 
 
 def _ensure_timezone_aware(dt: datetime) -> datetime:
     """
     Ensure a datetime has timezone information, adding UTC if it doesn't.
-    
+
     Args:
         dt: Datetime to check
-        
+
     Returns:
         Timezone-aware datetime
     """
@@ -105,13 +105,13 @@ class MultiYearBlock:
     This is the most space-efficient block type but with lower precision.
     Typically used for slow-moving objects like outer planets.
     """
-    
+
     marker = b"\x00\x03"  # Block type marker
-    
+
     def __init__(self, start_year: int, duration: int, coeffs: List[float]):
         """
         Initialize a multi-year block.
-        
+
         Args:
             start_year: First year covered by the block
             duration: Number of years covered
@@ -120,11 +120,11 @@ class MultiYearBlock:
         self.start_year = start_year
         self.duration = duration
         self.coeffs = coeffs
-    
+
     def to_bytes(self) -> bytes:
         """
         Convert the block to binary format.
-        
+
         Returns:
             Binary representation of the block
         """
@@ -134,103 +134,102 @@ class MultiYearBlock:
         # duration (2 bytes, unsigned short)
         # coefficient count (4 bytes, unsigned int)
         # coefficients (4 bytes each, float)
-        header = struct.pack(
-            ">hhI", 
-            self.start_year, 
-            self.duration, 
-            len(self.coeffs)
-        )
-        
+        header = struct.pack(">hhI", self.start_year, self.duration, len(self.coeffs))
+
         # Pack coefficients
         coeffs_bytes = struct.pack(">" + "f" * len(self.coeffs), *self.coeffs)
-        
+
         return self.marker + header + coeffs_bytes
-    
+
     @classmethod
-    def from_stream(cls, stream: BinaryIO) -> 'MultiYearBlock':
+    def from_stream(cls, stream: BinaryIO) -> "MultiYearBlock":
         """
         Read a multi-year block from a binary stream.
-        
+
         Args:
             stream: Binary stream positioned after the marker
-            
+
         Returns:
             A MultiYearBlock instance
         """
         # Read header
         header = stream.read(8)
         start_year, duration, coeff_count = struct.unpack(">hhI", header)
-        
+
         # Read coefficients
         coeffs_bytes = stream.read(4 * coeff_count)
         coeffs = list(struct.unpack(">" + "f" * coeff_count, coeffs_bytes))
-        
+
         return cls(start_year=start_year, duration=duration, coeffs=coeffs)
-    
+
     def contains(self, dt: datetime) -> bool:
         """
         Check if a datetime is within this block's range.
-        
+
         Args:
             dt: The datetime to check
-            
+
         Returns:
             True if the datetime is within range
         """
         # Ensure timezone awareness
         dt = _ensure_timezone_aware(dt)
-        
+
         year = dt.year
         return self.start_year <= year < self.start_year + self.duration
-    
+
     def evaluate(self, dt: datetime) -> float:
         """
         Evaluate the block's polynomial at a specific datetime.
-        
+
         Args:
             dt: The datetime to evaluate at
-            
+
         Returns:
             The interpolated value
-            
+
         Raises:
             ValueError: If the datetime is outside the block's range
         """
         # Ensure timezone awareness
         dt = _ensure_timezone_aware(dt)
-        
+
         if not self.contains(dt):
             raise ValueError(f"Datetime {dt} is outside the block's range")
-        
+
         # Convert datetime to normalized time in [-1, 1] range
         # x = -1 at start of period
         # x = 1 at end of period
-        
+
         # Get day of year (1-366)
         dt_tz = dt.tzinfo
         year_start = datetime(dt.year, 1, 1, tzinfo=dt_tz)
-        days_in_year = 366 if (dt.year % 4 == 0 and (dt.year % 100 != 0 or dt.year % 400 == 0)) else 365
+        days_in_year = (
+            366
+            if (dt.year % 4 == 0 and (dt.year % 100 != 0 or dt.year % 400 == 0))
+            else 365
+        )
         day_of_year = (dt - year_start).days + 1
-        
+
         year_float = dt.year + (day_of_year - 1) / days_in_year
         x = 2 * ((year_float - self.start_year) / self.duration) - 1
-        
+
         return evaluate_chebyshev(self.coeffs, x)
 
 
 class MonthlyBlock:
     """
     A block covering a single month with a Chebyshev polynomial.
-    
+
     This provides medium precision and is efficient for most use cases.
     """
-    
+
     marker = b"\x00\x00"  # Block type marker
-    
+
     def __init__(self, year: int, month: int, day_count: int, coeffs: List[float]):
         """
         Initialize a monthly block.
-        
+
         Args:
             year: Year
             month: Month (1-12)
@@ -241,11 +240,11 @@ class MonthlyBlock:
         self.month = month
         self.day_count = day_count
         self.coeffs = coeffs
-    
+
     def to_bytes(self) -> bytes:
         """
         Convert the block to binary format.
-        
+
         Returns:
             Binary representation of the block
         """
@@ -257,117 +256,113 @@ class MonthlyBlock:
         # coefficient count (4 bytes, unsigned int)
         # coefficients (4 bytes each, float)
         header = struct.pack(
-            ">hBBI", 
-            self.year, 
-            self.month, 
-            self.day_count, 
-            len(self.coeffs)
+            ">hBBI", self.year, self.month, self.day_count, len(self.coeffs)
         )
-        
+
         # Pack coefficients
         coeffs_bytes = struct.pack(">" + "f" * len(self.coeffs), *self.coeffs)
-        
+
         return self.marker + header + coeffs_bytes
-    
+
     @classmethod
-    def from_stream(cls, stream: BinaryIO) -> 'MonthlyBlock':
+    def from_stream(cls, stream: BinaryIO) -> "MonthlyBlock":
         """
         Read a monthly block from a binary stream.
-        
+
         Args:
             stream: Binary stream positioned after the marker
-            
+
         Returns:
             A MonthlyBlock instance
         """
         # Read header
         header = stream.read(8)
         year, month, day_count, coeff_count = struct.unpack(">hBBI", header)
-        
+
         # Read coefficients
         coeffs_bytes = stream.read(4 * coeff_count)
         coeffs = list(struct.unpack(">" + "f" * coeff_count, coeffs_bytes))
-        
+
         return cls(year=year, month=month, day_count=day_count, coeffs=coeffs)
-    
+
     def contains(self, dt: datetime) -> bool:
         """
         Check if a datetime is within this block's range.
-        
+
         Args:
             dt: The datetime to check
-            
+
         Returns:
             True if the datetime is within range
         """
         # Ensure timezone awareness
         dt = _ensure_timezone_aware(dt)
-        
+
         return dt.year == self.year and dt.month == self.month
-    
+
     def evaluate(self, dt: datetime) -> float:
         """
         Evaluate the block at a specific datetime.
-        
+
         Args:
             dt: The datetime to evaluate at
-            
+
         Returns:
             The interpolated value
-            
+
         Raises:
             ValueError: If the datetime is outside the block's range
         """
         # Ensure timezone awareness
         dt = _ensure_timezone_aware(dt)
-        
+
         if not self.contains(dt):
             raise ValueError(f"Datetime {dt} is outside the block's range")
-        
+
         # Convert datetime to normalized time in [-1, 1] range
         # x = -1 at start of month
         # x = 1 at end of month
-        
+
         # Create start and end dates for this month
         dt_tz = dt.tzinfo
         start_of_month = datetime(self.year, self.month, 1, tzinfo=dt_tz)
-        
+
         # Handle December to January transition
         if self.month == 12:
             next_month = datetime(self.year + 1, 1, 1, tzinfo=dt_tz)
         else:
             next_month = datetime(self.year, self.month + 1, 1, tzinfo=dt_tz)
-        
+
         total_seconds = (next_month - start_of_month).total_seconds()
         seconds_elapsed = (dt - start_of_month).total_seconds()
         x = 2 * (seconds_elapsed / total_seconds) - 1
-        
+
         return evaluate_chebyshev(self.coeffs, x)
 
 
 class FortyEightHourSectionHeader:
     """
     Header for a section of forty-eight hour blocks.
-    
+
     This defines the date range and block size for subsequent FortyEightHourBlock instances.
     """
-    
+
     marker = b"\x00\x02"  # Block type marker
-    
+
     def __init__(
-        self, 
-        start_year: int, 
-        start_month: int, 
+        self,
+        start_year: int,
+        start_month: int,
         start_day: int,
-        end_year: int, 
-        end_month: int, 
+        end_year: int,
+        end_month: int,
         end_day: int,
-        block_size: int, 
-        block_count: int
+        block_size: int,
+        block_count: int,
     ):
         """
         Initialize a forty-eight hour section header.
-        
+
         Args:
             start_year: Start year
             start_month: Start month (1-12)
@@ -386,11 +381,11 @@ class FortyEightHourSectionHeader:
         self.end_day = end_day
         self.block_size = block_size
         self.block_count = block_count
-    
+
     def to_bytes(self) -> bytes:
         """
         Convert the header to binary format.
-        
+
         Returns:
             Binary representation of the header
         """
@@ -405,73 +400,75 @@ class FortyEightHourSectionHeader:
         # block_size (2 bytes, unsigned short)
         # block_count (4 bytes, unsigned int)
         header = struct.pack(
-            ">hBBhBBHI", 
-            self.start_year, 
-            self.start_month, 
+            ">hBBhBBHI",
+            self.start_year,
+            self.start_month,
             self.start_day,
-            self.end_year, 
-            self.end_month, 
+            self.end_year,
+            self.end_month,
             self.end_day,
-            self.block_size, 
-            self.block_count
+            self.block_size,
+            self.block_count,
         )
-        
+
         return self.marker + header
-    
+
     @classmethod
-    def from_stream(cls, stream: BinaryIO) -> 'FortyEightHourSectionHeader':
+    def from_stream(cls, stream: BinaryIO) -> "FortyEightHourSectionHeader":
         """
         Read a forty-eight hour section header from a binary stream.
-        
+
         Args:
             stream: Binary stream positioned after the marker
-            
+
         Returns:
             A FortyEightHourSectionHeader instance
         """
         # Read header
         header = stream.read(14)
         (
-            start_year, 
-            start_month, 
+            start_year,
+            start_month,
             start_day,
-            end_year, 
-            end_month, 
+            end_year,
+            end_month,
             end_day,
-            block_size, 
-            block_count
+            block_size,
+            block_count,
         ) = struct.unpack(">hBBhBBHI", header)
-        
+
         return cls(
-            start_year=start_year, 
-            start_month=start_month, 
+            start_year=start_year,
+            start_month=start_month,
             start_day=start_day,
-            end_year=end_year, 
-            end_month=end_month, 
+            end_year=end_year,
+            end_month=end_month,
             end_day=end_day,
-            block_size=block_size, 
-            block_count=block_count
+            block_size=block_size,
+            block_count=block_count,
         )
-    
+
     def contains(self, dt: datetime) -> bool:
         """
         Check if a datetime is within this section's range.
-        
+
         Args:
             dt: The datetime to check
-            
+
         Returns:
             True if the datetime is within range
         """
         start_date = datetime(self.start_year, self.start_month, self.start_day)
-        end_date = datetime(self.end_year, self.end_month, self.end_day) + timedelta(days=1)
+        end_date = datetime(self.end_year, self.end_month, self.end_day) + timedelta(
+            days=1
+        )
         return start_date <= dt < end_date
 
 
 class FortyEightHourBlock:
     """
     A block covering a 48-hour period centered on midnight UTC of the specified day.
-    
+
     This provides high precision for fast-moving objects. Each block covers a 24-hour period
     before and after midnight UTC of the specified day, for a total of 48 hours.
     The time mapping is:
@@ -479,13 +476,15 @@ class FortyEightHourBlock:
     - x = 0.0: noon UTC on the specified day (12:00:00)
     - x = 1.0: midnight UTC on the following day (00:00:00)
     """
-    
+
     marker = b"\x00\x01"  # Block type marker
-    
-    def __init__(self, year: int, month: int, day: int, coeffs: List[float], block_size: int):
+
+    def __init__(
+        self, year: int, month: int, day: int, coeffs: List[float], block_size: int
+    ):
         """
         Initialize a forty-eight hour block.
-        
+
         Args:
             year: Year
             month: Month (1-12)
@@ -498,11 +497,11 @@ class FortyEightHourBlock:
         self.day = day
         self.coeffs = coeffs
         self.block_size = block_size
-    
+
     def to_bytes(self) -> bytes:
         """
         Convert the block to binary format.
-        
+
         Returns:
             Binary representation of the block
         """
@@ -513,132 +512,131 @@ class FortyEightHourBlock:
         # day (1 byte, unsigned char)
         # coefficients (4 bytes each, float)
         # padding (to reach block_size)
-        header = struct.pack(
-            ">hBB", 
-            self.year, 
-            self.month, 
-            self.day
-        )
-        
+        header = struct.pack(">hBB", self.year, self.month, self.day)
+
         # Pack coefficients
         coeffs_bytes = struct.pack(">" + "f" * len(self.coeffs), *self.coeffs)
-        
+
         # Calculate padding needed
         data = self.marker + header + coeffs_bytes
         padding_size = self.block_size - len(data)
         padding = bytes(padding_size) if padding_size > 0 else b""
-        
+
         return data + padding
-    
+
     @classmethod
-    def from_stream(cls, stream: BinaryIO, block_size: int) -> 'FortyEightHourBlock':
+    def from_stream(cls, stream: BinaryIO, block_size: int) -> "FortyEightHourBlock":
         """
         Read a forty-eight hour block from a binary stream.
-        
+
         Args:
             stream: Binary stream positioned after the marker
             block_size: Size of the block in bytes
-            
+
         Returns:
             A FortyEightHourBlock instance
         """
         # Read header
         header = stream.read(4)
         year, month, day = struct.unpack(">hBB", header)
-        
+
         # Calculate coefficient count based on block size
         # block_size = marker(2) + header(4) + coeffs(4*count) + padding
         # We've already read the marker and header, so:
         bytes_left = block_size - 6
-        
+
         # Infer coefficient count assuming no padding
         # This is tricky since we don't know if there's padding
         # For now, assume all remaining bytes are coefficients
         coeff_count = bytes_left // 4
-        
+
         # Read coefficients
         coeffs_bytes = stream.read(4 * coeff_count)
         coeffs = list(struct.unpack(">" + "f" * coeff_count, coeffs_bytes))
-        
+
         # Skip padding if any
         padding_size = bytes_left - (4 * coeff_count)
         if padding_size > 0:
             stream.read(padding_size)
-        
-        return cls(year=year, month=month, day=day, coeffs=coeffs, block_size=block_size)
-    
+
+        return cls(
+            year=year, month=month, day=day, coeffs=coeffs, block_size=block_size
+        )
+
     def contains(self, dt: datetime) -> bool:
         """
         Check if a datetime is within this block's effective range.
-        
-        The effective range of a forty-eight hour block extends from 24 hours before 
+
+        The effective range of a forty-eight hour block extends from 24 hours before
         midnight UTC of the specified day to 24 hours after (48 hours total).
-        
+
         Args:
             dt: The datetime to check
-            
+
         Returns:
             True if the datetime is within range
         """
         # Ensure timezone awareness
         dt = _ensure_timezone_aware(dt)
-        
+
         # Get centered date for comparison with the same timezone as dt
         dt_tz = dt.tzinfo
         block_date = datetime(self.year, self.month, self.day, 0, 0, 0, tzinfo=dt_tz)
-        
+
         # Blocks cover a 48-hour window centered on midnight
         # i.e., from 24 hours before to 24 hours after midnight
         return block_date - timedelta(hours=24) <= dt < block_date + timedelta(hours=24)
-    
+
     def evaluate(self, dt: datetime) -> float:
         """
         Evaluate the block at a specific datetime.
-        
+
         Args:
             dt: The datetime to evaluate at
-            
+
         Returns:
             The interpolated value
-            
+
         Raises:
             ValueError: If the datetime is outside the block's range
         """
         # Ensure timezone awareness
         dt = _ensure_timezone_aware(dt)
-        
+
         if not self.contains(dt):
             raise ValueError(f"Datetime {dt} is outside the block's range")
-        
+
         # Convert datetime to normalized time in [-1, 1] range
         # For a forty-eight hour block:
         # x = -1.0 at 24 hours before midnight UTC of the specified day
         # x = 0.0 at midnight UTC of the specified day
         # x = 1.0 at 24 hours after midnight UTC of the specified day
-        
+
         # Use the same timezone as dt
         dt_tz = dt.tzinfo
         block_date = datetime(self.year, self.month, self.day, 0, 0, 0, tzinfo=dt_tz)
-        
+
         # Calculate normalized position within the 48-hour period
         # The block is centered on midnight UTC of the specified day
         seconds_from_center = (dt - block_date).total_seconds()
-        x = seconds_from_center / (24 * 3600)  # Convert to days, giving range [-1, 1] since block is centered
-        
+        x = seconds_from_center / (
+            24 * 3600
+        )  # Convert to days, giving range [-1, 1] since block is centered
+
         return evaluate_chebyshev(self.coeffs, x)
 
 
 class WeftFile:
     """
     A .weft binary ephemeris file.
-    
+
     This represents a complete .weft file including preamble and multiple blocks.
     """
-    
+
     def __init__(self, preamble: str, blocks: List[Any]):
         """
         Initialize a .weft file.
-        
+
         Args:
             preamble: The UTF-8 preamble describing the file
             blocks: List of blocks (MultiYearBlock, MonthlyBlock, etc.)
@@ -646,92 +644,84 @@ class WeftFile:
         self.preamble = preamble.rstrip("\n")
         self.blocks = blocks
         self.value_behavior = self._parse_value_behavior(preamble)
-    
+
     def _parse_value_behavior(self, preamble: str) -> Dict[str, Any]:
         """
         Parse value behavior specifications from the preamble.
-        
+
         Args:
             preamble: The file preamble
-            
+
         Returns:
             Dictionary describing the value behavior
         """
         # Default behavior (unbounded)
-        behavior = {
-            "type": "unbounded"
-        }
-        
+        behavior = {"type": "unbounded"}
+
         # Check for wrapping behavior
         wrapping_match = re.search(r"wrapping\[([^,]+),([^]]+)\]", preamble)
         if wrapping_match:
             min_val = float(wrapping_match.group(1))
             max_val = float(wrapping_match.group(2))
-            behavior = {
-                "type": "wrapping",
-                "range": (min_val, max_val)
-            }
-        
+            behavior = {"type": "wrapping", "range": (min_val, max_val)}
+
         # Check for bounded behavior
         bounded_match = re.search(r"bounded\[([^,]+),([^]]+)\]", preamble)
         if bounded_match:
             min_val = float(bounded_match.group(1))
             max_val = float(bounded_match.group(2))
-            behavior = {
-                "type": "bounded",
-                "range": (min_val, max_val)
-            }
-        
+            behavior = {"type": "bounded", "range": (min_val, max_val)}
+
         return behavior
-    
+
     def apply_value_behavior(self, value: float) -> float:
         """
         Apply the file's value behavior to a computed value.
-        
+
         Args:
             value: The raw value
-            
+
         Returns:
             The value after applying wrapping/bounding
         """
         behavior_type = self.value_behavior.get("type", "unbounded")
-        
+
         if behavior_type == "wrapping":
             min_val, max_val = self.value_behavior["range"]
             range_size = max_val - min_val
             return min_val + ((value - min_val) % range_size)
-        
+
         elif behavior_type == "bounded":
             min_val, max_val = self.value_behavior["range"]
             return max(min_val, min(value, max_val))
-        
+
         # Default: unbounded
         return value
-    
+
     def to_bytes(self) -> bytes:
         """
         Convert the file to binary format.
-        
+
         Returns:
             Binary representation of the file
         """
         # Start with preamble
         data = (self.preamble + "\n").encode("utf-8")
-        
+
         # Add all blocks
         for block in self.blocks:
             data += block.to_bytes()
-        
+
         return data
-    
+
     @classmethod
-    def from_bytes(cls, data: bytes) -> 'WeftFile':
+    def from_bytes(cls, data: bytes) -> "WeftFile":
         """
         Parse a .weft file from binary data.
-        
+
         Args:
             data: Binary data to parse
-            
+
         Returns:
             A WeftFile instance
         """
@@ -739,39 +729,39 @@ class WeftFile:
         preamble_end = data.find(b"\n")
         if preamble_end == -1:
             raise ValueError("Invalid .weft file: no preamble terminator found")
-        
+
         # Extract preamble
         preamble = data[:preamble_end].decode("utf-8")
-        
+
         # Parse blocks
         blocks = []
         pos = preamble_end + 1
-        
+
         # Keep track of current daily section header for block size
         current_daily_header = None
-        
+
         while pos < len(data):
             # Read marker
             if pos + 2 > len(data):
                 break
-                
-            marker = data[pos:pos+2]
+
+            marker = data[pos : pos + 2]
             pos += 2
-            
+
             if marker == MultiYearBlock.marker:
                 # Read multi-year block
                 stream = BytesIO(data[pos:])
                 block = MultiYearBlock.from_stream(stream)
                 blocks.append(block)
                 pos += 8 + 4 * len(block.coeffs)
-                
+
             elif marker == MonthlyBlock.marker:
                 # Read monthly block
                 stream = BytesIO(data[pos:])
                 block = MonthlyBlock.from_stream(stream)
                 blocks.append(block)
                 pos += 8 + 4 * len(block.coeffs)
-                
+
             elif marker == FortyEightHourSectionHeader.marker:
                 # Read forty-eight hour section header
                 stream = BytesIO(data[pos:])
@@ -779,43 +769,47 @@ class WeftFile:
                 blocks.append(block)
                 pos += 14
                 current_daily_header = block
-                
+
             elif marker == FortyEightHourBlock.marker:
                 # Read forty-eight hour block
                 if current_daily_header is None:
-                    raise ValueError("Forty-eight hour block found but no section header")
-                    
+                    raise ValueError(
+                        "Forty-eight hour block found but no section header"
+                    )
+
                 stream = BytesIO(data[pos:])
-                block = FortyEightHourBlock.from_stream(stream, current_daily_header.block_size - 2)
+                block = FortyEightHourBlock.from_stream(
+                    stream, current_daily_header.block_size - 2
+                )
                 blocks.append(block)
                 pos += current_daily_header.block_size - 2
-                
+
             else:
                 raise ValueError(f"Unknown block marker: {marker}")
-        
+
         return cls(preamble=preamble, blocks=blocks)
-    
+
     @classmethod
-    def from_file(cls, filepath: str) -> 'WeftFile':
+    def from_file(cls, filepath: str) -> "WeftFile":
         """
         Read a .weft file from disk.
-        
+
         Args:
             filepath: Path to the file
-            
+
         Returns:
             A WeftFile instance
         """
         with open(filepath, "rb") as f:
             data = f.read()
         return cls.from_bytes(data)
-    
+
     def write_to_file(self, filepath: str) -> None:
         """
         Write the .weft file to disk.
-        
+
         Args:
             filepath: Path to write the file to
         """
         with open(filepath, "wb") as f:
-            f.write(self.to_bytes()) 
+            f.write(self.to_bytes())
