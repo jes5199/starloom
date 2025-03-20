@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 from datetime import datetime, timezone
 from typing import List, Union
 
+
 def evaluate_chebyshev(
     coeffs: Union[List[float], NDArray[np.float32]], x: float
 ) -> float:
@@ -40,12 +41,15 @@ def evaluate_chebyshev(
     b_k2 = 0.0  # b_{k+2}
     x2 = 2.0 * x
 
-    for c in coeffs[-1:0:-1]:  # Iterate through coefficients in reverse, excluding first
+    for c in coeffs[
+        -1:0:-1
+    ]:  # Iterate through coefficients in reverse, excluding first
         b_k = c + x2 * b_k1 - b_k2
         b_k2 = b_k1
         b_k1 = b_k
 
     return float(coeffs[0] + x * b_k1 - b_k2)
+
 
 def unwrap_angles(angles: List[float]) -> List[float]:
     """
@@ -80,6 +84,7 @@ def unwrap_angles(angles: List[float]) -> List[float]:
 
     return unwrapped
 
+
 def _ensure_timezone_aware(dt: datetime) -> datetime:
     """
     Ensure a datetime has timezone information, adding UTC if it doesn't.
@@ -95,4 +100,4 @@ def _ensure_timezone_aware(dt: datetime) -> datetime:
     """
     if dt.tzinfo is None:
         raise ValueError("Datetime must have timezone information")
-    return dt.astimezone(timezone.utc) 
+    return dt.astimezone(timezone.utc)

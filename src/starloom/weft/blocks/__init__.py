@@ -14,8 +14,8 @@ from .forty_eight_hour_block import FortyEightHourBlock
 from .forty_eight_hour_section_header import FortyEightHourSectionHeader
 
 __all__ = [
-    'MultiYearBlock',
-    'MonthlyBlock',
-    'FortyEightHourBlock',
-    'FortyEightHourSectionHeader',
-] 
+    "MultiYearBlock",
+    "MonthlyBlock",
+    "FortyEightHourBlock",
+    "FortyEightHourSectionHeader",
+]

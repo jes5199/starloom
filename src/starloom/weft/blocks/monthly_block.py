@@ -6,7 +6,7 @@ It provides medium precision and is efficient for most use cases.
 """
 
 import struct
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, BinaryIO
 import numpy as np
 
@@ -151,4 +151,4 @@ class MonthlyBlock:
         seconds_elapsed = (dt - start_of_month).total_seconds()
         x = 2 * (seconds_elapsed / total_seconds) - 1
 
-        return evaluate_chebyshev(self.coeffs, x) 
+        return evaluate_chebyshev(self.coeffs, x)

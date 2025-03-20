@@ -7,7 +7,7 @@ Typically used for slow-moving objects like outer planets.
 """
 
 import struct
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List, BinaryIO
 import numpy as np
 
@@ -132,4 +132,4 @@ class MultiYearBlock:
 
         # Ensure coefficients are in the correct format
         coeffs = np.array(self.coeffs, dtype=np.float32)
-        return evaluate_chebyshev(coeffs, x) 
+        return evaluate_chebyshev(coeffs, x)

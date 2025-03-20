@@ -119,4 +119,4 @@ class FortyEightHourBlock:
 
         dt = dt.astimezone(timezone.utc)
         x = self.header.datetime_to_hours(dt)
-        return evaluate_chebyshev(self.coeffs, x) 
+        return evaluate_chebyshev(self.coeffs, x)

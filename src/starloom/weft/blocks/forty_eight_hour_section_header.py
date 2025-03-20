@@ -122,4 +122,4 @@ class FortyEightHourSectionHeader:
         elapsed = (dt - start_dt).total_seconds()
 
         # Convert to normalized hours in [-1, 1]
-        return 2 * (elapsed / total_seconds) - 1 
+        return 2 * (elapsed / total_seconds) - 1
