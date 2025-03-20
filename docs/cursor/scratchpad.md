@@ -324,3 +324,39 @@ Create an orbital elements parser for the JPL Horizons ELEMENTS format data.
 - Consider creating a base parser class that both ObserverParser and ElementsParser can inherit from
 - Could move common functionality (CSV extraction, data access methods) to the base class
 - Expand to handle more edge cases and error conditions 
+
+# File Renaming: elements_parser to observer_elements_parser
+
+## Task
+Renamed elements_parser.py to observer_elements_parser.py for naming consistency with observer_parser.py
+
+## Changes
+[X] Created a new file observer_elements_parser.py with identical content from elements_parser.py
+[X] Updated import statements in:
+  - src/starloom/horizons/__init__.py
+  - tests/horizons/test_elements_parser.py
+[X] Deleted the original elements_parser.py file
+[X] Verified imports work correctly
+
+## Notes
+- The rename helps maintain consistency in the codebase
+- Both parser files now follow the same naming convention with "observer_" prefix
+- All tests continue to pass after the rename
+- No change to test file names was necessary as they already reference the class name, not the file name 
+
+# Class Renaming: ElementsQuantity to ObserverElementsQuantity
+
+## Task
+Renamed ElementsQuantity to ObserverElementsQuantity and TestElementsParser to TestObserverElementsParser for naming consistency
+
+## Changes
+[X] Renamed ElementsQuantity to ObserverElementsQuantity in observer_elements_parser.py
+[X] Updated import statements in __init__.py
+[X] Renamed TestElementsParser to TestObserverElementsParser in test_elements_parser.py
+[X] Updated all references to ElementsQuantity in test_elements_parser.py
+
+## Notes
+- The rename helps maintain consistency in the codebase
+- Both parser files and classes now follow the same naming convention with "Observer" prefix
+- These changes complete the naming standardization started with renaming the file
+- Consistent naming makes the codebase more maintainable and easier to understand 

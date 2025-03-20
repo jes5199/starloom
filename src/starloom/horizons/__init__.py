@@ -4,7 +4,7 @@ from .quantities import (
     QuantityForColumnName,
 )
 from .observer_parser import ObserverParser
-from .elements_parser import ElementsParser, ElementsQuantity
+from .observer_elements_parser import ElementsParser, ObserverElementsQuantity
 
 __all__ = [
     "HorizonsRequestObserverQuantities",
@@ -12,5 +12,5 @@ __all__ = [
     "QuantityForColumnName",
     "ObserverParser",
     "ElementsParser",
-    "ElementsQuantity",
+    "ObserverElementsQuantity",
 ]
