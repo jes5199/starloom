@@ -111,7 +111,7 @@ def ephemeris(
     ephemeris_class = EPHEMERIS_SOURCES.get(source)
     if not ephemeris_class:
         raise click.BadParameter(f"Invalid source: {source}")
-    
+
     if source in ["sqlite", "cached_horizons"]:
         ephemeris_instance = ephemeris_class(data_dir=data_dir)
     else:
@@ -163,7 +163,6 @@ def ephemeris(
         distance_formatted = format_distance(distance)
 
         # Print formatted output
-        click.echo(f"Source: {source}")
         click.echo(date_str)
         click.echo(
             f"{planet_enum.name.capitalize()} {zodiac_pos}, {lat_formatted}, {distance_formatted}"

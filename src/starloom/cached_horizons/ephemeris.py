@@ -13,6 +13,7 @@ from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris.quantities import Quantity
 from ..horizons.ephemeris import HorizonsEphemeris
 from ..local_horizons.storage import LocalHorizonsStorage
+from ..space_time.julian import datetime_from_julian
 
 
 logger = logging.getLogger(__name__)
@@ -77,11 +78,24 @@ class CachedHorizonsEphemeris(Ephemeris):
                 dt = time
             else:
                 # Convert Julian date to datetime
-                # This is a placeholder - you'd need proper conversion
-                dt = datetime.utcnow()
+                try:
+                    dt = datetime_from_julian(time)
+                except Exception as e:
+                    logger.warning(
+                        f"Could not convert Julian date {time} to datetime: {e}"
+                    )
+                    dt = datetime.utcnow()  # Fallback to current time
 
-            # Store the data
-            self.storage.store_ephemeris_quantities(planet, dt, position)
+            # Store the data - make a copy to avoid modifying the original
+            # Remove any julian_date and julian_date_fraction keys that might be in the position dictionary
+            # to let store_ephemeris_quantities calculate them correctly
+            position_copy = position.copy()
+            if Quantity.JULIAN_DATE in position_copy:
+                del position_copy[Quantity.JULIAN_DATE]
+            if Quantity.JULIAN_DATE_FRACTION in position_copy:
+                del position_copy[Quantity.JULIAN_DATE_FRACTION]
+
+            self.storage.store_ephemeris_quantities(planet, dt, position_copy)
 
             return position
 

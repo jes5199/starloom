@@ -82,13 +82,29 @@ class LocalHorizonsStorage:
             )
             result = session.execute(query).scalar_one_or_none()
 
-            # If exact match not found, get closest timestamp
+            # If not found, try a more lenient search with approximate matching for the fraction part
             if not result:
-                # This would require a more complex query to find the closest timestamp
-                # For simplicity, we're just raising an error
-                raise ValueError(
-                    f"Position data for {body} at JD {jd}.{jd_fraction} not found in local database"
-                )
+                # This would be more complex to get an approximate match
+                # For now, we'll raise an error with better diagnostics
+                # Get all entries for this body to see what's available
+                available_query = select(
+                    HorizonsGlobalEphemerisRow.julian_date,
+                    HorizonsGlobalEphemerisRow.julian_date_fraction,
+                ).where(HorizonsGlobalEphemerisRow.body == body)
+                available_entries = session.execute(available_query).fetchall()
+
+                if available_entries:
+                    available_str = ", ".join(
+                        [f"{jd}.{frac}" for jd, frac in available_entries]
+                    )
+                    error_msg = (
+                        f"Position data for {body} at JD {jd + jd_fraction} not found in local database.\n"
+                        f"Available entries: {available_str}"
+                    )
+                else:
+                    error_msg = f"No data for {body} found in local database"
+
+                raise ValueError(error_msg)
 
             # Convert database row to dictionary of quantities
             return {
@@ -131,6 +147,16 @@ class LocalHorizonsStorage:
         with Session(self.engine) as session:
             # Create row objects and add them to the session
             for data_point in ephemeris_data:
+                # Ensure julian_date is an integer
+                if "julian_date" in data_point:
+                    if not isinstance(data_point["julian_date"], int):
+                        try:
+                            data_point["julian_date"] = int(data_point["julian_date"])
+                        except (ValueError, TypeError):
+                            print(
+                                f"WARNING: julian_date is not an integer: {data_point['julian_date']}"
+                            )
+
                 # Check if there's already a row with the same primary key
                 jd = data_point.get("julian_date")
                 jd_fraction = data_point.get("julian_date_fraction")
@@ -185,8 +211,8 @@ class LocalHorizonsStorage:
         # Create a dictionary with column names as keys
         data = {
             "body": body,
-            "julian_date": jd_int,
-            "julian_date_fraction": jd_frac,
+            "julian_date": int(jd_int),  # Ensure this is an integer
+            "julian_date_fraction": float(jd_frac),  # Ensure this is a float
             "date_time": time.isoformat(),
         }
 

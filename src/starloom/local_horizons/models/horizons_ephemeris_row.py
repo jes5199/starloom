@@ -42,6 +42,12 @@ class HorizonsGlobalEphemerisRow(Base):
     phase_angle = Column(Float)
     phase_angle_bisector_lon = Column(Float)
     phase_angle_bisector_lat = Column(Float)
+    elongation = Column(Float)
+
+    # Special markers
+    solar_presence_condition_code = Column(String)  # */C/N/A/' '
+    target_event_marker = Column(String)  # r/e/t/s
+
     created_on = Column(DateTime, server_default=func.now(), nullable=False)
     __table_args__ = (
         PrimaryKeyConstraint("body", "julian_date", "julian_date_fraction"),

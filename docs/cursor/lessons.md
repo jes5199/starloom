@@ -513,3 +513,32 @@ When implementing astronomical calculations in a large codebase, follow these be
    - Document the expected types clearly in docstrings with examples
 
 The astronomy calculations in starloom (like Julian date conversions) are mathematically complex and sensitive to precision issues. By centralizing these implementations, we ensure accuracy and consistency throughout the codebase. 
+
+## Database Schema Alignment with Enums
+
+When working with a system that maps between enums and database models (like SQLAlchemy models):
+
+1. **Schema Consistency**: 
+   - Ensure that your database schema (tables and columns) aligns with the enum definitions
+   - If a field is defined in your enum (like `TARGET_EVENT_MARKER` in `Quantity` enum), it must have a corresponding column in the database model
+   - Missing columns will cause runtime errors when attempting to store data (e.g., "target_event_marker is an invalid keyword argument")
+
+2. **Schema Migration Strategy**:
+   - When adding new fields to enums, also update the corresponding database models
+   - Consider creating migration scripts to add new columns to existing database tables
+   - Test database operations with all potential fields that may be written
+
+3. **Error Handling**:
+   - Implement error handling that can detect and report schema mismatches
+   - Consider adding validation logic to check if all enum values have corresponding database columns
+   - Handle unknown fields gracefully, perhaps by logging warnings and continuing without them
+
+4. **Selective Field Mapping**:
+   - When many fields exist, consider implementing selective mapping based on what's available in both source and destination
+   - Filter out fields that don't have corresponding database columns before trying to write to the database
+   - Provide clear documentation about which fields are supported in which storage implementations
+
+5. **Testing**:
+   - Test storage operations with the full range of potential fields
+   - Include tests with edge case quantities that might not be commonly used
+   - Verify both write and read operations for all supported fields 

@@ -948,3 +948,32 @@ Remove the location parameter from the ephemeris CLI command.
 ## Next Steps
 - Consider implementing a separate command if location-specific ephemeris is needed in the future
 - Could potentially add a geocentric-only implementation of location functionality to all ephemeris sources 
+
+# Fix Cached Horizons Caching Issue
+
+## Current Task
+Fix issue with cached_horizons ephemeris source not reusing cached data.
+
+## Problem
+When running the same query twice with cached_horizons, it was making a new API call each time instead of using the cached data.
+
+## Analysis
+1. The problem was found in how Julian date components were being stored and retrieved from the database
+2. Key issues:
+   - In the database, `julian_date` was incorrectly stored as a float containing the full Julian date (`2460754.74091435`) 
+   - When querying, we were looking for `julian_date = 2460754` (integer part)
+   - This mismatch meant cached data was never found
+
+## Solution
+[X] Fixed julian_date storage in `store_ephemeris_quantities`:
+  - Explicitly cast to int: `"julian_date": int(jd_int)`
+  - Explicitly cast to float: `"julian_date_fraction": float(jd_frac)`
+[X] Fixed `store_ephemeris_data` to ensure julian_date is always an integer
+[X] Fixed CachedHorizonsEphemeris to properly handle Julian date conversion
+[X] Modified CachedHorizonsEphemeris to remove julian_date fields from position data before storing
+[X] Added better error handling for failed Julian date conversions
+
+## Results
+- Both cached_horizons and sqlite sources now work correctly
+- Second run of the same query with cached_horizons now uses the cache (no API call)
+- sqlite source can now access data cached by cached_horizons 
