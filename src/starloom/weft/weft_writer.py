@@ -6,7 +6,7 @@ and daily blocks, using Chebyshev polynomials for efficient storage.
 """
 
 from datetime import datetime, timedelta, date
-from typing import List, Dict, Tuple, Optional, Any, Callable, Union, TypeVar, cast
+from typing import List, Dict, Tuple, Optional, Any, Union, TypeVar, cast
 from zoneinfo import ZoneInfo
 import os
 from numpy.polynomial import chebyshev

@@ -15,7 +15,6 @@ from ..ephemeris.quantities import Quantity
 from ..horizons.quantities import EphemerisQuantity
 from ..horizons.parsers import OrbitalElementsQuantity
 from .weft_writer import WeftWriter
-from ..ephemeris.time_spec import TimeSpec
 from ..ephemeris.ephemeris import Ephemeris
 from .ephemeris_data_source import EphemerisDataSource
 from .block_selection import get_recommended_blocks

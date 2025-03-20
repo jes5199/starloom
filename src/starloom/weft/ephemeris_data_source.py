@@ -6,7 +6,7 @@ data fetching and filtering for different Weft block types.
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple, Any, Optional
+from typing import List, Tuple, Optional
 import bisect
 
 from ..ephemeris.ephemeris import Ephemeris
@@ -49,15 +49,15 @@ class EphemerisDataSource:
         self.end_date = end_date
         self.step_hours = step_hours
         
-        # Fetch all data points
-        time_spec = TimeSpec.from_range(
+        # Create TimeSpec for data fetching
+        self.time_spec = TimeSpec.from_range(
             start=start_date,
             stop=end_date,
             step=f"{step_hours}h"
         )
         
         print(f"Fetching ephemeris data from {start_date} to {end_date}...")
-        self.data = ephemeris.get_planet_positions(planet_id, time_spec)
+        self.data = ephemeris.get_planet_positions(planet_id, self.time_spec)
         
         # Sort timestamps for binary search
         self.timestamps = sorted(self.data.keys())
