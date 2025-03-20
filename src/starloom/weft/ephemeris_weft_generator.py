@@ -17,6 +17,7 @@ from ..horizons.parsers import OrbitalElementsQuantity
 from .weft_writer import WeftWriter
 from ..ephemeris.time_spec import TimeSpec
 from ..ephemeris.ephemeris import Ephemeris
+from .ephemeris_data_source import EphemerisDataSource
 
 
 def generate_weft_file(
@@ -28,7 +29,6 @@ def generate_weft_file(
     ephemeris: Optional[Ephemeris] = None,
     data_dir: str = "./data",
     config: Optional[Dict[str, Any]] = None,
-    prefetch: bool = True,
     step_hours: int = 24,
 ) -> str:
     """
@@ -43,7 +43,6 @@ def generate_weft_file(
         ephemeris: Optional ephemeris source to use. If None, CachedHorizonsEphemeris will be used
         data_dir: Directory for data storage (only used if ephemeris is None)
         config: Configuration for the WEFT generator
-        prefetch: Whether to prefetch data before generating (only applies to CachedHorizonsEphemeris)
         step_hours: Step size in hours for sampling ephemeris data
 
     Returns:
@@ -91,15 +90,6 @@ def generate_weft_file(
     if ephemeris is None:
         ephemeris = CachedHorizonsEphemeris(data_dir=data_dir)
 
-    # Prefetch data if requested and if using CachedHorizonsEphemeris
-    if prefetch and isinstance(ephemeris, CachedHorizonsEphemeris):
-        print(f"Prefetching data for {planet_name} from {start_date} to {end_date}...")
-        time_spec = TimeSpec.from_range(
-            start=start_date, stop=end_date, step=f"{step_hours}h"
-        )
-        # This will fetch and cache all the data points we need
-        ephemeris.get_planet_positions(planet_id, time_spec)
-
     # Create default config if none provided
     if config is None:
         # Default to a configuration with century, monthly, and daily blocks
@@ -120,22 +110,15 @@ def generate_weft_file(
     # Create the writer
     writer = WeftWriter(quantity=ephemeris_quantity)
 
-    # Create a value function that fetches data from the ephemeris
-    def value_func(dt: datetime) -> float:
-        try:
-            data = ephemeris.get_planet_position(planet_id, dt)
-            # Convert EphemerisQuantity to Quantity for lookup
-            for q, value in data.items():
-                if q.name == ephemeris_quantity.name:
-                    if isinstance(value, (int, float)):
-                        return float(value)
-                    raise ValueError(f"Expected numeric value but got {type(value)}")
-            raise ValueError(
-                f"Quantity {ephemeris_quantity.name} not found in response"
-            )
-        except Exception as e:
-            print(f"Error fetching data for {planet_name} at {dt}: {e}")
-            raise ValueError(f"Failed to get value for {planet_name} at {dt}: {e}")
+    # Create data source
+    data_source = EphemerisDataSource(
+        ephemeris=ephemeris,
+        planet_id=planet_id,
+        quantity=ephemeris_quantity,
+        start_date=start_date,
+        end_date=end_date,
+        step_hours=step_hours,
+    )
 
     # Generate the file
     print(f"Generating .weft file for {planet_name} {ephemeris_quantity.name}...")
@@ -145,7 +128,7 @@ def generate_weft_file(
         raise ValueError(f"Planet {planet_name} is not a valid Planet enum member")
 
     weft_file = writer.create_multi_precision_file(
-        value_func=value_func,
+        data_source=data_source,
         body=planet_enum,
         quantity=ephemeris_quantity,
         start_date=start_date,

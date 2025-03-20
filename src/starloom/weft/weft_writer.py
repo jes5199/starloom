@@ -27,6 +27,7 @@ from ..horizons.quantities import (
 )
 from ..horizons.parsers import OrbitalElementsQuantity
 from ..horizons.planet import Planet
+from .ephemeris_data_source import EphemerisDataSource
 
 T = TypeVar("T", bound=BlockType)
 
@@ -95,147 +96,49 @@ class WeftWriter:
 
     def _generate_samples(
         self,
-        value_func: Callable[[datetime], float],
+        data_source: EphemerisDataSource,
         start_dt: datetime,
         end_dt: datetime,
         sample_count: int,
-        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
+        quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
     ) -> Tuple[List[float], List[float]]:
         """
-        Generate samples between start_dt and end_dt using the provided value_func.
+        Generate sample points for fitting Chebyshev polynomials.
 
         Args:
-            value_func: Function that returns a value for a given datetime
+            data_source: The data source to get values from
             start_dt: Start datetime
             end_dt: End datetime
-            sample_count: Number of samples to generate
-            quantity: The quantity being sampled (for angle unwrapping)
+            sample_count: Number of sample points to generate
+            quantity: Optional quantity override
 
         Returns:
-            Tuple of (normalized_times, values)
+            Tuple of (normalized x values, y values)
         """
-        # Generate equally spaced datetimes
-        delta = (end_dt - start_dt) / (sample_count - 1)
-        sample_times = [start_dt + i * delta for i in range(sample_count)]
-
-        # Get values for each sample time
-        values: List[float] = []
-        valid_times: List[datetime] = []
-        for dt in sample_times:
-            try:
-                value = value_func(dt)
-                if value is not None and isinstance(value, (int, float)):
-                    values.append(float(value))
-                    valid_times.append(dt)
-            except (ValueError, TypeError):
-                continue
-
-        if not values:
-            raise ValueError("No valid values could be generated")
-
-        # Check if this is a wrapping value based on value_behavior
-        if self.wrapping_behavior == "wrapping":
-            print(f"\nDEBUG: {quantity.name} - Raw values before unwrapping:")
-            print(f"Time range: {start_dt} to {end_dt}")
-            print(f"Number of samples: {len(values)}")
-            print(f"First 5 values: {values[:5]}")
-            print(f"Last 5 values: {values[-5:]}")
-
-            # Check for large jumps in the raw data
-            jumps = []
-            for i in range(1, len(values)):
-                diff = abs(values[i] - values[i - 1])
-                if diff > 180:
-                    jumps.append((i - 1, i, values[i - 1], values[i], diff))
-
-            if jumps:
-                print(f"WARNING: Found {len(jumps)} large jumps (>180°) in raw data:")
-                for i, (idx1, idx2, val1, val2, diff) in enumerate(
-                    jumps[:5]
-                ):  # Print first 5 jumps
-                    print(
-                        f"  Jump {i + 1}: Between indices {idx1}-{idx2}, values {val1:.2f}° -> {val2:.2f}°, diff: {diff:.2f}°"
-                    )
-                if len(jumps) > 5:
-                    print(f"  ... and {len(jumps) - 5} more jumps")
-            else:
-                print("No large jumps found in raw data (good)")
-
-            # Unwrap angles
-            unwrapped = unwrap_angles(values)
-
-            # Debug: Print unwrapped values
-            print(f"\nDEBUG: {quantity.name} - Values after unwrapping:")
-            print(f"First 5 values: {unwrapped[:5]}")
-            print(f"Last 5 values: {unwrapped[-5:]}")
-
-            # Check for large jumps in unwrapped data
-            jumps = []
-            for i in range(1, len(unwrapped)):
-                diff = abs(unwrapped[i] - unwrapped[i - 1])
-                if diff > 180:
-                    jumps.append((i - 1, i, unwrapped[i - 1], unwrapped[i], diff))
-
-            if jumps:
-                print(
-                    f"WARNING: Found {len(jumps)} large jumps (>180°) in unwrapped data:"
-                )
-                for i, (idx1, idx2, val1, val2, diff) in enumerate(
-                    jumps[:5]
-                ):  # Print first 5 jumps
-                    print(
-                        f"  Jump {i + 1}: Between indices {idx1}-{idx2}, values {val1:.2f}° -> {val2:.2f}°, diff: {diff:.2f}°"
-                    )
-                if len(jumps) > 5:
-                    print(f"  ... and {len(jumps) - 5} more jumps")
-            else:
-                print("No large jumps found in unwrapped data (good)")
-
-            values = unwrapped
-        else:
-            # No unwrapping needed
-            print(f"\nDEBUG: {quantity.name} - Values (no unwrapping needed):")
-            print(f"Time range: {start_dt} to {end_dt}")
-            print(f"Number of samples: {len(values)}")
-            print(f"First 5 values: {values[:5]}")
-            print(f"Last 5 values: {values[-5:]}")
-
-        # Normalize time to [-1, 1] range
+        # Calculate time step
         total_seconds = (end_dt - start_dt).total_seconds()
-        normalized_times = [
-            2 * (dt - start_dt).total_seconds() / total_seconds - 1
-            for dt in valid_times
-        ]
+        step_seconds = total_seconds / (sample_count - 1)
 
-        # Debug: Print normalized time values
-        print("\nDEBUG: Normalized time values (x_values):")
-        print(f"First 5 x_values: {normalized_times[:5]}")
-        print(f"Last 5 x_values: {normalized_times[-5:]}")
+        # Generate sample points
+        values = []
+        x_values = []
+        current_dt = start_dt
 
-        # Check for even distribution of x_values
-        if len(normalized_times) > 1:
-            diffs = [
-                normalized_times[i] - normalized_times[i - 1]
-                for i in range(1, len(normalized_times))
-            ]
-            avg_diff = sum(diffs) / len(diffs)
-            max_diff = max(diffs)
-            min_diff = min(diffs)
+        for i in range(sample_count):
+            value = data_source.get_value_at(current_dt)
+            values.append(value)
+            x_values.append(-1.0 + 2.0 * i / (sample_count - 1))
+            current_dt += timedelta(seconds=step_seconds)
 
-            print(
-                f"x_values distribution: avg diff = {avg_diff:.6f}, min diff = {min_diff:.6f}, max diff = {max_diff:.6f}"
-            )
+        # Handle wrapping for angular quantities
+        if self.wrapping_behavior == "wrapping":
+            values = unwrap_angles(values)
 
-            if max_diff > 2 * avg_diff:
-                print(
-                    f"WARNING: x_values may not be evenly distributed. Max diff is {max_diff / avg_diff:.2f}x the average"
-                )
-
-        return normalized_times, values
+        return x_values, values
 
     def create_multi_year_block(
         self,
-        value_func: Callable[[datetime], float],
+        data_source: EphemerisDataSource,
         start_year: int,
         duration: int,
         samples_per_year: int,
@@ -246,7 +149,7 @@ class WeftWriter:
         Create a multi-year block covering the specified years.
 
         Args:
-            value_func: Function that returns a value for a given datetime
+            data_source: The data source to get values from
             start_year: Starting year
             duration: Number of years to cover
             samples_per_year: Number of sample points per year
@@ -261,7 +164,7 @@ class WeftWriter:
 
         sample_count = samples_per_year * duration
         x_values, values = self._generate_samples(
-            value_func, start_dt, end_dt, sample_count, quantity
+            data_source, start_dt, end_dt, sample_count, quantity
         )
 
         # Fit Chebyshev coefficients
@@ -274,29 +177,29 @@ class WeftWriter:
 
     def create_monthly_blocks(
         self,
-        value_func: Callable[[datetime], float],
+        data_source: EphemerisDataSource,
         year: int,
         month_range: Tuple[int, int],
         samples_per_month: int,
         degree: int,
-        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
+        quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
     ) -> List[MonthlyBlock]:
         """
-        Create monthly blocks for the specified year and month range.
+        Create monthly blocks for the specified months.
 
         Args:
-            value_func: Function that returns a value for a given datetime
-            year: Year
-            month_range: Tuple of (start_month, end_month_inclusive)
+            data_source: The data source to get values from
+            year: Year to create blocks for
+            month_range: Tuple of (start_month, end_month) inclusive
             samples_per_month: Number of sample points per month
             degree: Degree of Chebyshev polynomial to fit
-            quantity: The quantity being computed
+            quantity: Optional quantity override
 
         Returns:
             List of MonthlyBlock objects
         """
+        blocks = []
         start_month, end_month = month_range
-        blocks: List[MonthlyBlock] = []
 
         for month in range(start_month, end_month + 1):
             # Calculate days in month
@@ -304,12 +207,16 @@ class WeftWriter:
                 next_month = datetime(year + 1, 1, 1, tzinfo=ZoneInfo("UTC"))
             else:
                 next_month = datetime(year, month + 1, 1, tzinfo=ZoneInfo("UTC"))
+            current_month = datetime(year, month, 1, tzinfo=ZoneInfo("UTC"))
+            day_count = (next_month - current_month).days
 
-            start_dt = datetime(year, month, 1, tzinfo=ZoneInfo("UTC"))
-            day_count = (next_month - start_dt).days
-
+            # Generate samples
             x_values, values = self._generate_samples(
-                value_func, start_dt, next_month, samples_per_month, quantity
+                data_source,
+                current_month,
+                next_month - timedelta(microseconds=1),
+                samples_per_month,
+                quantity,
             )
 
             # Fit Chebyshev coefficients
@@ -318,7 +225,10 @@ class WeftWriter:
 
             blocks.append(
                 MonthlyBlock(
-                    year=year, month=month, day_count=day_count, coeffs=coeffs_list
+                    year=year,
+                    month=month,
+                    day_count=day_count,
+                    coeffs=coeffs_list,
                 )
             )
 
@@ -326,7 +236,7 @@ class WeftWriter:
 
     def create_forty_eight_hour_blocks(
         self,
-        value_func: Callable[[datetime], float],
+        data_source: EphemerisDataSource,
         start_date: datetime,
         end_date: datetime,
         samples_per_day: int,
@@ -338,13 +248,13 @@ class WeftWriter:
         Create a section of forty-eight hour blocks.
 
         Args:
-            value_func: Function that returns a value for a given datetime
+            data_source: The data source to get values from
             start_date: Start date
             end_date: End date (inclusive)
             samples_per_day: Number of sample points per day
             degree: Degree of Chebyshev polynomial to fit
             block_size: Fixed size for each block (computed if None)
-            quantity: The quantity being computed
+            quantity: Optional quantity override
 
         Returns:
             Tuple of (FortyEightHourSectionHeader, List[FortyEightHourBlock])
@@ -374,34 +284,30 @@ class WeftWriter:
             end_day=date(end_date.year, end_date.month, end_date.day),
         )
 
-        # Create forty-eight hour blocks
-        blocks: List[FortyEightHourBlock] = []
+        # Create blocks
+        blocks = []
         current_date = start_date
         while current_date <= end_date:
-            # For forty-eight hour blocks, the time range is:
-            # x = -1.0 at midnight UTC of the specified day (00:00:00)
-            # x = 0.0 at noon UTC of the specified day (12:00:00)
-            # x = 1.0 at midnight UTC of the following day (00:00:00)
-
-            # We need to sample the 24-hour period of the specified day
-            day_start = current_date  # Midnight UTC of the specified day
-            day_end = current_date + timedelta(
-                days=1
-            )  # Midnight UTC of the following day
-
+            # Generate samples for this 48-hour period
             x_values, values = self._generate_samples(
-                value_func,
-                day_start,
-                day_end,
+                data_source,
+                current_date,
+                current_date + timedelta(days=1),
                 samples_per_day,
-                quantity or self.quantity,
+                quantity,
             )
 
             # Fit Chebyshev coefficients
             coeffs = chebyshev.chebfit(x_values, values, deg=degree)
             coeffs_list = cast(List[float], coeffs.tolist())
 
-            # Create block for this day
+            # Pad coefficients to fixed size if needed
+            if block_size is not None:
+                coeff_size = block_size - 6  # Subtract header size
+                coeff_count = coeff_size // 4  # Each coefficient is 4 bytes
+                while len(coeffs_list) < coeff_count:
+                    coeffs_list.append(0.0)
+
             blocks.append(
                 FortyEightHourBlock(
                     header=header,
@@ -415,7 +321,7 @@ class WeftWriter:
 
     def create_multi_precision_file(
         self,
-        value_func: Callable[[datetime], float],
+        data_source: EphemerisDataSource,
         body: Planet,
         quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
         start_date: datetime,
@@ -426,7 +332,7 @@ class WeftWriter:
         Create a .weft file with multiple precision levels.
 
         Args:
-            value_func: Function that returns a value for a given datetime
+            data_source: The data source to get values from
             body: The celestial body
             quantity: The quantity being computed
             start_date: Start date
@@ -475,7 +381,7 @@ class WeftWriter:
 
             # Create a multi-year block
             multi_year = self.create_multi_year_block(
-                value_func=value_func,
+                data_source=data_source,
                 start_year=start_year,
                 duration=duration,
                 samples_per_year=century_config.get("samples_per_year", 12),
@@ -497,7 +403,7 @@ class WeftWriter:
 
                 # Create a multi-year block for a single year
                 yearly = self.create_multi_year_block(
-                    value_func=value_func,
+                    data_source=data_source,
                     start_year=year,
                     duration=1,
                     samples_per_year=yearly_config.get("samples_per_year", 365),
@@ -530,7 +436,7 @@ class WeftWriter:
 
                 # Create monthly blocks
                 monthly_blocks = self.create_monthly_blocks(
-                    value_func=value_func,
+                    data_source=data_source,
                     year=year,
                     month_range=(start_month, end_month),
                     samples_per_month=monthly_config.get("samples_per_month", 30),
@@ -562,7 +468,7 @@ class WeftWriter:
 
                 # Create daily blocks for this range
                 header, daily_blocks = self.create_forty_eight_hour_blocks(
-                    value_func=value_func,
+                    data_source=data_source,
                     start_date=range_start,
                     end_date=range_end,
                     samples_per_day=daily_config.get("samples_per_day", 48),

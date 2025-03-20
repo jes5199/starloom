@@ -112,7 +112,6 @@ def generate(
             end_date=end_dt,
             output_path=output,
             data_dir=data_dir,
-            prefetch=prefetch,
             step_hours=step,
         )
 
