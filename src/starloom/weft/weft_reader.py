@@ -1,11 +1,12 @@
 from datetime import datetime, timezone, time
-from typing import Dict, List, Tuple, Optional, cast
+from typing import Dict, List, Tuple, Optional, Union, cast
 from .weft import (
     WeftFile,
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourBlock,
     RangedBehavior,
+    BlockType,
 )
 
 
@@ -52,7 +53,7 @@ class WeftReader:
         if file_id in self.files:
             del self.files[file_id]
 
-    def get_info(self, file_id: str) -> dict:
+    def get_info(self, file_id: str) -> dict[str, Union[str, list[BlockType], int]]:
         """
         Get information about a loaded .weft file.
 
@@ -207,16 +208,14 @@ class WeftReader:
             The interpolated value
         """
         # Sort blocks by date
-        blocks = sorted(blocks, key=lambda b: (b.year, b.month, b.day))
+        blocks = sorted(blocks, key=lambda b: b.header.start_day)
 
         # Calculate midpoints for each block
         midpoints = []
         for block in blocks:
-            # The midpoint of a forty-eight hour block is midnight UTC on the specified day
-            midpoint = datetime(
-                block.year, block.month, block.day, 0, 0, 0, tzinfo=timezone.utc
-            )
-            midpoints.append(midpoint)
+            # Get the midpoint time for this block
+            start_time = datetime.combine(block.header.start_day, time(12, 0), timezone.utc)
+            midpoints.append(start_time)
 
         # Convert midpoints to timestamps for easier calculation
         midpoint_ts = [m.timestamp() for m in midpoints]
@@ -360,9 +359,7 @@ class WeftReader:
             blocks,
             key=lambda b: abs(
                 dt.timestamp()
-                - datetime(
-                    b.year, b.month, b.day, 0, 0, 0, tzinfo=timezone.utc
-                ).timestamp()
+                - datetime.combine(b.header.start_day, time(), tzinfo=timezone.utc).timestamp()
             ),
         )
         return self.files[file_id].apply_value_behavior(closest_block.evaluate(dt))

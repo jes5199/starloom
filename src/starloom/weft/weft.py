@@ -19,6 +19,17 @@ from .blocks import (
     FortyEightHourSectionHeader,
 )
 
+__all__ = [
+    "WeftFile",
+    "BlockType",
+    "RangedBehavior",
+    "UnboundedBehavior",
+    "MultiYearBlock",
+    "MonthlyBlock",
+    "FortyEightHourBlock",
+    "FortyEightHourSectionHeader",
+]
+
 # Define block types
 BlockType = Union[
     MultiYearBlock,
@@ -44,12 +55,18 @@ ValueBehavior = Union[RangedBehavior, UnboundedBehavior]
 class WeftFile:
     """A .weft file containing multiple blocks of data."""
 
-    def __init__(self, preamble: str, blocks: Sequence[BlockType]):
+    def __init__(
+        self,
+        preamble: str,
+        blocks: Sequence[BlockType],
+        value_behavior: Union[RangedBehavior, UnboundedBehavior] = UnboundedBehavior(type="unbounded"),
+    ):
         """Initialize a .weft file.
 
         Args:
             preamble: File format preamble
             blocks: List of blocks in the file
+            value_behavior: How to handle values during interpolation
 
         Raises:
             ValueError: If preamble is invalid
@@ -63,6 +80,7 @@ class WeftFile:
 
         self.preamble = preamble
         self.blocks = list(blocks)  # Convert to list for internal storage
+        self.value_behavior = value_behavior
 
     def get_info(self) -> dict[str, Union[str, list[BlockType], int]]:
         """Get information about the file.
@@ -222,6 +240,29 @@ class WeftFile:
         # Calculate weighted average
         weighted_sum = sum(v * w for v, w in values_and_weights)
         return weighted_sum / total_weight
+
+    def apply_value_behavior(self, value: float) -> float:
+        """Apply value behavior rules to a value.
+
+        Args:
+            value: The value to process
+
+        Returns:
+            The processed value
+        """
+        if self.value_behavior["type"] == "wrapping":
+            min_val, max_val = self.value_behavior["range"]
+            range_size = max_val - min_val
+            while value < min_val:
+                value += range_size
+            while value >= max_val:
+                value -= range_size
+            return value
+        elif self.value_behavior["type"] == "bounded":
+            min_val, max_val = self.value_behavior["range"]
+            return max(min_val, min(max_val, value))
+        else:  # unbounded
+            return value
 
     def write_to_file(self, filepath: str) -> None:
         """

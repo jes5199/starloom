@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Tuple, Optional, Any, Callable, Union, TypeVar, cast
 from zoneinfo import ZoneInfo
 from numpy.polynomial import chebyshev
@@ -326,14 +326,8 @@ class WeftGenerator:
 
         # Create header
         header = FortyEightHourSectionHeader(
-            start_year=start_date.year,
-            start_month=start_date.month,
-            start_day=start_date.day,
-            end_year=end_date.year,
-            end_month=end_date.month,
-            end_day=end_date.day,
-            block_size=block_size,
-            block_count=days,
+            start_day=date(start_date.year, start_date.month, start_date.day),
+            end_day=date(end_date.year, end_date.month, end_date.day),
         )
 
         # Create forty-eight hour blocks
@@ -363,13 +357,11 @@ class WeftGenerator:
             coeffs = chebyshev.chebfit(x_values, values, deg=degree)
             coeffs_list = cast(List[float], coeffs.tolist())
 
+            # Create block for this day
             blocks.append(
                 FortyEightHourBlock(
-                    year=current_date.year,
-                    month=current_date.month,
-                    day=current_date.day,
+                    header=header,
                     coeffs=coeffs_list,
-                    block_size=block_size,
                 )
             )
 
