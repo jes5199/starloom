@@ -59,9 +59,7 @@ class WeftFile:
         self,
         preamble: str,
         blocks: Sequence[BlockType],
-        value_behavior: Union[RangedBehavior, UnboundedBehavior] = UnboundedBehavior(
-            type="unbounded"
-        ),
+        value_behavior: ValueBehavior = UnboundedBehavior(type="unbounded"),
     ):
         """Initialize a .weft file.
 
@@ -255,7 +253,8 @@ class WeftFile:
         Returns:
             The processed value
         """
-        if self.value_behavior["type"] == "wrapping":
+        behavior_type = self.value_behavior["type"]
+        if behavior_type == "wrapping":
             min_val, max_val = self.value_behavior["range"]
             range_size = max_val - min_val
             while value < min_val:
@@ -263,7 +262,7 @@ class WeftFile:
             while value >= max_val:
                 value -= range_size
             return value
-        elif self.value_behavior["type"] == "bounded":
+        elif behavior_type == "bounded":
             min_val, max_val = self.value_behavior["range"]
             return max(min_val, min(max_val, value))
         else:  # unbounded

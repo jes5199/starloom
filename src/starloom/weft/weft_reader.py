@@ -7,6 +7,7 @@ from .weft import (
     FortyEightHourBlock,
     RangedBehavior,
     BlockType,
+    ValueBehavior,
 )
 
 
