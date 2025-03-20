@@ -22,21 +22,56 @@ pip install -e .
 Get Venus's current position:
 
 ```bash
-starloom horizons ecliptic venus --date now
+starloom ephemeris venus
 ```
 
-Get Mars's position over a time range:
+Get Mars's position at a specific time:
 
 ```bash
-starloom horizons ecliptic mars \
-    --start 2025-03-19T20:00:00 \
-    --stop 2025-03-19T22:00:00 \
-    --step 1h
+starloom ephemeris mars --date 2025-03-19T20:00:00
+```
+
+Get Jupiter's position from a specific location:
+
+```bash
+starloom ephemeris jupiter --location 34.0522,-118.2437,0
 ```
 
 ## Command Line Interface
 
 ### Planetary Positions
+
+#### Simplified Ephemeris Command
+
+The `ephemeris` command provides a user-friendly way to get planetary positions with human-readable output:
+
+```bash
+# Get current position
+starloom ephemeris venus
+
+# Get position at a specific time
+starloom ephemeris mars --date 2025-03-19T20:00:00
+
+# Get position from a specific location
+starloom ephemeris jupiter --location 34.0522,-118.2437,0
+```
+
+The output includes:
+- Date and time (UTC)
+- Planet name
+- Zodiac position (degrees and sign)
+- Ecliptic latitude (degrees with N/S direction)
+- Distance from Earth in AU
+
+Example output:
+```
+2025-03-20 05:12:45 UTC
+Venus Aries 4°, 8.5°N, 0.28 AU
+```
+
+#### Horizons Ephemeris Commands
+
+The `horizons` commands provide more detailed astronomical data:
 
 The `ecliptic` command retrieves ecliptic coordinates for planets. You can query for a single time or a range of times.
 
@@ -134,10 +169,10 @@ When using time ranges, step sizes can be specified in various formats:
 
 ```
 /src/starloom/
-├── shared/     # Shared interfaces and constants
+├── ephemeris/  # Abstract ephemeris interface and utilities
 ├── horizons/   # JPL Horizons API integration
 ├── weft/       # Weft binary ephemeris tools
-└── time/       # Datetime and Julian date utilities
+└── space_time/ # Datetime and Julian date utilities
 
 /scripts/       # Command-line tools and utilities
 /tests/

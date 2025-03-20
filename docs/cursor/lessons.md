@@ -309,3 +309,26 @@ When working with the JPL Horizons API, it's important to understand the distinc
    - Convert the longitude within each sign to degrees (0-29°)
    - Use proper symbols for degrees (°) and directional indicators (N/S)
    - Consider audience familiarity with terminology when choosing formats 
+
+## Utility Module Organization
+
+1. When developing a package with formatting or utility functions:
+   - Create dedicated utility modules (e.g., `util.py`) for related helper functions
+   - Group functions by their purpose (formatting, validation, conversion, etc.)
+   - Export utility functions through the module's `__init__.py` for easy imports
+   - Use consistent naming conventions (e.g., `format_*` for formatting functions)
+   - Document each function with clear docstrings describing parameters and return values
+
+2. Benefits of utility module organization:
+   - Promotes code reuse across the codebase
+   - Reduces duplication and ensures consistent formatting
+   - Simplifies maintenance by centralizing related functionality
+   - Makes the codebase more modular and testable
+   - Provides clear documentation for utility functions
+
+3. Best practices for utility functions:
+   - Keep functions small and focused on a single task
+   - Use type hints to clarify expected inputs and outputs
+   - Add thorough documentation with examples
+   - Consider future extensibility (e.g., formatting options)
+   - Make functions pure (no side effects) when possible 

@@ -1,3 +1,28 @@
+# Move Ephemeris Formatting Helpers to Utility Module
+
+## Current Task
+Move the formatting helper functions from the CLI module to a dedicated utility module.
+
+## Changes
+[X] Created a new utility module `src/starloom/ephemeris/util.py`
+[X] Implemented three formatting functions:
+  - `get_zodiac_sign`: Converts ecliptic longitude to zodiac sign and degrees
+  - `format_latitude`: Formats ecliptic latitude with N/S direction
+  - `format_distance`: Formats distance in astronomical units
+[X] Updated `__init__.py` to expose these functions
+[X] Modified the ephemeris CLI module to use the new utility functions
+[X] Updated the README.md with information about the new utility module
+
+## Benefits
+- **Code Reuse**: Formatting functions can now be used across multiple modules
+- **Modularity**: Better separation of concerns between CLI logic and formatting
+- **Documentation**: Added dedicated examples and documentation in README
+- **Maintainability**: Easier to update formatting in one place
+
+## Next Steps
+- Add more utility functions as needed
+- Consider adding customization options for formatting
+
 # Improve Ephemeris CLI Output Formatting
 
 ## Current Task
