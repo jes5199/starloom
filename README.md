@@ -140,7 +140,40 @@ When using time ranges, step sizes can be specified in various formats:
 └── time/       # Datetime and Julian date utilities
 
 /scripts/       # Command-line tools and utilities
+/tests/
+└── fixtures/   # Test fixture data
+    ├── ecliptic/   # Planetary position data
+    └── elements/   # Orbital elements data
 ```
+
+### Test Fixtures
+
+The project includes test fixtures for planetary positions and orbital elements. These are stored in `tests/fixtures/` and include:
+
+- Ecliptic positions for Venus and Mars
+- Orbital elements for Mars and Jupiter
+
+Each planet has both single-time and time-range data files.
+
+To regenerate the test fixtures:
+
+1. Ensure you have the package installed in development mode:
+   ```bash
+   pip install -e .
+   ```
+
+2. Run the fixture generation script:
+   ```bash
+   ./scripts/generate_fixtures.py
+   ```
+
+This will create or update the following files:
+- `tests/fixtures/ecliptic/*.txt`: Position data for Venus and Mars
+- `tests/fixtures/elements/*.txt`: Orbital elements for Mars and Jupiter
+
+The fixtures use the following time parameters:
+- Single time point: 2025-03-19T20:00:00
+- Time range: 2025-03-19T20:00:00 to 2025-03-19T22:00:00 (1-hour steps)
 
 ### Key Design Principles
 
