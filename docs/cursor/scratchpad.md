@@ -1077,3 +1077,2439 @@ Fixed type checking issues in the blocks module by removing numpy dependencies a
 
 ## Next Steps
 None - task complete 
+
+# Current Task: Fix Weft Generate Command Issues
+
+## Issues Identified
+1. Fetching needs to be in batches - getting a single timestamp at a time from horizons is very slow
+2. Timestamps being requested from horizons are not on even hour steps
+3. Error during generation: TypedDict does not support instance and class checks
+
+## Root Causes
+1. The prefetch_data method in CachedHorizonsEphemeris is making individual requests for each timestamp
+2. The time step handling in the horizons request is not properly formatting the step size
+3. Type checking issue with TypedDict in the weft generation code
+
+## Plan
+[ ] Fix Batch Fetching
+  - [ ] Modify CachedHorizonsEphemeris.prefetch_data to use TimeSpec.from_range
+  - [ ] Update the horizons request to handle batch requests properly
+  - [ ] Add proper error handling for batch requests
+
+[ ] Fix Timestamp Step Size
+  - [ ] Review TimeSpec.from_range implementation
+  - [ ] Ensure step size is properly formatted for Horizons API
+  - [ ] Add validation for step size format
+  - [ ] Add tests for step size handling
+
+[ ] Fix TypedDict Error
+  - [ ] Review weft generation code for TypedDict usage
+  - [ ] Fix type checking issues
+  - [ ] Add proper type hints
+  - [ ] Add tests for type checking
+
+## Implementation Notes
+- Need to check Horizons API documentation for batch request capabilities
+- Step size format should be in the format expected by Horizons (e.g., "1h", "30m")
+- May need to add more error handling for edge cases
+- Consider adding logging for debugging
+
+# Current Task: Rename Observer Elements to Orbital Elements
+
+Need to rename "observer_elements" to "orbital_elements" in all occurrences since it was a typo.
+
+### Plan:
+[X] Create a new file `orbital_elements_parser.py` with updated content
+[X] Update imports in other files
+[X] Update test files
+[X] Update class/enum names from ObserverElementsQuantity to OrbitalElementsQuantity
+[X] Delete the old file once changes are complete
+
+✅ All tasks completed!
+
+# Scratchpad for Current Task
+
+## Task: Implement Abstract Ephemeris Interface and Horizons Implementation
+
+### Goal
+Create an abstract interface for ephemeris data sources and implement it for the JPL Horizons API.
+
+### Requirements
+- Create an abstract Ephemeris class in starloom.ephemeris module
+- Implement a HorizonsEphemeris class in starloom.horizons module
+- The interface should have a method to get a planet's position (ecliptic longitude, ecliptic latitude, distance)
+- Support different time formats (None for current time, Julian date float, or datetime)
+- Add unit tests for the implementation
+
+### Plan
+[X] Create an abstract Ephemeris class in src/starloom/ephemeris/ephemeris.py
+[X] Update the ephemeris module's __init__.py to export the Ephemeris class
+[X] Implement HorizonsEphemeris class in src/starloom/horizons/ephemeris.py
+[X] Update the horizons module's __init__.py to export the HorizonsEphemeris class
+[X] Document lessons learned in lessons.md
+[X] Create unit tests for the HorizonsEphemeris implementation
+[X] Fix implementation issues and make tests pass
+
+### Implementation Issues and Fixes
+
+1. TimePoint non-existent class:
+   - Original implementation tried to use a non-existent TimePoint class
+   - Solution: Updated to use TimeSpec.from_dates() directly with datetime objects or Julian dates
+
+2. Location.GEOCENTRIC missing:
+   - Original implementation tried to use a non-existent GEOCENTRIC constant
+   - Solution: Created a geocentric_location class attribute with "@399" which is the Horizons syntax for geocentric coordinates
+
+3. Error handling expectations:
+   - Test expected KeyError for invalid planet names, but implementation raised ValueError
+   - Solution: Updated test to expect ValueError with the correct error message
+
+### Unit Test Details
+Created comprehensive tests that verify:
+1. Different planet identifier formats:
+   - String ID (e.g., "499" for Mars)
+   - Planet enum (e.g., Planet.MARS)
+   - String enum name (e.g., "MARS")
+
+2. Different time formats:
+   - Default (current time)
+   - Julian date
+   - Datetime object with timezone
+
+3. Error handling:
+   - Empty response from API
+   - Invalid planet name
+
+4. Result validation:
+   - Verifies presence of required quantities (longitude, latitude, distance)
+   - Checks actual values against expected results from fixtures
+
+### Implementation Details
+
+The implementation:
+1. Uses the HorizonsRequest to query the JPL Horizons API
+2. Converts between the module-specific EphemerisQuantity enum and the standard Quantity enum
+3. Handles different planet identifier formats (enum, name, ID)
+4. Supports multiple time formats (current time, Julian date, datetime)
+5. Provides proper error handling
+
+### Next Steps
+- Add more methods to the interface as needed (ephemeris ranges, other coordinate systems)
+- Consider implementing caching to reduce API calls for repeated requests
+- Add integration tests to verify actual API responses 
+
+## Current Task: Update HorizonsEphemeris to default to geocentric coordinates
+
+### Task Description
+The goal is to modify the `get_planet_position` method in the `HorizonsEphemeris` implementation to default to geocentric coordinates when no specific location is provided.
+
+### Progress
+[X] Modified `get_planet_position` method to default to geocentric coordinates if location is null
+[X] Fixed test issue with patching the wrong class paths
+[X] Enhanced testing strategy with proper mock objects
+[X] Ensured all tests pass, including the full test suite
+
+### Implementation Details
+1. The `get_planet_position` method in `HorizonsEphemeris` was updated to default to a geocentric location when no specific location is provided
+2. We had to fix the test file which had issues with patching
+3. Key points:
+   - We discovered that we needed to patch `starloom.horizons.ephemeris.HorizonsRequest` instead of `starloom.horizons.request.HorizonsRequest` because we need to patch the class at the point where it's imported, not where it's defined
+   - We also needed to properly patch `ObserverParser.parse` to return mock data
+   - We implemented proper checks in the tests to verify that the location parameter is correctly passed
+
+### Next Steps
+- Consider if there are any other API improvements to make
+- Document the geocentric default behavior in the docstring of relevant methods
+
+### Lessons Learned
+- When patching classes with unittest.mock, it's important to patch where they are imported, not where they're defined
+- Mock objects need to be set up properly for each test case
+- Testing location handling required careful mock setup for both the HorizonsRequest and ObserverParser classes 
+
+# Create New CLI Module for Ephemeris
+
+## Current Task
+Create a new CLI module for ephemeris in the starloom package.
+
+## Plan
+[X] Examine the existing CLI structure
+[X] Create a new ephemeris.py file in the CLI module
+[X] Implement the basic CLI command structure
+[X] Connect the new module to the main CLI
+[X] Test the new CLI module
+
+## Current Progress
+- Created ephemeris.py with a basic CLI command structure
+- Added a `position` command that fetches planet positions
+- Connected the ephemeris module to the main CLI
+- Used HorizonsEphemeris implementation as the data source
+- Added proper error handling for API failures
+- All tasks completed successfully
+
+## Key Features
+- Reused the parse_date_input functionality from the horizons CLI
+- Added support for location-based observation
+- Improved error handling with user-friendly messages
+- Properly integrated with the main CLI 
+
+# Current Task: Refactor Local Horizons Implementation
+
+## Task Overview
+Refactor the implementation to make `LocalHorizonsStorage` handle both read and write operations, with `LocalHorizonsEphemeris` as a lightweight wrapper providing the Ephemeris interface.
+
+## Progress
+[X] Move database reading functionality from `LocalHorizonsEphemeris` to `LocalHorizonsStorage`
+[X] Simplify `LocalHorizonsEphemeris` to delegate to the storage class
+[X] Update the example script to demonstrate both interfaces
+[X] Ensure `CachedHorizonsEphemeris` works with the updated architecture
+[X] Update documentation in lessons.md
+
+## Design Approach
+- `LocalHorizonsStorage` provides both reading and writing operations for the local SQLite database
+- `LocalHorizonsEphemeris` is a thin wrapper that delegates to the storage class while implementing the Ephemeris interface
+- `CachedHorizonsEphemeris` checks local storage first and falls back to the Horizons API when needed
+
+## Benefits
+- Centralizes database access logic in one place
+- Simplifies the architecture by clearly separating concerns
+- Ensures consistent handling of database operations
+- Still provides the standard Ephemeris interface for compatibility with other code
+
+## Next Steps
+- Implement more efficient querying to find the closest time point when an exact match is not found
+- Add more error handling and logging for production use
+- Consider adding a command-line interface for prefetching large amounts of data 
+
+# Current Task: Add Unit Tests for Local and Cached Horizons
+
+## Task Overview
+Create comprehensive unit tests for the LocalHorizonsStorage, LocalHorizonsEphemeris, and CachedHorizonsEphemeris classes.
+
+## Progress
+[X] Create unit tests for CachedHorizonsEphemeris
+  - [X] Test cache miss triggering API call
+  - [X] Test cache hit avoiding API call
+  - [X] Test prefetch_data functionality
+  - [X] Test fallback to API on cache failure
+[X] Create unit tests for LocalHorizonsStorage
+  - [X] Test storing and retrieving a single data point
+  - [X] Test storing and retrieving multiple data points
+  - [X] Test error handling for non-existent data
+[X] Create unit tests for LocalHorizonsEphemeris
+  - [X] Test delegating to storage layer
+  - [X] Test error handling for non-existent planet/time
+[X] Create proper test directory structure
+  - [X] tests/cached_horizons
+  - [X] tests/local_horizons
+
+## Testing Approach
+- Used unittest framework with setUp/tearDown for test setup/cleanup
+- Created temporary directories for test databases
+- Employed mocking to isolate test units and avoid real API calls
+- Tested both positive cases (success paths) and negative cases (error handling)
+- Used tempfile module to create isolated test environments
+
+## Benefits
+- Verified correctness of all three components independently
+- Validated the caching behavior functions as intended
+- Ensured proper error handling throughout the system
+- Created reusable test infrastructure for future additions
+
+## Next Steps
+- Add integration tests to verify components work together correctly
+- Implement more complex test scenarios (e.g., near-match time queries)
+- Add test coverage for edge cases (Julian date conversions, leap seconds, etc.) 
+
+# Current Task: Improve Test Coverage and Remove Example Files
+
+## Task Overview
+Create dedicated storage tests for LocalHorizonsStorage class and remove example files in favor of comprehensive unit tests.
+
+## Progress
+[X] Create dedicated test file for LocalHorizonsStorage
+  - [X] Test database creation and structure
+  - [X] Test storing and retrieving data
+  - [X] Test Julian date conversion functions
+  - [X] Test overwriting existing data
+  - [X] Test handling different planets
+  - [X] Test handling missing quantities
+[X] Remove example files
+  - [X] Delete src/starloom/local_horizons/examples.py
+  - [X] Delete src/starloom/cached_horizons/example.py
+
+## Test Improvements
+- Added dedicated test_storage.py file with comprehensive tests for the LocalHorizonsStorage class
+- Added tests for database creation to verify table structure
+- Added tests for Julian date conversion functionality
+- Added tests for overwriting existing data
+- Added tests for storing data for different planets
+- Added tests for handling missing quantities
+- Removed example files in favor of proper unit tests
+
+## Benefits
+- More comprehensive test coverage of storage functionality
+- Cleaner codebase without redundant example files
+- Better isolation of test cases
+- Clear verification of all storage operations
+- Proper testing of Julian date conversion functions
+
+## Next Steps
+- Add integration tests to verify all components work together
+- Enhance query functionality to find closest time points
+- Add CLI commands for data prefetching 
+
+# Current Task
+
+## Task Overview
+Refactoring the LocalHorizonsStorage class to use the existing Julian date functions from space_time.julian instead of reimplementing them.
+
+## Progress
+
+- [X] Identified duplicated Julian date functionality in LocalHorizonsStorage
+- [X] Replaced custom _datetime_to_julian with julian_from_datetime from space_time.julian
+- [X] Replaced custom Julian date component splitting with julian_to_julian_parts
+- [X] Updated affected tests to use the imported functions
+- [X] Document lessons learned about code reuse in lessons.md
+
+## Implementation Changes
+
+1. Removed the following methods from LocalHorizonsStorage:
+   - _datetime_to_julian: Replaced with julian_from_datetime
+   - Integrated the functionality of _get_julian_components with julian_to_julian_parts
+
+2. Updated imports in both the storage class and test file:
+   ```python
+   from ..space_time.julian import julian_from_datetime, datetime_from_julian, julian_to_julian_parts
+   ```
+
+3. Modified test methods to use the imported functions instead of the class methods that were removed.
+
+## Benefits
+
+- **Reduced Duplication**: Eliminated redundant Julian date calculation code
+- **Improved Maintainability**: Future changes to Julian date calculations only need to be made in one place
+- **Consistency**: All modules use the same calculation algorithm with the same precision
+- **Better Testability**: The core Julian date implementation is extensively tested separately
+
+## Next Steps
+
+- [ ] Consider adding timezone awareness validation to ensure all datetime objects are timezone-aware
+- [ ] Look for other areas where common functionality might be duplicated
+- [ ] Add additional utility functions to space_time.julian if needed for other astronomical calculations 
+
+# Current Task
+
+## Task Overview
+Adding a versatile utility function to space_time.julian for handling both datetime objects and Julian dates.
+
+## Progress
+
+- [X] Identified need for a flexible Julian date component handling function
+- [X] Added `get_julian_components` function to space_time.julian module that:
+  - Accepts both datetime objects and Julian date floats
+  - Returns a tuple of (julian_date_integer, julian_date_fraction)
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Updated tests to verify the new function works correctly
+- [X] All tests passing
+
+## Implementation Details
+
+1. Added a new function to space_time.julian:
+   ```python
+   def get_julian_components(time: Union[float, datetime]) -> Tuple[int, float]:
+       """Convert a time to Julian date integer and fraction components."""
+       if isinstance(time, datetime):
+           # Convert datetime to Julian date
+           jd = julian_from_datetime(time)
+       else:
+           # Assume time is already a Julian date
+           jd = time
+       
+       # Split into integer and fractional parts
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Updated storage.py to use this function instead of its own method:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+3. Added specific tests for the function with both types of input.
+
+## Benefits
+
+- **Further Reduced Duplication**: Removed need for individual classes to implement this common logic
+- **Improved API**: Added a more flexible public function to the julian module
+- **Better Type Support**: Explicit handling of Union[float, datetime] makes the API easier to use
+- **Compatibility**: Works with existing code expecting (int, float) tuple for Julian date components
+
+## Next Steps
+
+- [ ] Consider adding more utility functions for common operations
+- [ ] Add support for other date/time types (like numpy.datetime64, pandas.Timestamp)
+- [ ] Expand documentation to highlight the new function 
+
+# Current Task
+
+## Task Overview
+Removing redundant methods in LocalHorizonsStorage after adding the versatile get_julian_components function to space_time.julian.
+
+## Progress
+
+- [X] Added the flexible `get_julian_components` function to space_time.julian
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Completely removed the redundant `_get_julian_components` method from LocalHorizonsStorage
+- [X] Verified all tests still pass
+
+## Implementation Details
+
+1. The original `_get_julian_components` method in LocalHorizonsStorage:
+   ```python
+   def _get_julian_components(self, time: Union[float, datetime]) -> Tuple[int, float]:
+       if isinstance(time, datetime):
+           jd = julian_from_datetime(time)
+       else:
+           jd = time
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Was completely replaced by direct calls to the new utility function:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+## Benefits
+
+- **Code Simplification**: Removed unnecessary method, making the code cleaner
+- **Reduced Maintenance**: One less piece of code to maintain
+- **Better Organization**: Julian date handling logic now fully centralizes in space_time.julian module
+- **Better API Usage**: Using the proper abstraction level for this functionality
+
+## Next Steps
+
+- [ ] Look for similar opportunities for improvement in other classes
+- [ ] Consider adding utility functions for other common astronomical calculations
+- [ ] Add documentation about the julian module's functions in the project documentation 
+
+# Add Multiple Ephemeris Sources to CLI
+
+## Current Task
+Implement support for selecting different ephemeris sources in the CLI command.
+
+## Requirements
+- Allow users to choose between horizons, sqlite (local_horizons), and cached_horizons
+- Add a `--source` option to the CLI command
+- Handle parameter differences between implementations (e.g., location support)
+- Add `--data-dir` option for sources that need a data directory
+
+## Progress
+[X] Add imports for all ephemeris classes
+[X] Create a mapping of friendly names to ephemeris classes
+[X] Add `--source` option to the CLI command with choices from the mapping
+[X] Add `--data-dir` option for SQLite and cached sources
+[X] Handle parameter differences between implementations:
+  - Only pass location to HorizonsEphemeris
+  - Show appropriate warnings when location is ignored
+[X] Update documentation and examples
+[X] Show the source in the CLI output
+
+## Implementation Notes
+- Added a EPHEMERIS_SOURCES dictionary to map friendly names to classes
+- Set "horizons" as the default source
+- Added logic to handle different class initializations:
+  - SQLite and cached implementations need a data_dir parameter
+  - Other implementations use default constructor
+- Added conditional logic to handle different get_planet_position signatures:
+  - HorizonsEphemeris accepts a location parameter
+  - Other implementations don't support location
+- Added warning messages when location parameter is ignored
+- Updated example documentation
+
+## Lessons Learned
+- When implementing a common interface, watch for extensions in concrete implementations
+- Handle parameter differences gracefully with clear user feedback
+- Document implementation-specific behavior in lessons.md 
+
+# Remove Location Parameter from Ephemeris CLI
+
+## Current Task
+Remove the location parameter from the ephemeris CLI command.
+
+## Rationale
+- Location parameter was only fully supported by HorizonsEphemeris
+- Other ephemeris implementations don't support location
+- Removing it simplifies the CLI interface and eliminates conditional logic
+
+## Changes Made
+[X] Removed the `--location` option from the CLI command
+[X] Removed the Location import
+[X] Removed location parameter parsing logic
+[X] Removed conditional logic for handling different location support across implementations
+[X] Simplified the code to always call `get_planet_position` with only planet and time parameters
+[X] Updated the documentation examples
+
+## Result
+- Cleaner, more consistent CLI interface
+- All ephemeris sources now use the same parameter set
+- Simplified implementation without conditional logic for different source types
+- More maintainable codebase with fewer special cases
+
+## Next Steps
+- Consider implementing a separate command if location-specific ephemeris is needed in the future
+- Could potentially add a geocentric-only implementation of location functionality to all ephemeris sources 
+
+# Fix Cached Horizons Caching Issue
+
+## Current Task
+Fix issue with cached_horizons ephemeris source not reusing cached data.
+
+## Problem
+When running the same query twice with cached_horizons, it was making a new API call each time instead of using the cached data.
+
+## Analysis
+1. The problem was found in how Julian date components were being stored and retrieved from the database
+2. Key issues:
+   - In the database, `julian_date` was incorrectly stored as a float containing the full Julian date (`2460754.74091435`) 
+   - When querying, we were looking for `julian_date = 2460754` (integer part)
+   - This mismatch meant cached data was never found
+
+## Solution
+[X] Fixed julian_date storage in `store_ephemeris_quantities`:
+  - Explicitly cast to int: `"julian_date": int(jd_int)`
+  - Explicitly cast to float: `"julian_date_fraction": float(jd_frac)`
+[X] Fixed `store_ephemeris_data` to ensure julian_date is always an integer
+[X] Fixed CachedHorizonsEphemeris to properly handle Julian date conversion
+[X] Modified CachedHorizonsEphemeris to remove julian_date fields from position data before storing
+[X] Added better error handling for failed Julian date conversions
+
+## Results
+- Both cached_horizons and sqlite sources now work correctly
+- Second run of the same query with cached_horizons now uses the cache (no API call)
+- sqlite source can now access data cached by cached_horizons 
+
+# WEFT Update Plan
+
+## Task
+Update starloom's WEFT binary ephemeris format to:
+1. Create the core weft.py module in proper location
+2. Update imports in weft_reader.py and weft_generator.py
+3. Update references to horizons module
+4. Integrate with cached_horizons
+
+## Current Structure
+- weft_reader.py and weft_generator.py import classes from "lib.weft.weft"
+- They also import from "lib.horizons.quantities" and "lib.horizons.planet"
+- Code uses CachedHorizonsEphemeris for data access
+
+## Needed Actions
+
+### 1. Create weft.py core module
+- Create src/starloom/weft/weft.py with all necessary classes:
+  - WeftFile
+  - MultiYearBlock
+  - MonthlyBlock
+  - DailySectionHeader
+  - DailyDataBlock
+  - unwrap_angles function
+
+### 2. Update imports in weft_reader.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities"
+- Other imports to relative format
+
+### 3. Update imports in weft_generator.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities" 
+- Change from "lib.horizons.planet" to "..horizons.planet"
+
+### 4. Create integration with cached_horizons
+- Create cached_weft_generator.py with a function to generate .weft files using CachedHorizonsEphemeris
+- Add CLI commands for working with .weft files
+
+## Progress Tracking
+- [X] Locate all weft.py functionality from tests
+- [X] Create weft.py in src/starloom/weft
+- [X] Update imports in weft_reader.py
+- [X] Update imports in weft_generator.py
+- [X] Create cached_weft_generator.py with integration to CachedHorizonsEphemeris
+- [X] Create CLI module for weft files
+- [X] Register the CLI module with the main CLI
+- [X] Fix CLI integration to match existing format
+
+## Summary of Changes
+1. Created src/starloom/weft/weft.py with all the necessary classes and functions
+2. Updated imports in weft_reader.py and weft_generator.py to use relative imports
+3. Created cached_weft_generator.py with generate_weft_file function that uses CachedHorizonsEphemeris
+4. Created CLI module for the weft functionality
+5. Registered the CLI module with the main CLI 
+
+# Current Task: Simplify evaluate_chebyshev interface
+
+## Overview
+Modified evaluate_chebyshev to only accept List[float] instead of Union[List[float], NDArray[np.float32]] to simplify the interface and remove numpy dependency.
+
+## Changes Made
+[X] Modified evaluate_chebyshev in utils.py to only accept List[float]
+[X] Removed numpy array conversion in multi_year_block.py
+[X] Verified other blocks (forty_eight_hour_block.py and monthly_block.py) were already using List[float]
+[X] Verified tests were already using List[float]
+
+## Impact
+- Simplified interface by removing numpy dependency
+- No changes needed to calling code since most was already using List[float]
+- Removed unnecessary type conversion in multi_year_block.py
+
+## Next Steps
+None - task complete 
+
+# Current Task: Fix Type Checking in Blocks Module
+
+## Overview
+Fixed type checking issues in the blocks module by removing numpy dependencies and ensuring consistent use of List[float] for coefficients.
+
+## Changes Made
+[X] Removed unused numpy import from monthly_block.py
+[X] Removed numpy dependency from forty_eight_hour_block.py
+[X] Rewrote coefficient validation and manipulation in forty_eight_hour_block.py to use pure Python
+[X] Verified all type checking issues are fixed with mypy
+
+## Key Changes in forty_eight_hour_block.py
+1. Replaced numpy array operations with list operations
+2. Implemented NaN check using Python's property that NaN != NaN
+3. Simplified padding operation using Python list concatenation
+4. Removed all numpy type conversions
+
+## Impact
+- Simplified code by removing unnecessary numpy dependency
+- Maintained same functionality but with pure Python types
+- All files now pass mypy type checking
+
+## Next Steps
+None - task complete 
+
+# Current Task: Fix Weft Generate Command Issues
+
+## Issues Identified
+1. Fetching needs to be in batches - getting a single timestamp at a time from horizons is very slow
+2. Timestamps being requested from horizons are not on even hour steps
+3. Error during generation: TypedDict does not support instance and class checks
+
+## Root Causes
+1. The prefetch_data method in CachedHorizonsEphemeris is making individual requests for each timestamp
+2. The time step handling in the horizons request is not properly formatting the step size
+3. Type checking issue with TypedDict in the weft generation code
+
+## Plan
+[ ] Fix Batch Fetching
+  - [ ] Modify CachedHorizonsEphemeris.prefetch_data to use TimeSpec.from_range
+  - [ ] Update the horizons request to handle batch requests properly
+  - [ ] Add proper error handling for batch requests
+
+[ ] Fix Timestamp Step Size
+  - [ ] Review TimeSpec.from_range implementation
+  - [ ] Ensure step size is properly formatted for Horizons API
+  - [ ] Add validation for step size format
+  - [ ] Add tests for step size handling
+
+[ ] Fix TypedDict Error
+  - [ ] Review weft generation code for TypedDict usage
+  - [ ] Fix type checking issues
+  - [ ] Add proper type hints
+  - [ ] Add tests for type checking
+
+## Implementation Notes
+- Need to check Horizons API documentation for batch request capabilities
+- Step size format should be in the format expected by Horizons (e.g., "1h", "30m")
+- May need to add more error handling for edge cases
+- Consider adding logging for debugging
+
+# Current Task: Rename Observer Elements to Orbital Elements
+
+Need to rename "observer_elements" to "orbital_elements" in all occurrences since it was a typo.
+
+### Plan:
+[X] Create a new file `orbital_elements_parser.py` with updated content
+[X] Update imports in other files
+[X] Update test files
+[X] Update class/enum names from ObserverElementsQuantity to OrbitalElementsQuantity
+[X] Delete the old file once changes are complete
+
+✅ All tasks completed!
+
+# Scratchpad for Current Task
+
+## Task: Implement Abstract Ephemeris Interface and Horizons Implementation
+
+### Goal
+Create an abstract interface for ephemeris data sources and implement it for the JPL Horizons API.
+
+### Requirements
+- Create an abstract Ephemeris class in starloom.ephemeris module
+- Implement a HorizonsEphemeris class in starloom.horizons module
+- The interface should have a method to get a planet's position (ecliptic longitude, ecliptic latitude, distance)
+- Support different time formats (None for current time, Julian date float, or datetime)
+- Add unit tests for the implementation
+
+### Plan
+[X] Create an abstract Ephemeris class in src/starloom/ephemeris/ephemeris.py
+[X] Update the ephemeris module's __init__.py to export the Ephemeris class
+[X] Implement HorizonsEphemeris class in src/starloom/horizons/ephemeris.py
+[X] Update the horizons module's __init__.py to export the HorizonsEphemeris class
+[X] Document lessons learned in lessons.md
+[X] Create unit tests for the HorizonsEphemeris implementation
+[X] Fix implementation issues and make tests pass
+
+### Implementation Issues and Fixes
+
+1. TimePoint non-existent class:
+   - Original implementation tried to use a non-existent TimePoint class
+   - Solution: Updated to use TimeSpec.from_dates() directly with datetime objects or Julian dates
+
+2. Location.GEOCENTRIC missing:
+   - Original implementation tried to use a non-existent GEOCENTRIC constant
+   - Solution: Created a geocentric_location class attribute with "@399" which is the Horizons syntax for geocentric coordinates
+
+3. Error handling expectations:
+   - Test expected KeyError for invalid planet names, but implementation raised ValueError
+   - Solution: Updated test to expect ValueError with the correct error message
+
+### Unit Test Details
+Created comprehensive tests that verify:
+1. Different planet identifier formats:
+   - String ID (e.g., "499" for Mars)
+   - Planet enum (e.g., Planet.MARS)
+   - String enum name (e.g., "MARS")
+
+2. Different time formats:
+   - Default (current time)
+   - Julian date
+   - Datetime object with timezone
+
+3. Error handling:
+   - Empty response from API
+   - Invalid planet name
+
+4. Result validation:
+   - Verifies presence of required quantities (longitude, latitude, distance)
+   - Checks actual values against expected results from fixtures
+
+### Implementation Details
+
+The implementation:
+1. Uses the HorizonsRequest to query the JPL Horizons API
+2. Converts between the module-specific EphemerisQuantity enum and the standard Quantity enum
+3. Handles different planet identifier formats (enum, name, ID)
+4. Supports multiple time formats (current time, Julian date, datetime)
+5. Provides proper error handling
+
+### Next Steps
+- Add more methods to the interface as needed (ephemeris ranges, other coordinate systems)
+- Consider implementing caching to reduce API calls for repeated requests
+- Add integration tests to verify actual API responses 
+
+## Current Task: Update HorizonsEphemeris to default to geocentric coordinates
+
+### Task Description
+The goal is to modify the `get_planet_position` method in the `HorizonsEphemeris` implementation to default to geocentric coordinates when no specific location is provided.
+
+### Progress
+[X] Modified `get_planet_position` method to default to geocentric coordinates if location is null
+[X] Fixed test issue with patching the wrong class paths
+[X] Enhanced testing strategy with proper mock objects
+[X] Ensured all tests pass, including the full test suite
+
+### Implementation Details
+1. The `get_planet_position` method in `HorizonsEphemeris` was updated to default to a geocentric location when no specific location is provided
+2. We had to fix the test file which had issues with patching
+3. Key points:
+   - We discovered that we needed to patch `starloom.horizons.ephemeris.HorizonsRequest` instead of `starloom.horizons.request.HorizonsRequest` because we need to patch the class at the point where it's imported, not where it's defined
+   - We also needed to properly patch `ObserverParser.parse` to return mock data
+   - We implemented proper checks in the tests to verify that the location parameter is correctly passed
+
+### Next Steps
+- Consider if there are any other API improvements to make
+- Document the geocentric default behavior in the docstring of relevant methods
+
+### Lessons Learned
+- When patching classes with unittest.mock, it's important to patch where they are imported, not where they're defined
+- Mock objects need to be set up properly for each test case
+- Testing location handling required careful mock setup for both the HorizonsRequest and ObserverParser classes 
+
+# Create New CLI Module for Ephemeris
+
+## Current Task
+Create a new CLI module for ephemeris in the starloom package.
+
+## Plan
+[X] Examine the existing CLI structure
+[X] Create a new ephemeris.py file in the CLI module
+[X] Implement the basic CLI command structure
+[X] Connect the new module to the main CLI
+[X] Test the new CLI module
+
+## Current Progress
+- Created ephemeris.py with a basic CLI command structure
+- Added a `position` command that fetches planet positions
+- Connected the ephemeris module to the main CLI
+- Used HorizonsEphemeris implementation as the data source
+- Added proper error handling for API failures
+- All tasks completed successfully
+
+## Key Features
+- Reused the parse_date_input functionality from the horizons CLI
+- Added support for location-based observation
+- Improved error handling with user-friendly messages
+- Properly integrated with the main CLI 
+
+# Current Task: Refactor Local Horizons Implementation
+
+## Task Overview
+Refactor the implementation to make `LocalHorizonsStorage` handle both read and write operations, with `LocalHorizonsEphemeris` as a lightweight wrapper providing the Ephemeris interface.
+
+## Progress
+[X] Move database reading functionality from `LocalHorizonsEphemeris` to `LocalHorizonsStorage`
+[X] Simplify `LocalHorizonsEphemeris` to delegate to the storage class
+[X] Update the example script to demonstrate both interfaces
+[X] Ensure `CachedHorizonsEphemeris` works with the updated architecture
+[X] Update documentation in lessons.md
+
+## Design Approach
+- `LocalHorizonsStorage` provides both reading and writing operations for the local SQLite database
+- `LocalHorizonsEphemeris` is a thin wrapper that delegates to the storage class while implementing the Ephemeris interface
+- `CachedHorizonsEphemeris` checks local storage first and falls back to the Horizons API when needed
+
+## Benefits
+- Centralizes database access logic in one place
+- Simplifies the architecture by clearly separating concerns
+- Ensures consistent handling of database operations
+- Still provides the standard Ephemeris interface for compatibility with other code
+
+## Next Steps
+- Implement more efficient querying to find the closest time point when an exact match is not found
+- Add more error handling and logging for production use
+- Consider adding a command-line interface for prefetching large amounts of data 
+
+# Current Task: Add Unit Tests for Local and Cached Horizons
+
+## Task Overview
+Create comprehensive unit tests for the LocalHorizonsStorage, LocalHorizonsEphemeris, and CachedHorizonsEphemeris classes.
+
+## Progress
+[X] Create unit tests for CachedHorizonsEphemeris
+  - [X] Test cache miss triggering API call
+  - [X] Test cache hit avoiding API call
+  - [X] Test prefetch_data functionality
+  - [X] Test fallback to API on cache failure
+[X] Create unit tests for LocalHorizonsStorage
+  - [X] Test storing and retrieving a single data point
+  - [X] Test storing and retrieving multiple data points
+  - [X] Test error handling for non-existent data
+[X] Create unit tests for LocalHorizonsEphemeris
+  - [X] Test delegating to storage layer
+  - [X] Test error handling for non-existent planet/time
+[X] Create proper test directory structure
+  - [X] tests/cached_horizons
+  - [X] tests/local_horizons
+
+## Testing Approach
+- Used unittest framework with setUp/tearDown for test setup/cleanup
+- Created temporary directories for test databases
+- Employed mocking to isolate test units and avoid real API calls
+- Tested both positive cases (success paths) and negative cases (error handling)
+- Used tempfile module to create isolated test environments
+
+## Benefits
+- Verified correctness of all three components independently
+- Validated the caching behavior functions as intended
+- Ensured proper error handling throughout the system
+- Created reusable test infrastructure for future additions
+
+## Next Steps
+- Add integration tests to verify components work together correctly
+- Implement more complex test scenarios (e.g., near-match time queries)
+- Add test coverage for edge cases (Julian date conversions, leap seconds, etc.) 
+
+# Current Task: Improve Test Coverage and Remove Example Files
+
+## Task Overview
+Create dedicated storage tests for LocalHorizonsStorage class and remove example files in favor of comprehensive unit tests.
+
+## Progress
+[X] Create dedicated test file for LocalHorizonsStorage
+  - [X] Test database creation and structure
+  - [X] Test storing and retrieving data
+  - [X] Test Julian date conversion functions
+  - [X] Test overwriting existing data
+  - [X] Test handling different planets
+  - [X] Test handling missing quantities
+[X] Remove example files
+  - [X] Delete src/starloom/local_horizons/examples.py
+  - [X] Delete src/starloom/cached_horizons/example.py
+
+## Test Improvements
+- Added dedicated test_storage.py file with comprehensive tests for the LocalHorizonsStorage class
+- Added tests for database creation to verify table structure
+- Added tests for Julian date conversion functionality
+- Added tests for overwriting existing data
+- Added tests for storing data for different planets
+- Added tests for handling missing quantities
+- Removed example files in favor of proper unit tests
+
+## Benefits
+- More comprehensive test coverage of storage functionality
+- Cleaner codebase without redundant example files
+- Better isolation of test cases
+- Clear verification of all storage operations
+- Proper testing of Julian date conversion functions
+
+## Next Steps
+- Add integration tests to verify all components work together
+- Enhance query functionality to find closest time points
+- Add CLI commands for data prefetching 
+
+# Current Task
+
+## Task Overview
+Refactoring the LocalHorizonsStorage class to use the existing Julian date functions from space_time.julian instead of reimplementing them.
+
+## Progress
+
+- [X] Identified duplicated Julian date functionality in LocalHorizonsStorage
+- [X] Replaced custom _datetime_to_julian with julian_from_datetime from space_time.julian
+- [X] Replaced custom Julian date component splitting with julian_to_julian_parts
+- [X] Updated affected tests to use the imported functions
+- [X] Document lessons learned about code reuse in lessons.md
+
+## Implementation Changes
+
+1. Removed the following methods from LocalHorizonsStorage:
+   - _datetime_to_julian: Replaced with julian_from_datetime
+   - Integrated the functionality of _get_julian_components with julian_to_julian_parts
+
+2. Updated imports in both the storage class and test file:
+   ```python
+   from ..space_time.julian import julian_from_datetime, datetime_from_julian, julian_to_julian_parts
+   ```
+
+3. Modified test methods to use the imported functions instead of the class methods that were removed.
+
+## Benefits
+
+- **Reduced Duplication**: Eliminated redundant Julian date calculation code
+- **Improved Maintainability**: Future changes to Julian date calculations only need to be made in one place
+- **Consistency**: All modules use the same calculation algorithm with the same precision
+- **Better Testability**: The core Julian date implementation is extensively tested separately
+
+## Next Steps
+
+- [ ] Consider adding timezone awareness validation to ensure all datetime objects are timezone-aware
+- [ ] Look for other areas where common functionality might be duplicated
+- [ ] Add additional utility functions to space_time.julian if needed for other astronomical calculations 
+
+# Current Task
+
+## Task Overview
+Adding a versatile utility function to space_time.julian for handling both datetime objects and Julian dates.
+
+## Progress
+
+- [X] Identified need for a flexible Julian date component handling function
+- [X] Added `get_julian_components` function to space_time.julian module that:
+  - Accepts both datetime objects and Julian date floats
+  - Returns a tuple of (julian_date_integer, julian_date_fraction)
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Updated tests to verify the new function works correctly
+- [X] All tests passing
+
+## Implementation Details
+
+1. Added a new function to space_time.julian:
+   ```python
+   def get_julian_components(time: Union[float, datetime]) -> Tuple[int, float]:
+       """Convert a time to Julian date integer and fraction components."""
+       if isinstance(time, datetime):
+           # Convert datetime to Julian date
+           jd = julian_from_datetime(time)
+       else:
+           # Assume time is already a Julian date
+           jd = time
+       
+       # Split into integer and fractional parts
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Updated storage.py to use this function instead of its own method:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+3. Added specific tests for the function with both types of input.
+
+## Benefits
+
+- **Further Reduced Duplication**: Removed need for individual classes to implement this common logic
+- **Improved API**: Added a more flexible public function to the julian module
+- **Better Type Support**: Explicit handling of Union[float, datetime] makes the API easier to use
+- **Compatibility**: Works with existing code expecting (int, float) tuple for Julian date components
+
+## Next Steps
+
+- [ ] Consider adding more utility functions for common operations
+- [ ] Add support for other date/time types (like numpy.datetime64, pandas.Timestamp)
+- [ ] Expand documentation to highlight the new function 
+
+# Current Task
+
+## Task Overview
+Removing redundant methods in LocalHorizonsStorage after adding the versatile get_julian_components function to space_time.julian.
+
+## Progress
+
+- [X] Added the flexible `get_julian_components` function to space_time.julian
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Completely removed the redundant `_get_julian_components` method from LocalHorizonsStorage
+- [X] Verified all tests still pass
+
+## Implementation Details
+
+1. The original `_get_julian_components` method in LocalHorizonsStorage:
+   ```python
+   def _get_julian_components(self, time: Union[float, datetime]) -> Tuple[int, float]:
+       if isinstance(time, datetime):
+           jd = julian_from_datetime(time)
+       else:
+           jd = time
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Was completely replaced by direct calls to the new utility function:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+## Benefits
+
+- **Code Simplification**: Removed unnecessary method, making the code cleaner
+- **Reduced Maintenance**: One less piece of code to maintain
+- **Better Organization**: Julian date handling logic now fully centralizes in space_time.julian module
+- **Better API Usage**: Using the proper abstraction level for this functionality
+
+## Next Steps
+
+- [ ] Look for similar opportunities for improvement in other classes
+- [ ] Consider adding utility functions for other common astronomical calculations
+- [ ] Add documentation about the julian module's functions in the project documentation 
+
+# Add Multiple Ephemeris Sources to CLI
+
+## Current Task
+Implement support for selecting different ephemeris sources in the CLI command.
+
+## Requirements
+- Allow users to choose between horizons, sqlite (local_horizons), and cached_horizons
+- Add a `--source` option to the CLI command
+- Handle parameter differences between implementations (e.g., location support)
+- Add `--data-dir` option for sources that need a data directory
+
+## Progress
+[X] Add imports for all ephemeris classes
+[X] Create a mapping of friendly names to ephemeris classes
+[X] Add `--source` option to the CLI command with choices from the mapping
+[X] Add `--data-dir` option for SQLite and cached sources
+[X] Handle parameter differences between implementations:
+  - Only pass location to HorizonsEphemeris
+  - Show appropriate warnings when location is ignored
+[X] Update documentation and examples
+[X] Show the source in the CLI output
+
+## Implementation Notes
+- Added a EPHEMERIS_SOURCES dictionary to map friendly names to classes
+- Set "horizons" as the default source
+- Added logic to handle different class initializations:
+  - SQLite and cached implementations need a data_dir parameter
+  - Other implementations use default constructor
+- Added conditional logic to handle different get_planet_position signatures:
+  - HorizonsEphemeris accepts a location parameter
+  - Other implementations don't support location
+- Added warning messages when location parameter is ignored
+- Updated example documentation
+
+## Lessons Learned
+- When implementing a common interface, watch for extensions in concrete implementations
+- Handle parameter differences gracefully with clear user feedback
+- Document implementation-specific behavior in lessons.md 
+
+# Remove Location Parameter from Ephemeris CLI
+
+## Current Task
+Remove the location parameter from the ephemeris CLI command.
+
+## Rationale
+- Location parameter was only fully supported by HorizonsEphemeris
+- Other ephemeris implementations don't support location
+- Removing it simplifies the CLI interface and eliminates conditional logic
+
+## Changes Made
+[X] Removed the `--location` option from the CLI command
+[X] Removed the Location import
+[X] Removed location parameter parsing logic
+[X] Removed conditional logic for handling different location support across implementations
+[X] Simplified the code to always call `get_planet_position` with only planet and time parameters
+[X] Updated the documentation examples
+
+## Result
+- Cleaner, more consistent CLI interface
+- All ephemeris sources now use the same parameter set
+- Simplified implementation without conditional logic for different source types
+- More maintainable codebase with fewer special cases
+
+## Next Steps
+- Consider implementing a separate command if location-specific ephemeris is needed in the future
+- Could potentially add a geocentric-only implementation of location functionality to all ephemeris sources 
+
+# Fix Cached Horizons Caching Issue
+
+## Current Task
+Fix issue with cached_horizons ephemeris source not reusing cached data.
+
+## Problem
+When running the same query twice with cached_horizons, it was making a new API call each time instead of using the cached data.
+
+## Analysis
+1. The problem was found in how Julian date components were being stored and retrieved from the database
+2. Key issues:
+   - In the database, `julian_date` was incorrectly stored as a float containing the full Julian date (`2460754.74091435`) 
+   - When querying, we were looking for `julian_date = 2460754` (integer part)
+   - This mismatch meant cached data was never found
+
+## Solution
+[X] Fixed julian_date storage in `store_ephemeris_quantities`:
+  - Explicitly cast to int: `"julian_date": int(jd_int)`
+  - Explicitly cast to float: `"julian_date_fraction": float(jd_frac)`
+[X] Fixed `store_ephemeris_data` to ensure julian_date is always an integer
+[X] Fixed CachedHorizonsEphemeris to properly handle Julian date conversion
+[X] Modified CachedHorizonsEphemeris to remove julian_date fields from position data before storing
+[X] Added better error handling for failed Julian date conversions
+
+## Results
+- Both cached_horizons and sqlite sources now work correctly
+- Second run of the same query with cached_horizons now uses the cache (no API call)
+- sqlite source can now access data cached by cached_horizons 
+
+# WEFT Update Plan
+
+## Task
+Update starloom's WEFT binary ephemeris format to:
+1. Create the core weft.py module in proper location
+2. Update imports in weft_reader.py and weft_generator.py
+3. Update references to horizons module
+4. Integrate with cached_horizons
+
+## Current Structure
+- weft_reader.py and weft_generator.py import classes from "lib.weft.weft"
+- They also import from "lib.horizons.quantities" and "lib.horizons.planet"
+- Code uses CachedHorizonsEphemeris for data access
+
+## Needed Actions
+
+### 1. Create weft.py core module
+- Create src/starloom/weft/weft.py with all necessary classes:
+  - WeftFile
+  - MultiYearBlock
+  - MonthlyBlock
+  - DailySectionHeader
+  - DailyDataBlock
+  - unwrap_angles function
+
+### 2. Update imports in weft_reader.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities"
+- Other imports to relative format
+
+### 3. Update imports in weft_generator.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities" 
+- Change from "lib.horizons.planet" to "..horizons.planet"
+
+### 4. Create integration with cached_horizons
+- Create cached_weft_generator.py with a function to generate .weft files using CachedHorizonsEphemeris
+- Add CLI commands for working with .weft files
+
+## Progress Tracking
+- [X] Locate all weft.py functionality from tests
+- [X] Create weft.py in src/starloom/weft
+- [X] Update imports in weft_reader.py
+- [X] Update imports in weft_generator.py
+- [X] Create cached_weft_generator.py with integration to CachedHorizonsEphemeris
+- [X] Create CLI module for weft files
+- [X] Register the CLI module with the main CLI
+- [X] Fix CLI integration to match existing format
+
+## Summary of Changes
+1. Created src/starloom/weft/weft.py with all the necessary classes and functions
+2. Updated imports in weft_reader.py and weft_generator.py to use relative imports
+3. Created cached_weft_generator.py with generate_weft_file function that uses CachedHorizonsEphemeris
+4. Created CLI module for the weft functionality
+5. Registered the CLI module with the main CLI 
+
+# Current Task: Simplify evaluate_chebyshev interface
+
+## Overview
+Modified evaluate_chebyshev to only accept List[float] instead of Union[List[float], NDArray[np.float32]] to simplify the interface and remove numpy dependency.
+
+## Changes Made
+[X] Modified evaluate_chebyshev in utils.py to only accept List[float]
+[X] Removed numpy array conversion in multi_year_block.py
+[X] Verified other blocks (forty_eight_hour_block.py and monthly_block.py) were already using List[float]
+[X] Verified tests were already using List[float]
+
+## Impact
+- Simplified interface by removing numpy dependency
+- No changes needed to calling code since most was already using List[float]
+- Removed unnecessary type conversion in multi_year_block.py
+
+## Next Steps
+None - task complete 
+
+# Current Task: Fix Type Checking in Blocks Module
+
+## Overview
+Fixed type checking issues in the blocks module by removing numpy dependencies and ensuring consistent use of List[float] for coefficients.
+
+## Changes Made
+[X] Removed unused numpy import from monthly_block.py
+[X] Removed numpy dependency from forty_eight_hour_block.py
+[X] Rewrote coefficient validation and manipulation in forty_eight_hour_block.py to use pure Python
+[X] Verified all type checking issues are fixed with mypy
+
+## Key Changes in forty_eight_hour_block.py
+1. Replaced numpy array operations with list operations
+2. Implemented NaN check using Python's property that NaN != NaN
+3. Simplified padding operation using Python list concatenation
+4. Removed all numpy type conversions
+
+## Impact
+- Simplified code by removing unnecessary numpy dependency
+- Maintained same functionality but with pure Python types
+- All files now pass mypy type checking
+
+## Next Steps
+None - task complete 
+
+# Current Task: Fix Weft Generate Command Issues
+
+## Issues Identified
+1. Fetching needs to be in batches - getting a single timestamp at a time from horizons is very slow
+2. Timestamps being requested from horizons are not on even hour steps
+3. Error during generation: TypedDict does not support instance and class checks
+
+## Root Causes
+1. The prefetch_data method in CachedHorizonsEphemeris is making individual requests for each timestamp
+2. The time step handling in the horizons request is not properly formatting the step size
+3. Type checking issue with TypedDict in the weft generation code
+
+## Plan
+[ ] Fix Batch Fetching
+  - [ ] Modify CachedHorizonsEphemeris.prefetch_data to use TimeSpec.from_range
+  - [ ] Update the horizons request to handle batch requests properly
+  - [ ] Add proper error handling for batch requests
+
+[ ] Fix Timestamp Step Size
+  - [ ] Review TimeSpec.from_range implementation
+  - [ ] Ensure step size is properly formatted for Horizons API
+  - [ ] Add validation for step size format
+  - [ ] Add tests for step size handling
+
+[ ] Fix TypedDict Error
+  - [ ] Review weft generation code for TypedDict usage
+  - [ ] Fix type checking issues
+  - [ ] Add proper type hints
+  - [ ] Add tests for type checking
+
+## Implementation Notes
+- Need to check Horizons API documentation for batch request capabilities
+- Step size format should be in the format expected by Horizons (e.g., "1h", "30m")
+- May need to add more error handling for edge cases
+- Consider adding logging for debugging
+
+# Current Task: Rename Observer Elements to Orbital Elements
+
+Need to rename "observer_elements" to "orbital_elements" in all occurrences since it was a typo.
+
+### Plan:
+[X] Create a new file `orbital_elements_parser.py` with updated content
+[X] Update imports in other files
+[X] Update test files
+[X] Update class/enum names from ObserverElementsQuantity to OrbitalElementsQuantity
+[X] Delete the old file once changes are complete
+
+✅ All tasks completed!
+
+# Scratchpad for Current Task
+
+## Task: Implement Abstract Ephemeris Interface and Horizons Implementation
+
+### Goal
+Create an abstract interface for ephemeris data sources and implement it for the JPL Horizons API.
+
+### Requirements
+- Create an abstract Ephemeris class in starloom.ephemeris module
+- Implement a HorizonsEphemeris class in starloom.horizons module
+- The interface should have a method to get a planet's position (ecliptic longitude, ecliptic latitude, distance)
+- Support different time formats (None for current time, Julian date float, or datetime)
+- Add unit tests for the implementation
+
+### Plan
+[X] Create an abstract Ephemeris class in src/starloom/ephemeris/ephemeris.py
+[X] Update the ephemeris module's __init__.py to export the Ephemeris class
+[X] Implement HorizonsEphemeris class in src/starloom/horizons/ephemeris.py
+[X] Update the horizons module's __init__.py to export the HorizonsEphemeris class
+[X] Document lessons learned in lessons.md
+[X] Create unit tests for the HorizonsEphemeris implementation
+[X] Fix implementation issues and make tests pass
+
+### Implementation Issues and Fixes
+
+1. TimePoint non-existent class:
+   - Original implementation tried to use a non-existent TimePoint class
+   - Solution: Updated to use TimeSpec.from_dates() directly with datetime objects or Julian dates
+
+2. Location.GEOCENTRIC missing:
+   - Original implementation tried to use a non-existent GEOCENTRIC constant
+   - Solution: Created a geocentric_location class attribute with "@399" which is the Horizons syntax for geocentric coordinates
+
+3. Error handling expectations:
+   - Test expected KeyError for invalid planet names, but implementation raised ValueError
+   - Solution: Updated test to expect ValueError with the correct error message
+
+### Unit Test Details
+Created comprehensive tests that verify:
+1. Different planet identifier formats:
+   - String ID (e.g., "499" for Mars)
+   - Planet enum (e.g., Planet.MARS)
+   - String enum name (e.g., "MARS")
+
+2. Different time formats:
+   - Default (current time)
+   - Julian date
+   - Datetime object with timezone
+
+3. Error handling:
+   - Empty response from API
+   - Invalid planet name
+
+4. Result validation:
+   - Verifies presence of required quantities (longitude, latitude, distance)
+   - Checks actual values against expected results from fixtures
+
+### Implementation Details
+
+The implementation:
+1. Uses the HorizonsRequest to query the JPL Horizons API
+2. Converts between the module-specific EphemerisQuantity enum and the standard Quantity enum
+3. Handles different planet identifier formats (enum, name, ID)
+4. Supports multiple time formats (current time, Julian date, datetime)
+5. Provides proper error handling
+
+### Next Steps
+- Add more methods to the interface as needed (ephemeris ranges, other coordinate systems)
+- Consider implementing caching to reduce API calls for repeated requests
+- Add integration tests to verify actual API responses 
+
+## Current Task: Update HorizonsEphemeris to default to geocentric coordinates
+
+### Task Description
+The goal is to modify the `get_planet_position` method in the `HorizonsEphemeris` implementation to default to geocentric coordinates when no specific location is provided.
+
+### Progress
+[X] Modified `get_planet_position` method to default to geocentric coordinates if location is null
+[X] Fixed test issue with patching the wrong class paths
+[X] Enhanced testing strategy with proper mock objects
+[X] Ensured all tests pass, including the full test suite
+
+### Implementation Details
+1. The `get_planet_position` method in `HorizonsEphemeris` was updated to default to a geocentric location when no specific location is provided
+2. We had to fix the test file which had issues with patching
+3. Key points:
+   - We discovered that we needed to patch `starloom.horizons.ephemeris.HorizonsRequest` instead of `starloom.horizons.request.HorizonsRequest` because we need to patch the class at the point where it's imported, not where it's defined
+   - We also needed to properly patch `ObserverParser.parse` to return mock data
+   - We implemented proper checks in the tests to verify that the location parameter is correctly passed
+
+### Next Steps
+- Consider if there are any other API improvements to make
+- Document the geocentric default behavior in the docstring of relevant methods
+
+### Lessons Learned
+- When patching classes with unittest.mock, it's important to patch where they are imported, not where they're defined
+- Mock objects need to be set up properly for each test case
+- Testing location handling required careful mock setup for both the HorizonsRequest and ObserverParser classes 
+
+# Create New CLI Module for Ephemeris
+
+## Current Task
+Create a new CLI module for ephemeris in the starloom package.
+
+## Plan
+[X] Examine the existing CLI structure
+[X] Create a new ephemeris.py file in the CLI module
+[X] Implement the basic CLI command structure
+[X] Connect the new module to the main CLI
+[X] Test the new CLI module
+
+## Current Progress
+- Created ephemeris.py with a basic CLI command structure
+- Added a `position` command that fetches planet positions
+- Connected the ephemeris module to the main CLI
+- Used HorizonsEphemeris implementation as the data source
+- Added proper error handling for API failures
+- All tasks completed successfully
+
+## Key Features
+- Reused the parse_date_input functionality from the horizons CLI
+- Added support for location-based observation
+- Improved error handling with user-friendly messages
+- Properly integrated with the main CLI 
+
+# Current Task: Refactor Local Horizons Implementation
+
+## Task Overview
+Refactor the implementation to make `LocalHorizonsStorage` handle both read and write operations, with `LocalHorizonsEphemeris` as a lightweight wrapper providing the Ephemeris interface.
+
+## Progress
+[X] Move database reading functionality from `LocalHorizonsEphemeris` to `LocalHorizonsStorage`
+[X] Simplify `LocalHorizonsEphemeris` to delegate to the storage class
+[X] Update the example script to demonstrate both interfaces
+[X] Ensure `CachedHorizonsEphemeris` works with the updated architecture
+[X] Update documentation in lessons.md
+
+## Design Approach
+- `LocalHorizonsStorage` provides both reading and writing operations for the local SQLite database
+- `LocalHorizonsEphemeris` is a thin wrapper that delegates to the storage class while implementing the Ephemeris interface
+- `CachedHorizonsEphemeris` checks local storage first and falls back to the Horizons API when needed
+
+## Benefits
+- Centralizes database access logic in one place
+- Simplifies the architecture by clearly separating concerns
+- Ensures consistent handling of database operations
+- Still provides the standard Ephemeris interface for compatibility with other code
+
+## Next Steps
+- Implement more efficient querying to find the closest time point when an exact match is not found
+- Add more error handling and logging for production use
+- Consider adding a command-line interface for prefetching large amounts of data 
+
+# Current Task: Add Unit Tests for Local and Cached Horizons
+
+## Task Overview
+Create comprehensive unit tests for the LocalHorizonsStorage, LocalHorizonsEphemeris, and CachedHorizonsEphemeris classes.
+
+## Progress
+[X] Create unit tests for CachedHorizonsEphemeris
+  - [X] Test cache miss triggering API call
+  - [X] Test cache hit avoiding API call
+  - [X] Test prefetch_data functionality
+  - [X] Test fallback to API on cache failure
+[X] Create unit tests for LocalHorizonsStorage
+  - [X] Test storing and retrieving a single data point
+  - [X] Test storing and retrieving multiple data points
+  - [X] Test error handling for non-existent data
+[X] Create unit tests for LocalHorizonsEphemeris
+  - [X] Test delegating to storage layer
+  - [X] Test error handling for non-existent planet/time
+[X] Create proper test directory structure
+  - [X] tests/cached_horizons
+  - [X] tests/local_horizons
+
+## Testing Approach
+- Used unittest framework with setUp/tearDown for test setup/cleanup
+- Created temporary directories for test databases
+- Employed mocking to isolate test units and avoid real API calls
+- Tested both positive cases (success paths) and negative cases (error handling)
+- Used tempfile module to create isolated test environments
+
+## Benefits
+- Verified correctness of all three components independently
+- Validated the caching behavior functions as intended
+- Ensured proper error handling throughout the system
+- Created reusable test infrastructure for future additions
+
+## Next Steps
+- Add integration tests to verify components work together correctly
+- Implement more complex test scenarios (e.g., near-match time queries)
+- Add test coverage for edge cases (Julian date conversions, leap seconds, etc.) 
+
+# Current Task: Improve Test Coverage and Remove Example Files
+
+## Task Overview
+Create dedicated storage tests for LocalHorizonsStorage class and remove example files in favor of comprehensive unit tests.
+
+## Progress
+[X] Create dedicated test file for LocalHorizonsStorage
+  - [X] Test database creation and structure
+  - [X] Test storing and retrieving data
+  - [X] Test Julian date conversion functions
+  - [X] Test overwriting existing data
+  - [X] Test handling different planets
+  - [X] Test handling missing quantities
+[X] Remove example files
+  - [X] Delete src/starloom/local_horizons/examples.py
+  - [X] Delete src/starloom/cached_horizons/example.py
+
+## Test Improvements
+- Added dedicated test_storage.py file with comprehensive tests for the LocalHorizonsStorage class
+- Added tests for database creation to verify table structure
+- Added tests for Julian date conversion functionality
+- Added tests for overwriting existing data
+- Added tests for storing data for different planets
+- Added tests for handling missing quantities
+- Removed example files in favor of proper unit tests
+
+## Benefits
+- More comprehensive test coverage of storage functionality
+- Cleaner codebase without redundant example files
+- Better isolation of test cases
+- Clear verification of all storage operations
+- Proper testing of Julian date conversion functions
+
+## Next Steps
+- Add integration tests to verify all components work together
+- Enhance query functionality to find closest time points
+- Add CLI commands for data prefetching 
+
+# Current Task
+
+## Task Overview
+Refactoring the LocalHorizonsStorage class to use the existing Julian date functions from space_time.julian instead of reimplementing them.
+
+## Progress
+
+- [X] Identified duplicated Julian date functionality in LocalHorizonsStorage
+- [X] Replaced custom _datetime_to_julian with julian_from_datetime from space_time.julian
+- [X] Replaced custom Julian date component splitting with julian_to_julian_parts
+- [X] Updated affected tests to use the imported functions
+- [X] Document lessons learned about code reuse in lessons.md
+
+## Implementation Changes
+
+1. Removed the following methods from LocalHorizonsStorage:
+   - _datetime_to_julian: Replaced with julian_from_datetime
+   - Integrated the functionality of _get_julian_components with julian_to_julian_parts
+
+2. Updated imports in both the storage class and test file:
+   ```python
+   from ..space_time.julian import julian_from_datetime, datetime_from_julian, julian_to_julian_parts
+   ```
+
+3. Modified test methods to use the imported functions instead of the class methods that were removed.
+
+## Benefits
+
+- **Reduced Duplication**: Eliminated redundant Julian date calculation code
+- **Improved Maintainability**: Future changes to Julian date calculations only need to be made in one place
+- **Consistency**: All modules use the same calculation algorithm with the same precision
+- **Better Testability**: The core Julian date implementation is extensively tested separately
+
+## Next Steps
+
+- [ ] Consider adding timezone awareness validation to ensure all datetime objects are timezone-aware
+- [ ] Look for other areas where common functionality might be duplicated
+- [ ] Add additional utility functions to space_time.julian if needed for other astronomical calculations 
+
+# Current Task
+
+## Task Overview
+Adding a versatile utility function to space_time.julian for handling both datetime objects and Julian dates.
+
+## Progress
+
+- [X] Identified need for a flexible Julian date component handling function
+- [X] Added `get_julian_components` function to space_time.julian module that:
+  - Accepts both datetime objects and Julian date floats
+  - Returns a tuple of (julian_date_integer, julian_date_fraction)
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Updated tests to verify the new function works correctly
+- [X] All tests passing
+
+## Implementation Details
+
+1. Added a new function to space_time.julian:
+   ```python
+   def get_julian_components(time: Union[float, datetime]) -> Tuple[int, float]:
+       """Convert a time to Julian date integer and fraction components."""
+       if isinstance(time, datetime):
+           # Convert datetime to Julian date
+           jd = julian_from_datetime(time)
+       else:
+           # Assume time is already a Julian date
+           jd = time
+       
+       # Split into integer and fractional parts
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Updated storage.py to use this function instead of its own method:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+3. Added specific tests for the function with both types of input.
+
+## Benefits
+
+- **Further Reduced Duplication**: Removed need for individual classes to implement this common logic
+- **Improved API**: Added a more flexible public function to the julian module
+- **Better Type Support**: Explicit handling of Union[float, datetime] makes the API easier to use
+- **Compatibility**: Works with existing code expecting (int, float) tuple for Julian date components
+
+## Next Steps
+
+- [ ] Consider adding more utility functions for common operations
+- [ ] Add support for other date/time types (like numpy.datetime64, pandas.Timestamp)
+- [ ] Expand documentation to highlight the new function 
+
+# Current Task
+
+## Task Overview
+Removing redundant methods in LocalHorizonsStorage after adding the versatile get_julian_components function to space_time.julian.
+
+## Progress
+
+- [X] Added the flexible `get_julian_components` function to space_time.julian
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Completely removed the redundant `_get_julian_components` method from LocalHorizonsStorage
+- [X] Verified all tests still pass
+
+## Implementation Details
+
+1. The original `_get_julian_components` method in LocalHorizonsStorage:
+   ```python
+   def _get_julian_components(self, time: Union[float, datetime]) -> Tuple[int, float]:
+       if isinstance(time, datetime):
+           jd = julian_from_datetime(time)
+       else:
+           jd = time
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Was completely replaced by direct calls to the new utility function:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+## Benefits
+
+- **Code Simplification**: Removed unnecessary method, making the code cleaner
+- **Reduced Maintenance**: One less piece of code to maintain
+- **Better Organization**: Julian date handling logic now fully centralizes in space_time.julian module
+- **Better API Usage**: Using the proper abstraction level for this functionality
+
+## Next Steps
+
+- [ ] Look for similar opportunities for improvement in other classes
+- [ ] Consider adding utility functions for other common astronomical calculations
+- [ ] Add documentation about the julian module's functions in the project documentation 
+
+# Add Multiple Ephemeris Sources to CLI
+
+## Current Task
+Implement support for selecting different ephemeris sources in the CLI command.
+
+## Requirements
+- Allow users to choose between horizons, sqlite (local_horizons), and cached_horizons
+- Add a `--source` option to the CLI command
+- Handle parameter differences between implementations (e.g., location support)
+- Add `--data-dir` option for sources that need a data directory
+
+## Progress
+[X] Add imports for all ephemeris classes
+[X] Create a mapping of friendly names to ephemeris classes
+[X] Add `--source` option to the CLI command with choices from the mapping
+[X] Add `--data-dir` option for SQLite and cached sources
+[X] Handle parameter differences between implementations:
+  - Only pass location to HorizonsEphemeris
+  - Show appropriate warnings when location is ignored
+[X] Update documentation and examples
+[X] Show the source in the CLI output
+
+## Implementation Notes
+- Added a EPHEMERIS_SOURCES dictionary to map friendly names to classes
+- Set "horizons" as the default source
+- Added logic to handle different class initializations:
+  - SQLite and cached implementations need a data_dir parameter
+  - Other implementations use default constructor
+- Added conditional logic to handle different get_planet_position signatures:
+  - HorizonsEphemeris accepts a location parameter
+  - Other implementations don't support location
+- Added warning messages when location parameter is ignored
+- Updated example documentation
+
+## Lessons Learned
+- When implementing a common interface, watch for extensions in concrete implementations
+- Handle parameter differences gracefully with clear user feedback
+- Document implementation-specific behavior in lessons.md 
+
+# Remove Location Parameter from Ephemeris CLI
+
+## Current Task
+Remove the location parameter from the ephemeris CLI command.
+
+## Rationale
+- Location parameter was only fully supported by HorizonsEphemeris
+- Other ephemeris implementations don't support location
+- Removing it simplifies the CLI interface and eliminates conditional logic
+
+## Changes Made
+[X] Removed the `--location` option from the CLI command
+[X] Removed the Location import
+[X] Removed location parameter parsing logic
+[X] Removed conditional logic for handling different location support across implementations
+[X] Simplified the code to always call `get_planet_position` with only planet and time parameters
+[X] Updated the documentation examples
+
+## Result
+- Cleaner, more consistent CLI interface
+- All ephemeris sources now use the same parameter set
+- Simplified implementation without conditional logic for different source types
+- More maintainable codebase with fewer special cases
+
+## Next Steps
+- Consider implementing a separate command if location-specific ephemeris is needed in the future
+- Could potentially add a geocentric-only implementation of location functionality to all ephemeris sources 
+
+# Fix Cached Horizons Caching Issue
+
+## Current Task
+Fix issue with cached_horizons ephemeris source not reusing cached data.
+
+## Problem
+When running the same query twice with cached_horizons, it was making a new API call each time instead of using the cached data.
+
+## Analysis
+1. The problem was found in how Julian date components were being stored and retrieved from the database
+2. Key issues:
+   - In the database, `julian_date` was incorrectly stored as a float containing the full Julian date (`2460754.74091435`) 
+   - When querying, we were looking for `julian_date = 2460754` (integer part)
+   - This mismatch meant cached data was never found
+
+## Solution
+[X] Fixed julian_date storage in `store_ephemeris_quantities`:
+  - Explicitly cast to int: `"julian_date": int(jd_int)`
+  - Explicitly cast to float: `"julian_date_fraction": float(jd_frac)`
+[X] Fixed `store_ephemeris_data` to ensure julian_date is always an integer
+[X] Fixed CachedHorizonsEphemeris to properly handle Julian date conversion
+[X] Modified CachedHorizonsEphemeris to remove julian_date fields from position data before storing
+[X] Added better error handling for failed Julian date conversions
+
+## Results
+- Both cached_horizons and sqlite sources now work correctly
+- Second run of the same query with cached_horizons now uses the cache (no API call)
+- sqlite source can now access data cached by cached_horizons 
+
+# WEFT Update Plan
+
+## Task
+Update starloom's WEFT binary ephemeris format to:
+1. Create the core weft.py module in proper location
+2. Update imports in weft_reader.py and weft_generator.py
+3. Update references to horizons module
+4. Integrate with cached_horizons
+
+## Current Structure
+- weft_reader.py and weft_generator.py import classes from "lib.weft.weft"
+- They also import from "lib.horizons.quantities" and "lib.horizons.planet"
+- Code uses CachedHorizonsEphemeris for data access
+
+## Needed Actions
+
+### 1. Create weft.py core module
+- Create src/starloom/weft/weft.py with all necessary classes:
+  - WeftFile
+  - MultiYearBlock
+  - MonthlyBlock
+  - DailySectionHeader
+  - DailyDataBlock
+  - unwrap_angles function
+
+### 2. Update imports in weft_reader.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities"
+- Other imports to relative format
+
+### 3. Update imports in weft_generator.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities" 
+- Change from "lib.horizons.planet" to "..horizons.planet"
+
+### 4. Create integration with cached_horizons
+- Create cached_weft_generator.py with a function to generate .weft files using CachedHorizonsEphemeris
+- Add CLI commands for working with .weft files
+
+## Progress Tracking
+- [X] Locate all weft.py functionality from tests
+- [X] Create weft.py in src/starloom/weft
+- [X] Update imports in weft_reader.py
+- [X] Update imports in weft_generator.py
+- [X] Create cached_weft_generator.py with integration to CachedHorizonsEphemeris
+- [X] Create CLI module for weft files
+- [X] Register the CLI module with the main CLI
+- [X] Fix CLI integration to match existing format
+
+## Summary of Changes
+1. Created src/starloom/weft/weft.py with all the necessary classes and functions
+2. Updated imports in weft_reader.py and weft_generator.py to use relative imports
+3. Created cached_weft_generator.py with generate_weft_file function that uses CachedHorizonsEphemeris
+4. Created CLI module for the weft functionality
+5. Registered the CLI module with the main CLI 
+
+# Current Task: Simplify evaluate_chebyshev interface
+
+## Overview
+Modified evaluate_chebyshev to only accept List[float] instead of Union[List[float], NDArray[np.float32]] to simplify the interface and remove numpy dependency.
+
+## Changes Made
+[X] Modified evaluate_chebyshev in utils.py to only accept List[float]
+[X] Removed numpy array conversion in multi_year_block.py
+[X] Verified other blocks (forty_eight_hour_block.py and monthly_block.py) were already using List[float]
+[X] Verified tests were already using List[float]
+
+## Impact
+- Simplified interface by removing numpy dependency
+- No changes needed to calling code since most was already using List[float]
+- Removed unnecessary type conversion in multi_year_block.py
+
+## Next Steps
+None - task complete 
+
+# Current Task: Fix Type Checking in Blocks Module
+
+## Overview
+Fixed type checking issues in the blocks module by removing numpy dependencies and ensuring consistent use of List[float] for coefficients.
+
+## Changes Made
+[X] Removed unused numpy import from monthly_block.py
+[X] Removed numpy dependency from forty_eight_hour_block.py
+[X] Rewrote coefficient validation and manipulation in forty_eight_hour_block.py to use pure Python
+[X] Verified all type checking issues are fixed with mypy
+
+## Key Changes in forty_eight_hour_block.py
+1. Replaced numpy array operations with list operations
+2. Implemented NaN check using Python's property that NaN != NaN
+3. Simplified padding operation using Python list concatenation
+4. Removed all numpy type conversions
+
+## Impact
+- Simplified code by removing unnecessary numpy dependency
+- Maintained same functionality but with pure Python types
+- All files now pass mypy type checking
+
+## Next Steps
+None - task complete 
+
+# Current Task: Fix Weft Generate Command Issues
+
+## Issues Identified
+1. Fetching needs to be in batches - getting a single timestamp at a time from horizons is very slow
+2. Timestamps being requested from horizons are not on even hour steps
+3. Error during generation: TypedDict does not support instance and class checks
+
+## Root Causes
+1. The prefetch_data method in CachedHorizonsEphemeris is making individual requests for each timestamp
+2. The time step handling in the horizons request is not properly formatting the step size
+3. Type checking issue with TypedDict in the weft generation code
+
+## Plan
+[ ] Fix Batch Fetching
+  - [ ] Modify CachedHorizonsEphemeris.prefetch_data to use TimeSpec.from_range
+  - [ ] Update the horizons request to handle batch requests properly
+  - [ ] Add proper error handling for batch requests
+
+[ ] Fix Timestamp Step Size
+  - [ ] Review TimeSpec.from_range implementation
+  - [ ] Ensure step size is properly formatted for Horizons API
+  - [ ] Add validation for step size format
+  - [ ] Add tests for step size handling
+
+[ ] Fix TypedDict Error
+  - [ ] Review weft generation code for TypedDict usage
+  - [ ] Fix type checking issues
+  - [ ] Add proper type hints
+  - [ ] Add tests for type checking
+
+## Implementation Notes
+- Need to check Horizons API documentation for batch request capabilities
+- Step size format should be in the format expected by Horizons (e.g., "1h", "30m")
+- May need to add more error handling for edge cases
+- Consider adding logging for debugging
+
+# Current Task: Rename Observer Elements to Orbital Elements
+
+Need to rename "observer_elements" to "orbital_elements" in all occurrences since it was a typo.
+
+### Plan:
+[X] Create a new file `orbital_elements_parser.py` with updated content
+[X] Update imports in other files
+[X] Update test files
+[X] Update class/enum names from ObserverElementsQuantity to OrbitalElementsQuantity
+[X] Delete the old file once changes are complete
+
+✅ All tasks completed!
+
+# Scratchpad for Current Task
+
+## Task: Implement Abstract Ephemeris Interface and Horizons Implementation
+
+### Goal
+Create an abstract interface for ephemeris data sources and implement it for the JPL Horizons API.
+
+### Requirements
+- Create an abstract Ephemeris class in starloom.ephemeris module
+- Implement a HorizonsEphemeris class in starloom.horizons module
+- The interface should have a method to get a planet's position (ecliptic longitude, ecliptic latitude, distance)
+- Support different time formats (None for current time, Julian date float, or datetime)
+- Add unit tests for the implementation
+
+### Plan
+[X] Create an abstract Ephemeris class in src/starloom/ephemeris/ephemeris.py
+[X] Update the ephemeris module's __init__.py to export the Ephemeris class
+[X] Implement HorizonsEphemeris class in src/starloom/horizons/ephemeris.py
+[X] Update the horizons module's __init__.py to export the HorizonsEphemeris class
+[X] Document lessons learned in lessons.md
+[X] Create unit tests for the HorizonsEphemeris implementation
+[X] Fix implementation issues and make tests pass
+
+### Implementation Issues and Fixes
+
+1. TimePoint non-existent class:
+   - Original implementation tried to use a non-existent TimePoint class
+   - Solution: Updated to use TimeSpec.from_dates() directly with datetime objects or Julian dates
+
+2. Location.GEOCENTRIC missing:
+   - Original implementation tried to use a non-existent GEOCENTRIC constant
+   - Solution: Created a geocentric_location class attribute with "@399" which is the Horizons syntax for geocentric coordinates
+
+3. Error handling expectations:
+   - Test expected KeyError for invalid planet names, but implementation raised ValueError
+   - Solution: Updated test to expect ValueError with the correct error message
+
+### Unit Test Details
+Created comprehensive tests that verify:
+1. Different planet identifier formats:
+   - String ID (e.g., "499" for Mars)
+   - Planet enum (e.g., Planet.MARS)
+   - String enum name (e.g., "MARS")
+
+2. Different time formats:
+   - Default (current time)
+   - Julian date
+   - Datetime object with timezone
+
+3. Error handling:
+   - Empty response from API
+   - Invalid planet name
+
+4. Result validation:
+   - Verifies presence of required quantities (longitude, latitude, distance)
+   - Checks actual values against expected results from fixtures
+
+### Implementation Details
+
+The implementation:
+1. Uses the HorizonsRequest to query the JPL Horizons API
+2. Converts between the module-specific EphemerisQuantity enum and the standard Quantity enum
+3. Handles different planet identifier formats (enum, name, ID)
+4. Supports multiple time formats (current time, Julian date, datetime)
+5. Provides proper error handling
+
+### Next Steps
+- Add more methods to the interface as needed (ephemeris ranges, other coordinate systems)
+- Consider implementing caching to reduce API calls for repeated requests
+- Add integration tests to verify actual API responses 
+
+## Current Task: Update HorizonsEphemeris to default to geocentric coordinates
+
+### Task Description
+The goal is to modify the `get_planet_position` method in the `HorizonsEphemeris` implementation to default to geocentric coordinates when no specific location is provided.
+
+### Progress
+[X] Modified `get_planet_position` method to default to geocentric coordinates if location is null
+[X] Fixed test issue with patching the wrong class paths
+[X] Enhanced testing strategy with proper mock objects
+[X] Ensured all tests pass, including the full test suite
+
+### Implementation Details
+1. The `get_planet_position` method in `HorizonsEphemeris` was updated to default to a geocentric location when no specific location is provided
+2. We had to fix the test file which had issues with patching
+3. Key points:
+   - We discovered that we needed to patch `starloom.horizons.ephemeris.HorizonsRequest` instead of `starloom.horizons.request.HorizonsRequest` because we need to patch the class at the point where it's imported, not where it's defined
+   - We also needed to properly patch `ObserverParser.parse` to return mock data
+   - We implemented proper checks in the tests to verify that the location parameter is correctly passed
+
+### Next Steps
+- Consider if there are any other API improvements to make
+- Document the geocentric default behavior in the docstring of relevant methods
+
+### Lessons Learned
+- When patching classes with unittest.mock, it's important to patch where they are imported, not where they're defined
+- Mock objects need to be set up properly for each test case
+- Testing location handling required careful mock setup for both the HorizonsRequest and ObserverParser classes 
+
+# Create New CLI Module for Ephemeris
+
+## Current Task
+Create a new CLI module for ephemeris in the starloom package.
+
+## Plan
+[X] Examine the existing CLI structure
+[X] Create a new ephemeris.py file in the CLI module
+[X] Implement the basic CLI command structure
+[X] Connect the new module to the main CLI
+[X] Test the new CLI module
+
+## Current Progress
+- Created ephemeris.py with a basic CLI command structure
+- Added a `position` command that fetches planet positions
+- Connected the ephemeris module to the main CLI
+- Used HorizonsEphemeris implementation as the data source
+- Added proper error handling for API failures
+- All tasks completed successfully
+
+## Key Features
+- Reused the parse_date_input functionality from the horizons CLI
+- Added support for location-based observation
+- Improved error handling with user-friendly messages
+- Properly integrated with the main CLI 
+
+# Current Task: Refactor Local Horizons Implementation
+
+## Task Overview
+Refactor the implementation to make `LocalHorizonsStorage` handle both read and write operations, with `LocalHorizonsEphemeris` as a lightweight wrapper providing the Ephemeris interface.
+
+## Progress
+[X] Move database reading functionality from `LocalHorizonsEphemeris` to `LocalHorizonsStorage`
+[X] Simplify `LocalHorizonsEphemeris` to delegate to the storage class
+[X] Update the example script to demonstrate both interfaces
+[X] Ensure `CachedHorizonsEphemeris` works with the updated architecture
+[X] Update documentation in lessons.md
+
+## Design Approach
+- `LocalHorizonsStorage` provides both reading and writing operations for the local SQLite database
+- `LocalHorizonsEphemeris` is a thin wrapper that delegates to the storage class while implementing the Ephemeris interface
+- `CachedHorizonsEphemeris` checks local storage first and falls back to the Horizons API when needed
+
+## Benefits
+- Centralizes database access logic in one place
+- Simplifies the architecture by clearly separating concerns
+- Ensures consistent handling of database operations
+- Still provides the standard Ephemeris interface for compatibility with other code
+
+## Next Steps
+- Implement more efficient querying to find the closest time point when an exact match is not found
+- Add more error handling and logging for production use
+- Consider adding a command-line interface for prefetching large amounts of data 
+
+# Current Task: Add Unit Tests for Local and Cached Horizons
+
+## Task Overview
+Create comprehensive unit tests for the LocalHorizonsStorage, LocalHorizonsEphemeris, and CachedHorizonsEphemeris classes.
+
+## Progress
+[X] Create unit tests for CachedHorizonsEphemeris
+  - [X] Test cache miss triggering API call
+  - [X] Test cache hit avoiding API call
+  - [X] Test prefetch_data functionality
+  - [X] Test fallback to API on cache failure
+[X] Create unit tests for LocalHorizonsStorage
+  - [X] Test storing and retrieving a single data point
+  - [X] Test storing and retrieving multiple data points
+  - [X] Test error handling for non-existent data
+[X] Create unit tests for LocalHorizonsEphemeris
+  - [X] Test delegating to storage layer
+  - [X] Test error handling for non-existent planet/time
+[X] Create proper test directory structure
+  - [X] tests/cached_horizons
+  - [X] tests/local_horizons
+
+## Testing Approach
+- Used unittest framework with setUp/tearDown for test setup/cleanup
+- Created temporary directories for test databases
+- Employed mocking to isolate test units and avoid real API calls
+- Tested both positive cases (success paths) and negative cases (error handling)
+- Used tempfile module to create isolated test environments
+
+## Benefits
+- Verified correctness of all three components independently
+- Validated the caching behavior functions as intended
+- Ensured proper error handling throughout the system
+- Created reusable test infrastructure for future additions
+
+## Next Steps
+- Add integration tests to verify components work together correctly
+- Implement more complex test scenarios (e.g., near-match time queries)
+- Add test coverage for edge cases (Julian date conversions, leap seconds, etc.) 
+
+# Current Task: Improve Test Coverage and Remove Example Files
+
+## Task Overview
+Create dedicated storage tests for LocalHorizonsStorage class and remove example files in favor of comprehensive unit tests.
+
+## Progress
+[X] Create dedicated test file for LocalHorizonsStorage
+  - [X] Test database creation and structure
+  - [X] Test storing and retrieving data
+  - [X] Test Julian date conversion functions
+  - [X] Test overwriting existing data
+  - [X] Test handling different planets
+  - [X] Test handling missing quantities
+[X] Remove example files
+  - [X] Delete src/starloom/local_horizons/examples.py
+  - [X] Delete src/starloom/cached_horizons/example.py
+
+## Test Improvements
+- Added dedicated test_storage.py file with comprehensive tests for the LocalHorizonsStorage class
+- Added tests for database creation to verify table structure
+- Added tests for Julian date conversion functionality
+- Added tests for overwriting existing data
+- Added tests for storing data for different planets
+- Added tests for handling missing quantities
+- Removed example files in favor of proper unit tests
+
+## Benefits
+- More comprehensive test coverage of storage functionality
+- Cleaner codebase without redundant example files
+- Better isolation of test cases
+- Clear verification of all storage operations
+- Proper testing of Julian date conversion functions
+
+## Next Steps
+- Add integration tests to verify all components work together
+- Enhance query functionality to find closest time points
+- Add CLI commands for data prefetching 
+
+# Current Task
+
+## Task Overview
+Refactoring the LocalHorizonsStorage class to use the existing Julian date functions from space_time.julian instead of reimplementing them.
+
+## Progress
+
+- [X] Identified duplicated Julian date functionality in LocalHorizonsStorage
+- [X] Replaced custom _datetime_to_julian with julian_from_datetime from space_time.julian
+- [X] Replaced custom Julian date component splitting with julian_to_julian_parts
+- [X] Updated affected tests to use the imported functions
+- [X] Document lessons learned about code reuse in lessons.md
+
+## Implementation Changes
+
+1. Removed the following methods from LocalHorizonsStorage:
+   - _datetime_to_julian: Replaced with julian_from_datetime
+   - Integrated the functionality of _get_julian_components with julian_to_julian_parts
+
+2. Updated imports in both the storage class and test file:
+   ```python
+   from ..space_time.julian import julian_from_datetime, datetime_from_julian, julian_to_julian_parts
+   ```
+
+3. Modified test methods to use the imported functions instead of the class methods that were removed.
+
+## Benefits
+
+- **Reduced Duplication**: Eliminated redundant Julian date calculation code
+- **Improved Maintainability**: Future changes to Julian date calculations only need to be made in one place
+- **Consistency**: All modules use the same calculation algorithm with the same precision
+- **Better Testability**: The core Julian date implementation is extensively tested separately
+
+## Next Steps
+
+- [ ] Consider adding timezone awareness validation to ensure all datetime objects are timezone-aware
+- [ ] Look for other areas where common functionality might be duplicated
+- [ ] Add additional utility functions to space_time.julian if needed for other astronomical calculations 
+
+# Current Task
+
+## Task Overview
+Adding a versatile utility function to space_time.julian for handling both datetime objects and Julian dates.
+
+## Progress
+
+- [X] Identified need for a flexible Julian date component handling function
+- [X] Added `get_julian_components` function to space_time.julian module that:
+  - Accepts both datetime objects and Julian date floats
+  - Returns a tuple of (julian_date_integer, julian_date_fraction)
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Updated tests to verify the new function works correctly
+- [X] All tests passing
+
+## Implementation Details
+
+1. Added a new function to space_time.julian:
+   ```python
+   def get_julian_components(time: Union[float, datetime]) -> Tuple[int, float]:
+       """Convert a time to Julian date integer and fraction components."""
+       if isinstance(time, datetime):
+           # Convert datetime to Julian date
+           jd = julian_from_datetime(time)
+       else:
+           # Assume time is already a Julian date
+           jd = time
+       
+       # Split into integer and fractional parts
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Updated storage.py to use this function instead of its own method:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+3. Added specific tests for the function with both types of input.
+
+## Benefits
+
+- **Further Reduced Duplication**: Removed need for individual classes to implement this common logic
+- **Improved API**: Added a more flexible public function to the julian module
+- **Better Type Support**: Explicit handling of Union[float, datetime] makes the API easier to use
+- **Compatibility**: Works with existing code expecting (int, float) tuple for Julian date components
+
+## Next Steps
+
+- [ ] Consider adding more utility functions for common operations
+- [ ] Add support for other date/time types (like numpy.datetime64, pandas.Timestamp)
+- [ ] Expand documentation to highlight the new function 
+
+# Current Task
+
+## Task Overview
+Removing redundant methods in LocalHorizonsStorage after adding the versatile get_julian_components function to space_time.julian.
+
+## Progress
+
+- [X] Added the flexible `get_julian_components` function to space_time.julian
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Completely removed the redundant `_get_julian_components` method from LocalHorizonsStorage
+- [X] Verified all tests still pass
+
+## Implementation Details
+
+1. The original `_get_julian_components` method in LocalHorizonsStorage:
+   ```python
+   def _get_julian_components(self, time: Union[float, datetime]) -> Tuple[int, float]:
+       if isinstance(time, datetime):
+           jd = julian_from_datetime(time)
+       else:
+           jd = time
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Was completely replaced by direct calls to the new utility function:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+## Benefits
+
+- **Code Simplification**: Removed unnecessary method, making the code cleaner
+- **Reduced Maintenance**: One less piece of code to maintain
+- **Better Organization**: Julian date handling logic now fully centralizes in space_time.julian module
+- **Better API Usage**: Using the proper abstraction level for this functionality
+
+## Next Steps
+
+- [ ] Look for similar opportunities for improvement in other classes
+- [ ] Consider adding utility functions for other common astronomical calculations
+- [ ] Add documentation about the julian module's functions in the project documentation 
+
+# Add Multiple Ephemeris Sources to CLI
+
+## Current Task
+Implement support for selecting different ephemeris sources in the CLI command.
+
+## Requirements
+- Allow users to choose between horizons, sqlite (local_horizons), and cached_horizons
+- Add a `--source` option to the CLI command
+- Handle parameter differences between implementations (e.g., location support)
+- Add `--data-dir` option for sources that need a data directory
+
+## Progress
+[X] Add imports for all ephemeris classes
+[X] Create a mapping of friendly names to ephemeris classes
+[X] Add `--source` option to the CLI command with choices from the mapping
+[X] Add `--data-dir` option for SQLite and cached sources
+[X] Handle parameter differences between implementations:
+  - Only pass location to HorizonsEphemeris
+  - Show appropriate warnings when location is ignored
+[X] Update documentation and examples
+[X] Show the source in the CLI output
+
+## Implementation Notes
+- Added a EPHEMERIS_SOURCES dictionary to map friendly names to classes
+- Set "horizons" as the default source
+- Added logic to handle different class initializations:
+  - SQLite and cached implementations need a data_dir parameter
+  - Other implementations use default constructor
+- Added conditional logic to handle different get_planet_position signatures:
+  - HorizonsEphemeris accepts a location parameter
+  - Other implementations don't support location
+- Added warning messages when location parameter is ignored
+- Updated example documentation
+
+## Lessons Learned
+- When implementing a common interface, watch for extensions in concrete implementations
+- Handle parameter differences gracefully with clear user feedback
+- Document implementation-specific behavior in lessons.md 
+
+# Remove Location Parameter from Ephemeris CLI
+
+## Current Task
+Remove the location parameter from the ephemeris CLI command.
+
+## Rationale
+- Location parameter was only fully supported by HorizonsEphemeris
+- Other ephemeris implementations don't support location
+- Removing it simplifies the CLI interface and eliminates conditional logic
+
+## Changes Made
+[X] Removed the `--location` option from the CLI command
+[X] Removed the Location import
+[X] Removed location parameter parsing logic
+[X] Removed conditional logic for handling different location support across implementations
+[X] Simplified the code to always call `get_planet_position` with only planet and time parameters
+[X] Updated the documentation examples
+
+## Result
+- Cleaner, more consistent CLI interface
+- All ephemeris sources now use the same parameter set
+- Simplified implementation without conditional logic for different source types
+- More maintainable codebase with fewer special cases
+
+## Next Steps
+- Consider implementing a separate command if location-specific ephemeris is needed in the future
+- Could potentially add a geocentric-only implementation of location functionality to all ephemeris sources 
+
+# Fix Cached Horizons Caching Issue
+
+## Current Task
+Fix issue with cached_horizons ephemeris source not reusing cached data.
+
+## Problem
+When running the same query twice with cached_horizons, it was making a new API call each time instead of using the cached data.
+
+## Analysis
+1. The problem was found in how Julian date components were being stored and retrieved from the database
+2. Key issues:
+   - In the database, `julian_date` was incorrectly stored as a float containing the full Julian date (`2460754.74091435`) 
+   - When querying, we were looking for `julian_date = 2460754` (integer part)
+   - This mismatch meant cached data was never found
+
+## Solution
+[X] Fixed julian_date storage in `store_ephemeris_quantities`:
+  - Explicitly cast to int: `"julian_date": int(jd_int)`
+  - Explicitly cast to float: `"julian_date_fraction": float(jd_frac)`
+[X] Fixed `store_ephemeris_data` to ensure julian_date is always an integer
+[X] Fixed CachedHorizonsEphemeris to properly handle Julian date conversion
+[X] Modified CachedHorizonsEphemeris to remove julian_date fields from position data before storing
+[X] Added better error handling for failed Julian date conversions
+
+## Results
+- Both cached_horizons and sqlite sources now work correctly
+- Second run of the same query with cached_horizons now uses the cache (no API call)
+- sqlite source can now access data cached by cached_horizons 
+
+# WEFT Update Plan
+
+## Task
+Update starloom's WEFT binary ephemeris format to:
+1. Create the core weft.py module in proper location
+2. Update imports in weft_reader.py and weft_generator.py
+3. Update references to horizons module
+4. Integrate with cached_horizons
+
+## Current Structure
+- weft_reader.py and weft_generator.py import classes from "lib.weft.weft"
+- They also import from "lib.horizons.quantities" and "lib.horizons.planet"
+- Code uses CachedHorizonsEphemeris for data access
+
+## Needed Actions
+
+### 1. Create weft.py core module
+- Create src/starloom/weft/weft.py with all necessary classes:
+  - WeftFile
+  - MultiYearBlock
+  - MonthlyBlock
+  - DailySectionHeader
+  - DailyDataBlock
+  - unwrap_angles function
+
+### 2. Update imports in weft_reader.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities"
+- Other imports to relative format
+
+### 3. Update imports in weft_generator.py
+- Change from "lib.weft.weft" to ".weft"
+- Change from "lib.horizons.quantities" to "..horizons.quantities" 
+- Change from "lib.horizons.planet" to "..horizons.planet"
+
+### 4. Create integration with cached_horizons
+- Create cached_weft_generator.py with a function to generate .weft files using CachedHorizonsEphemeris
+- Add CLI commands for working with .weft files
+
+## Progress Tracking
+- [X] Locate all weft.py functionality from tests
+- [X] Create weft.py in src/starloom/weft
+- [X] Update imports in weft_reader.py
+- [X] Update imports in weft_generator.py
+- [X] Create cached_weft_generator.py with integration to CachedHorizonsEphemeris
+- [X] Create CLI module for weft files
+- [X] Register the CLI module with the main CLI
+- [X] Fix CLI integration to match existing format
+
+## Summary of Changes
+1. Created src/starloom/weft/weft.py with all the necessary classes and functions
+2. Updated imports in weft_reader.py and weft_generator.py to use relative imports
+3. Created cached_weft_generator.py with generate_weft_file function that uses CachedHorizonsEphemeris
+4. Created CLI module for the weft functionality
+5. Registered the CLI module with the main CLI 
+
+# Current Task: Simplify evaluate_chebyshev interface
+
+## Overview
+Modified evaluate_chebyshev to only accept List[float] instead of Union[List[float], NDArray[np.float32]] to simplify the interface and remove numpy dependency.
+
+## Changes Made
+[X] Modified evaluate_chebyshev in utils.py to only accept List[float]
+[X] Removed numpy array conversion in multi_year_block.py
+[X] Verified other blocks (forty_eight_hour_block.py and monthly_block.py) were already using List[float]
+[X] Verified tests were already using List[float]
+
+## Impact
+- Simplified interface by removing numpy dependency
+- No changes needed to calling code since most was already using List[float]
+- Removed unnecessary type conversion in multi_year_block.py
+
+## Next Steps
+None - task complete 
+
+# Current Task: Fix Type Checking in Blocks Module
+
+## Overview
+Fixed type checking issues in the blocks module by removing numpy dependencies and ensuring consistent use of List[float] for coefficients.
+
+## Changes Made
+[X] Removed unused numpy import from monthly_block.py
+[X] Removed numpy dependency from forty_eight_hour_block.py
+[X] Rewrote coefficient validation and manipulation in forty_eight_hour_block.py to use pure Python
+[X] Verified all type checking issues are fixed with mypy
+
+## Key Changes in forty_eight_hour_block.py
+1. Replaced numpy array operations with list operations
+2. Implemented NaN check using Python's property that NaN != NaN
+3. Simplified padding operation using Python list concatenation
+4. Removed all numpy type conversions
+
+## Impact
+- Simplified code by removing unnecessary numpy dependency
+- Maintained same functionality but with pure Python types
+- All files now pass mypy type checking
+
+## Next Steps
+None - task complete 
