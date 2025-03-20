@@ -18,6 +18,7 @@ from .weft_writer import WeftWriter
 from ..ephemeris.time_spec import TimeSpec
 from ..ephemeris.ephemeris import Ephemeris
 from .ephemeris_data_source import EphemerisDataSource
+from .block_selection import get_recommended_blocks
 
 
 def generate_weft_file(
@@ -42,7 +43,7 @@ def generate_weft_file(
         output_path: Path where the .weft file should be saved
         ephemeris: Optional ephemeris source to use. If None, CachedHorizonsEphemeris will be used
         data_dir: Directory for data storage (only used if ephemeris is None)
-        config: Configuration for the WEFT generator
+        config: Configuration for the WEFT generator (if None, will be auto-configured)
         step_hours: Step size in hours for sampling ephemeris data
 
     Returns:
@@ -90,23 +91,6 @@ def generate_weft_file(
     if ephemeris is None:
         ephemeris = CachedHorizonsEphemeris(data_dir=data_dir)
 
-    # Create default config if none provided
-    if config is None:
-        # Default to a configuration with century, monthly, and daily blocks
-        config = {
-            "century": {"enabled": True, "samples_per_year": 12, "degree": 20},
-            "monthly": {
-                "enabled": True,
-                "samples_per_month": 30,
-                "degree": 10,
-            },
-            "daily": {
-                "enabled": True,
-                "samples_per_day": 48,
-                "degree": 8,
-            },
-        }
-
     # Create the writer
     writer = WeftWriter(quantity=ephemeris_quantity)
 
@@ -126,6 +110,14 @@ def generate_weft_file(
         planet_enum = Planet[planet_name.upper()]
     except KeyError:
         raise ValueError(f"Planet {planet_name} is not a valid Planet enum member")
+
+    # Use provided config or get recommended blocks based on data
+    if config is None:
+        config = get_recommended_blocks(data_source)
+        print("Using auto-configured blocks based on data availability:")
+        for block_type, settings in config.items():
+            if settings.get("enabled", False):
+                print(f"  {block_type}: {settings}")
 
     weft_file = writer.create_multi_precision_file(
         data_source=data_source,
