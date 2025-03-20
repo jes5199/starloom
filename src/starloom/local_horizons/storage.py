@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, select, or_
+from sqlalchemy import create_engine, select, or_, and_
 from sqlalchemy.orm import Session
 
 from ..ephemeris.quantities import Quantity
@@ -77,7 +77,7 @@ class LocalHorizonsStorage:
             conditions = []
             for jd, jd_fraction in julian_components:
                 conditions.append(
-                    (
+                    and_(
                         HorizonsGlobalEphemerisRow.julian_date == jd,
                         HorizonsGlobalEphemerisRow.julian_date_fraction == jd_fraction,
                     )
@@ -86,7 +86,7 @@ class LocalHorizonsStorage:
             # Build the query with all time points
             query = select(HorizonsGlobalEphemerisRow).where(
                 HorizonsGlobalEphemerisRow.body == body,
-                or_(*[(row_cond[0] & row_cond[1]) for row_cond in conditions]),
+                or_(*conditions),
             )
 
             # Execute query and process results
@@ -95,11 +95,11 @@ class LocalHorizonsStorage:
             # Convert results to the required format
             output: Dict[float, Dict[Quantity, Any]] = {}
             for result in results:
-                jd = result.julian_date + result.julian_date_fraction
+                # Round to 9 decimal places for consistent precision
+                jd = round(result.julian_date + result.julian_date_fraction, 9)
                 output[jd] = {
                     Quantity.BODY: result.body,
-                    Quantity.JULIAN_DATE: result.julian_date
-                    + result.julian_date_fraction,
+                    Quantity.JULIAN_DATE: jd,
                     Quantity.DATE_TIME: result.date_time,
                     Quantity.RIGHT_ASCENSION: result.right_ascension,
                     Quantity.DECLINATION: result.declination,

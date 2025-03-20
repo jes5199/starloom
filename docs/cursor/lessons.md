@@ -600,3 +600,13 @@ When adding CLI modules to starloom:
 3. Be careful with TypedDict type checking - use proper type hints instead of runtime checks
 4. Add proper error handling and logging for debugging
 5. Consider adding tests specifically for batch request handling and time step formatting 
+
+## Julian Date Precision
+
+When working with Julian dates in the codebase:
+- Always use `JD_PRECISION` (9 decimal places) from `space_time/julian.py`
+- Round Julian dates consistently when storing and querying from the database
+- Be aware that Python's float precision can exceed our storage precision, causing cache misses
+- Use `round(jd, JD_PRECISION)` when comparing Julian dates for equality
+
+Example bug: Cache misses occurred when `2460754.3333333335` (query) didn't match `2460754.333333333` (stored). 

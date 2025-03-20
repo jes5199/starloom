@@ -14,7 +14,7 @@ from ..ephemeris.quantities import Quantity
 from ..horizons.ephemeris import HorizonsEphemeris
 from ..local_horizons.storage import LocalHorizonsStorage
 from ..ephemeris.time_spec import TimeSpec
-from ..space_time.julian import datetime_from_julian
+from ..space_time.julian import datetime_from_julian, julian_from_datetime, JD_PRECISION
 
 
 logger = logging.getLogger(__name__)
@@ -154,8 +154,9 @@ class CachedHorizonsEphemeris(Ephemeris):
         # First try to get all data points from local storage
         try:
             local_data = self.storage.get_ephemeris_data_bulk(planet, time_spec)
-        except ValueError:
-            local_data = {}
+        except ValueError as e:
+            logger.debug(f"Error getting data from local storage: {e}")
+            local_data = {}  # Start with empty dict but don't assume all data is missing
 
         # Get all time points from the TimeSpec
         all_time_points = time_spec.get_time_points()
@@ -164,10 +165,11 @@ class CachedHorizonsEphemeris(Ephemeris):
         all_julian_dates = []
         for time_point in all_time_points:
             if isinstance(time_point, datetime):
-                jd = time_point.timestamp() / 86400 + 2440587.5
+                jd = round(julian_from_datetime(time_point), JD_PRECISION)
                 all_julian_dates.append(jd)
             else:
-                all_julian_dates.append(time_point)
+                jd = round(time_point, JD_PRECISION)
+                all_julian_dates.append(jd)
 
         # Find which time points are missing from local storage
         missing_times = [jd for jd in all_julian_dates if jd not in local_data]
@@ -204,7 +206,14 @@ class CachedHorizonsEphemeris(Ephemeris):
                         f"Failed to store data point for {planet} at JD {jd}: {e}"
                     )
 
-            # Update local_data with the new points
-            local_data.update(horizons_data)
+            # Try to get all data from local storage again
+            try:
+                local_data = self.storage.get_ephemeris_data_bulk(planet, time_spec)
+            except ValueError as e:
+                logger.error(
+                    f"Failed to get data from local storage after storing new data: {e}"
+                )
+                # Fall back to combining local and Horizons data
+                local_data.update(horizons_data)
 
         return local_data
