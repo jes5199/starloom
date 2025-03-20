@@ -16,8 +16,8 @@ from .weft import (
 )
 
 from .weft_reader import WeftReader
-from .weft_generator import WeftGenerator
-from .cached_weft_generator import generate_weft_file
+from .weft_writer import WeftWriter
+from .ephemeris_weft_generator import generate_weft_file
 
 __all__ = [
     "WeftFile",
@@ -28,6 +28,6 @@ __all__ = [
     "evaluate_chebyshev",
     "unwrap_angles",
     "WeftReader",
-    "WeftGenerator",
+    "WeftWriter",
     "generate_weft_file",
 ]

@@ -6,7 +6,7 @@ using the local horizons storage for faster access to previously queried data.
 """
 
 from typing import Dict, Any, Optional, Union
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 
 from ..ephemeris.ephemeris import Ephemeris

@@ -1,8 +1,8 @@
 """
-Utility function to generate .weft files using CachedHorizonsEphemeris.
+Utility function to generate .weft files from ephemeris data.
 
-This module provides a convenient wrapper around WeftGenerator that
-uses CachedHorizonsEphemeris as a data source for generating .weft files.
+This module provides a wrapper around WeftWriter that
+uses an ephemeris source to generate .weft files.
 """
 
 from datetime import datetime
@@ -14,8 +14,9 @@ from ..horizons.planet import Planet
 from ..ephemeris.quantities import Quantity
 from ..horizons.quantities import EphemerisQuantity
 from ..horizons.parsers import OrbitalElementsQuantity
-from .weft_generator import WeftGenerator
+from .weft_writer import WeftWriter
 from ..ephemeris.time_spec import TimeSpec
+from ..ephemeris.ephemeris import Ephemeris
 
 
 def generate_weft_file(
@@ -24,13 +25,14 @@ def generate_weft_file(
     start_date: datetime,
     end_date: datetime,
     output_path: str,
+    ephemeris: Optional[Ephemeris] = None,
     data_dir: str = "./data",
     config: Optional[Dict[str, Any]] = None,
     prefetch: bool = True,
     prefetch_step_hours: int = 24,
 ) -> str:
     """
-    Generate a .weft file for a planet and quantity using CachedHorizonsEphemeris.
+    Generate a .weft file for a planet and quantity using an ephemeris source.
 
     Args:
         planet: The planet to generate data for (can be a Planet enum or a string name)
@@ -38,10 +40,11 @@ def generate_weft_file(
         start_date: The start date for the ephemeris data
         end_date: The end date for the ephemeris data
         output_path: Path where the .weft file should be saved
-        data_dir: Directory for the cached_horizons data
+        ephemeris: Optional ephemeris source to use. If None, CachedHorizonsEphemeris will be used
+        data_dir: Directory for data storage (only used if ephemeris is None)
         config: Configuration for the WEFT generator
-        prefetch: Whether to prefetch data before generating
-        prefetch_step_hours: Step size in hours for prefetching data
+        prefetch: Whether to prefetch data before generating (only applies to CachedHorizonsEphemeris)
+        prefetch_step_hours: Step size in hours for prefetching data (only applies to CachedHorizonsEphemeris)
 
     Returns:
         The path to the generated .weft file
@@ -84,16 +87,15 @@ def generate_weft_file(
     if ephemeris_quantity is None:
         raise ValueError(f"Unsupported quantity: {quantity}")
 
-    # Create the ephemeris client
-    ephemeris = CachedHorizonsEphemeris(data_dir=data_dir)
+    # Create or use provided ephemeris client
+    if ephemeris is None:
+        ephemeris = CachedHorizonsEphemeris(data_dir=data_dir)
 
-    # Prefetch data if requested
-    if prefetch:
+    # Prefetch data if requested and if using CachedHorizonsEphemeris
+    if prefetch and isinstance(ephemeris, CachedHorizonsEphemeris):
         print(f"Prefetching data for {planet_name} from {start_date} to {end_date}...")
         time_spec = TimeSpec.from_range(
-            start_date=start_date,
-            end_date=end_date,
-            step_hours=prefetch_step_hours
+            start_date=start_date, end_date=end_date, step_hours=prefetch_step_hours
         )
         # This will fetch and cache all the data points we need
         ephemeris.get_planet_positions(planet_id, time_spec)
@@ -115,8 +117,8 @@ def generate_weft_file(
             },
         }
 
-    # Create the generator
-    generator = WeftGenerator(quantity=ephemeris_quantity)
+    # Create the writer
+    writer = WeftWriter(quantity=ephemeris_quantity)
 
     # Create a value function that fetches data from the ephemeris
     def value_func(dt: datetime) -> float:
@@ -142,7 +144,7 @@ def generate_weft_file(
     except KeyError:
         raise ValueError(f"Planet {planet_name} is not a valid Planet enum member")
 
-    weft_file = generator.create_multi_precision_file(
+    weft_file = writer.create_multi_precision_file(
         value_func=value_func,
         body=planet_enum,
         quantity=ephemeris_quantity,
@@ -156,7 +158,7 @@ def generate_weft_file(
     os.makedirs(output_dir, exist_ok=True)
 
     # Save the file
-    generator.save_file(weft_file, output_path)
+    writer.save_file(weft_file, output_path)
 
     print(f"Successfully generated .weft file at {output_path}")
     return output_path
