@@ -573,3 +573,30 @@ When adding CLI modules to starloom:
 - Keep type hints consistent across the codebase (e.g., using List[float] consistently)
 - When removing numpy from a module, also check and update the corresponding test files
 - Remember to update test assertions that use numpy functions (e.g., replace np.all with Python's all()) 
+
+## Weft Generate Command Issues
+
+### Batch Fetching from Horizons API
+- The Horizons API is much more efficient when fetching data in batches rather than individual timestamps
+- Current implementation in CachedHorizonsEphemeris.prefetch_data makes individual requests for each timestamp
+- Need to modify to use TimeSpec.from_range for batch requests
+- This will significantly improve performance when generating .weft files
+
+### Time Step Handling
+- Timestamps being requested from Horizons need to be on even hour steps
+- Current implementation may be requesting timestamps at arbitrary intervals
+- Need to ensure step size is properly formatted for Horizons API (e.g., "1h", "30m")
+- TimeSpec.from_range should be reviewed to ensure it handles step sizes correctly
+
+### Type Checking with TypedDict
+- Error "TypedDict does not support instance and class checks" indicates incorrect type checking
+- TypedDict is a special type that doesn't support isinstance() checks
+- Need to use proper type hints and avoid direct type checking of TypedDict instances
+- Consider using Protocol classes or other type checking approaches for runtime type validation
+
+### Best Practices
+1. Always use batch requests when possible with external APIs
+2. Validate and format time steps according to API requirements
+3. Be careful with TypedDict type checking - use proper type hints instead of runtime checks
+4. Add proper error handling and logging for debugging
+5. Consider adding tests specifically for batch request handling and time step formatting 
