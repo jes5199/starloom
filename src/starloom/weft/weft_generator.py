@@ -12,6 +12,8 @@ from .weft import (
     FortyEightHourBlock,
     WeftFile,
     BlockType,
+    RangedBehavior,
+    UnboundedBehavior,
 )
 from ..horizons.quantities import (
     EphemerisQuantity,
@@ -45,6 +47,42 @@ class WeftGenerator:
             ]
             else "bounded"
         )
+
+        # Initialize value behavior based on quantity
+        if self.wrapping_behavior == "wrapping":
+            if quantity == EphemerisQuantity.RIGHT_ASCENSION:
+                # Right ascension is in hours [0, 24)
+                self.value_behavior: Union[RangedBehavior, UnboundedBehavior] = RangedBehavior(
+                    type="wrapping",
+                    range=(0.0, 24.0),
+                )
+            else:
+                # Other angles are in degrees [0, 360)
+                self.value_behavior = RangedBehavior(
+                    type="wrapping",
+                    range=(0.0, 360.0),
+                )
+        elif quantity == EphemerisQuantity.ECLIPTIC_LATITUDE:
+            # Latitude is bounded [-90, 90]
+            self.value_behavior = RangedBehavior(
+                type="bounded",
+                range=(-90.0, 90.0),
+            )
+        elif quantity == EphemerisQuantity.PHASE_ANGLE:
+            # Phase angle is bounded [0, 180]
+            self.value_behavior = RangedBehavior(
+                type="bounded",
+                range=(0.0, 180.0),
+            )
+        elif quantity == EphemerisQuantity.ILLUMINATED_FRACTION:
+            # Illumination is bounded [0, 1]
+            self.value_behavior = RangedBehavior(
+                type="bounded",
+                range=(0.0, 1.0),
+            )
+        else:
+            # Other quantities are unbounded
+            self.value_behavior = UnboundedBehavior(type="unbounded")
 
     def _generate_samples(
         self,
@@ -528,13 +566,24 @@ class WeftGenerator:
         # Create preamble
         now = datetime.utcnow()
         timespan = f"{start_date.year}-{end_date.year}"
+        
+        # Add value behavior range to preamble if applicable
+        behavior_str = self.wrapping_behavior
+        if isinstance(self.value_behavior, RangedBehavior):
+            min_val, max_val = self.value_behavior["range"]
+            behavior_str = f"{behavior_str}[{min_val},{max_val}]"
+        
         preamble = (
             f"#weft! v0.02 {body.name} jpl:horizons {timespan} "
-            f"32bit {quantity.name} {self.wrapping_behavior} chebychevs "
+            f"32bit {quantity.name} {behavior_str} chebychevs "
             f"generated@{now.isoformat()}\n"
         )
 
-        return WeftFile(preamble=preamble, blocks=blocks)
+        return WeftFile(
+            preamble=preamble,
+            blocks=blocks,
+            value_behavior=self.value_behavior,
+        )
 
     def save_file(self, weft_file: WeftFile, output_path: str) -> None:
         """

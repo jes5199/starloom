@@ -45,24 +45,37 @@ def generate(
     prefetch_step: int,
 ) -> None:
     """Generate a .weft binary ephemeris file."""
+    print(f"Starting generation with parameters:")
+    print(f"  Planet: {planet}")
+    print(f"  Quantity: {quantity}")
+    print(f"  Start date: {start_date}")
+    print(f"  End date: {end_date}")
+    print(f"  Output: {output}")
+    print(f"  Data dir: {data_dir}")
+    print(f"  Prefetch: {prefetch}")
+    print(f"  Prefetch step: {prefetch_step}")
+
     # Parse dates
     try:
+        print("Parsing dates...")
         start_dt = parse_date_input(start_date)
         end_dt = parse_date_input(end_date)
 
         # Convert to datetime if it's a Julian date
         if isinstance(start_dt, float):
             from ..space_time.julian import datetime_from_julian
-
+            print("Converting start date from Julian...")
             start_dt = datetime_from_julian(start_dt)
         if isinstance(end_dt, float):
             from ..space_time.julian import datetime_from_julian
-
+            print("Converting end date from Julian...")
             end_dt = datetime_from_julian(end_dt)
+        print(f"Parsed dates: {start_dt} to {end_dt}")
     except ValueError as e:
         raise click.BadParameter(f"Invalid date format: {e}")
 
     # Get the ephemeris quantity
+    print("Looking up ephemeris quantity...")
     ephemeris_quantity = None
     for eq in EphemerisQuantity:
         if eq.name == quantity:
@@ -71,18 +84,22 @@ def generate(
 
     if ephemeris_quantity is None:
         raise click.BadParameter(f"Unknown quantity: {quantity}")
+    print(f"Found ephemeris quantity: {ephemeris_quantity}")
 
     # Ensure output path has extension
     if not output.endswith(".weft"):
         output = f"{output}.weft"
+    print(f"Using output path: {output}")
 
     # Ensure output directory exists
     output_dir = os.path.dirname(os.path.abspath(output))
     if output_dir and not os.path.exists(output_dir):
+        print(f"Creating output directory: {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
 
     try:
         # Generate the file
+        print("Generating .weft file...")
         file_path = generate_weft_file(
             planet=planet,
             quantity=ephemeris_quantity,
@@ -96,6 +113,7 @@ def generate(
 
         click.echo(f"Successfully generated .weft file: {file_path}")
     except Exception as e:
+        print(f"Error during generation: {str(e)}")
         raise click.ClickException(f"Error generating .weft file: {e}")
 
 
