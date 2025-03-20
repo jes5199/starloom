@@ -4,11 +4,10 @@ import unittest
 from datetime import datetime, timezone
 from starloom.space_time.julian import (
     julian_from_datetime,
-    julian_from_datetime_with_microseconds,
     julian_to_datetime,
-    julian_to_int_frac,
-    julian_parts_from_datetime,
-    julian_parts_from_datetimes,
+    julian_to_julian_parts,
+    datetime_to_julian_parts,
+    list_of_datetime_to_list_of_julian_parts,
 )
 from starloom.space_time.rounding import create_and_round_to_millisecond
 
@@ -23,12 +22,6 @@ class TestJulianDateConversion(unittest.TestCase):
         jd = julian_from_datetime(dt)
         self.assertAlmostEqual(jd, 2460754.208333333, places=9)
 
-    def test_julian_from_datetime_with_microseconds(self):
-        """Test converting datetime with microseconds to Julian date."""
-        dt = datetime(2025, 3, 19, 17, 0, 0, 123456, tzinfo=timezone.utc)
-        jd = julian_from_datetime_with_microseconds(dt)
-        self.assertAlmostEqual(jd, 2460754.208334762, places=9)
-
     def test_julian_to_datetime(self):
         """Test converting Julian date to datetime."""
         # Test a specific Julian date from the Horizons API response
@@ -37,27 +30,27 @@ class TestJulianDateConversion(unittest.TestCase):
         expected = datetime(2025, 3, 19, 17, 0, tzinfo=timezone.utc)
         self.assertEqual(dt, expected)
 
-    def test_julian_to_int_frac(self):
+    def test_julian_to_julian_parts(self):
         """Test splitting Julian date into integer and fractional parts."""
         jd = 2460754.208333333
-        jd_int, jd_frac = julian_to_int_frac(jd)
+        jd_int, jd_frac = julian_to_julian_parts(jd)
         self.assertEqual(jd_int, 2460754)
         self.assertAlmostEqual(jd_frac, 0.208333333, places=9)
 
-    def test_julian_parts_from_datetime(self):
+    def test_datetime_to_julian_parts(self):
         """Test getting Julian date parts from datetime."""
         dt = datetime(2025, 3, 19, 17, 0, tzinfo=timezone.utc)
-        jd_int, jd_frac = julian_parts_from_datetime(dt)
+        jd_int, jd_frac = datetime_to_julian_parts(dt)
         self.assertEqual(jd_int, 2460754)
         self.assertAlmostEqual(jd_frac, 0.208333333, places=9)
 
-    def test_julian_parts_from_datetimes(self):
+    def test_list_of_datetime_to_list_of_julian_parts(self):
         """Test getting Julian date parts from multiple datetimes."""
         dts = [
             datetime(2025, 3, 19, 17, 0, tzinfo=timezone.utc),
             datetime(2025, 3, 20, 17, 0, tzinfo=timezone.utc),
         ]
-        parts = julian_parts_from_datetimes(dts)
+        parts = list_of_datetime_to_list_of_julian_parts(dts)
         self.assertEqual(len(parts), 2)
         self.assertEqual(parts[0][0], 2460754)
         self.assertAlmostEqual(parts[0][1], 0.208333333, places=9)

@@ -21,19 +21,6 @@ def julian_from_datetime(dt: datetime) -> float:
     return datetime_to_julian(dt)
 
 
-def julian_from_datetime_with_microseconds(dt: datetime) -> float:
-    """Convert datetime to Julian date with microsecond precision.
-
-    Args:
-        dt: Datetime to convert
-
-    Returns:
-        float: Julian date with microsecond precision
-    """
-    dt = ensure_utc(dt)
-    return datetime_to_julian(dt)
-
-
 def julian_to_datetime(jd: float) -> datetime:
     """Convert Julian date to datetime.
 
@@ -49,7 +36,7 @@ def julian_to_datetime(jd: float) -> datetime:
     )
 
 
-def julian_to_int_frac(jd: float) -> Tuple[int, float]:
+def julian_to_julian_parts(jd: float) -> Tuple[int, float]:
     """Split Julian date into integer and fractional parts.
 
     Args:
@@ -63,7 +50,7 @@ def julian_to_int_frac(jd: float) -> Tuple[int, float]:
     return jd_int, jd_frac
 
 
-def julian_parts_from_datetime(dt: datetime) -> Tuple[int, float]:
+def datetime_to_julian_parts(dt: datetime) -> Tuple[int, float]:
     """Get integer and fractional parts of Julian date.
 
     Args:
@@ -73,10 +60,12 @@ def julian_parts_from_datetime(dt: datetime) -> Tuple[int, float]:
         Tuple[int, float]: Integer and fractional parts
     """
     jd = julian_from_datetime(dt)
-    return julian_to_int_frac(jd)
+    return julian_to_julian_parts(jd)
 
 
-def julian_parts_from_datetimes(dates: List[datetime]) -> List[Tuple[int, float]]:
+def list_of_datetime_to_list_of_julian_parts(
+    dates: List[datetime],
+) -> List[Tuple[int, float]]:
     """Get integer and fractional parts of Julian dates.
 
     Args:
@@ -85,4 +74,4 @@ def julian_parts_from_datetimes(dates: List[datetime]) -> List[Tuple[int, float]
     Returns:
         List[Tuple[int, float]]: List of integer and fractional parts
     """
-    return [julian_parts_from_datetime(date) for date in dates]
+    return [datetime_to_julian_parts(date) for date in dates]
