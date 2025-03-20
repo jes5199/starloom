@@ -1,3 +1,30 @@
+# Improve Ephemeris CLI Output Formatting
+
+## Current Task
+Improve the output formatting of the ephemeris CLI command to display planetary positions in a more human-readable format.
+
+## Changes
+[X] Added zodiac sign calculation function to convert ecliptic longitude to zodiac sign and degrees
+[X] Added latitude formatting with N/S direction
+[X] Formatted distance in AU with 2 decimal places
+[X] Displayed date in both human readable format and Julian date
+[X] Implemented robust type checking to handle potential non-numeric values
+[X] Fixed formatting issues with proper type checking
+
+## Result
+- Output now shows:
+  - Line 1: Human readable date (and Julian date if available)
+  - Line 2: Planet name, zodiac position, latitude, and distance
+- Examples:
+  - `2025-03-20 04:57:58 UTC`
+  - `Venus 4° Aries, 8.5°N, 0.28 AU`
+
+## Benefits
+- More user-friendly output format
+- Astrologically meaningful representation with zodiac signs
+- Easier to read and understand at a glance
+- Consistent formatting across all planets
+
 # Simplify Ephemeris CLI Command
 
 ## Current Task

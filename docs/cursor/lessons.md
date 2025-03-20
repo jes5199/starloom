@@ -286,3 +286,26 @@ When working with the JPL Horizons API, it's important to understand the distinc
    - Use HorizonsRequestObserverQuantities for making requests
    - Use EphemerisQuantity for parsing responses
    - Maintain a clear mapping between the two for consistency 
+
+## User-Friendly CLI Output Formatting
+
+1. When displaying astronomical data to users:
+   - Convert technical values to human-readable formats (e.g., zodiac signs for ecliptic longitudes)
+   - Use appropriate units with proper abbreviations (e.g., "AU" for astronomical units)
+   - Include directional indicators where appropriate (e.g., "N" for north, "S" for south)
+   - Format numerical values with appropriate precision (e.g., limit decimal places)
+   - Group related information logically (e.g., date on one line, position on another)
+
+2. When formatting output from API data:
+   - Always validate and type-check values before formatting
+   - Handle empty or null values gracefully with reasonable defaults
+   - Provide appropriate error messages if data cannot be formatted
+   - Use consistent formatting across similar data types
+   - Consider both technical accuracy and user readability
+
+3. Formatting zodiac positions:
+   - Divide the ecliptic longitude (0-360°) into 12 equal segments of 30° each
+   - Map each segment to the appropriate zodiac sign (Aries starting at 0°, Taurus at 30°, etc.)
+   - Convert the longitude within each sign to degrees (0-29°)
+   - Use proper symbols for degrees (°) and directional indicators (N/S)
+   - Consider audience familiarity with terminology when choosing formats 
