@@ -29,7 +29,7 @@ def generate_weft_file(
     data_dir: str = "./data",
     config: Optional[Dict[str, Any]] = None,
     prefetch: bool = True,
-    prefetch_step_hours: int = 24,
+    step_hours: int = 24,
 ) -> str:
     """
     Generate a .weft file for a planet and quantity using an ephemeris source.
@@ -44,7 +44,7 @@ def generate_weft_file(
         data_dir: Directory for data storage (only used if ephemeris is None)
         config: Configuration for the WEFT generator
         prefetch: Whether to prefetch data before generating (only applies to CachedHorizonsEphemeris)
-        prefetch_step_hours: Step size in hours for prefetching data (only applies to CachedHorizonsEphemeris)
+        step_hours: Step size in hours for sampling ephemeris data
 
     Returns:
         The path to the generated .weft file
@@ -95,7 +95,7 @@ def generate_weft_file(
     if prefetch and isinstance(ephemeris, CachedHorizonsEphemeris):
         print(f"Prefetching data for {planet_name} from {start_date} to {end_date}...")
         time_spec = TimeSpec.from_range(
-            start_date=start_date, end_date=end_date, step_hours=prefetch_step_hours
+            start_date=start_date, end_date=end_date, step_hours=step_hours
         )
         # This will fetch and cache all the data points we need
         ephemeris.get_planet_positions(planet_id, time_spec)
