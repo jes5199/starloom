@@ -75,3 +75,9 @@ When developing command-line interfaces with Click:
    - Commands in different groups can have the same name without conflict
    - Commands within the same group must have unique names (or set with the `name` parameter)
    - Always validate your command structure with `--help` flags 
+
+## Implementation Notes
+- When parsing CSV data, it's better to use the standard csv library than manually splitting by commas
+- Some fixtures in the tests/fixtures directory may contain error messages rather than valid data
+- When working with column-based data, it's good to dynamically map column indices to quantity enums
+- There are two different ObserverParser implementations in the codebase that should eventually be consolidated 

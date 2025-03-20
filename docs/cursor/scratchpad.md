@@ -274,3 +274,26 @@ Fix linting issues identified by Ruff in the Horizons CLI module.
 - Using Click's `name` parameter is a clean way to resolve function name conflicts
 - Always make sure to import all required classes and modules
 - Running the linter regularly helps catch issues before they cause problems 
+
+# ObserverParser Implementation
+
+## Task
+Improve the ObserverParser to be more general and handle different column types from JPL Horizons API responses.
+
+## Implementation Decision
+We identified that there are two ObserverParser implementations in the codebase:
+1. A standalone one in `src/starloom/horizons/observer_parser.py`
+2. One in the parsers module in `src/starloom/horizons/parsers/observer.py` that inherits from BaseHorizonsParser
+
+Since the standalone parser is actually being used in the test code, and the parsers module doesn't appear to be imported or used anywhere in the codebase, we decided to update the standalone parser to handle the general case.
+
+## Changes Made
+1. Enhanced ObserverParser to dynamically detect and map columns in the horizons response
+2. Used csv parsing to correctly handle CSV formatting
+3. Added support for mapping between Quantity and EphemerisQuantity enums
+4. Added a normalize_column_name utility function to standardize column names
+5. Updated the tests to work with the new implementation
+
+## Future Work
+1. Eventually we may want to consolidate the two implementations
+2. Consider making the standalone parser inherit from BaseHorizonsParser for consistency 

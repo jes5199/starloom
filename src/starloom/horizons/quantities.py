@@ -1,8 +1,21 @@
 from enum import Enum
 from typing import Optional, List, Dict, Union
 from dataclasses import dataclass
+import re
 
 from ..ephemeris import Quantity
+
+
+def normalize_column_name(key: str) -> str:
+    """Normalize column name by replacing multiple underscores with a single one.
+
+    Args:
+        key: Column name to normalize
+
+    Returns:
+        Normalized column name
+    """
+    return re.sub(r"_+", "_", key.strip())
 
 
 class HorizonsRequestObserverQuantities(Enum):
