@@ -83,21 +83,3 @@ def unwrap_angles(angles: List[float]) -> List[float]:
         unwrapped.append(unwrapped[i - 1] + diff)
 
     return unwrapped
-
-
-def _ensure_timezone_aware(dt: datetime) -> datetime:
-    """
-    Ensure a datetime has timezone information, adding UTC if it doesn't.
-
-    Args:
-        dt: Datetime to check
-
-    Returns:
-        Timezone-aware datetime
-
-    Raises:
-        ValueError: If the datetime is naive (no timezone)
-    """
-    if dt.tzinfo is None:
-        raise ValueError("Datetime must have timezone information")
-    return dt.astimezone(timezone.utc)

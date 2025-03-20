@@ -10,7 +10,8 @@ from datetime import datetime
 from typing import List, BinaryIO
 import numpy as np
 
-from .utils import evaluate_chebyshev, _ensure_timezone_aware
+from .utils import evaluate_chebyshev
+from starloom.space_time.pythonic_datetimes import ensure_utc
 
 
 class MonthlyBlock:
@@ -110,7 +111,7 @@ class MonthlyBlock:
             True if the datetime is within range
         """
         # Ensure timezone awareness
-        dt = _ensure_timezone_aware(dt)
+        dt = ensure_utc(dt)
 
         return dt.year == self.year and dt.month == self.month
 
@@ -128,7 +129,7 @@ class MonthlyBlock:
             ValueError: If the datetime is outside the block's range
         """
         # Ensure timezone awareness
-        dt = _ensure_timezone_aware(dt)
+        dt = ensure_utc(dt)
 
         if not self.contains(dt):
             raise ValueError(f"Datetime {dt} is outside the block's range")

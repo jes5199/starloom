@@ -11,7 +11,8 @@ from datetime import datetime
 from typing import List, BinaryIO
 import numpy as np
 
-from .utils import evaluate_chebyshev, _ensure_timezone_aware
+from .utils import evaluate_chebyshev
+from starloom.space_time.pythonic_datetimes import ensure_utc
 
 
 class MultiYearBlock:
@@ -89,7 +90,7 @@ class MultiYearBlock:
             True if the datetime is within range
         """
         # Ensure timezone awareness
-        dt = _ensure_timezone_aware(dt)
+        dt = ensure_utc(dt)
 
         year = dt.year
         return self.start_year <= year < self.start_year + self.duration
@@ -108,7 +109,7 @@ class MultiYearBlock:
             ValueError: If the datetime is outside the block's range
         """
         # Ensure timezone awareness
-        dt = _ensure_timezone_aware(dt)
+        dt = ensure_utc(dt)
 
         if not self.contains(dt):
             raise ValueError(f"Datetime {dt} is outside the block's range")
