@@ -54,4 +54,4 @@ class TestHorizonsCLI(unittest.TestCase):
         # Test Julian date with whitespace
         jd = parse_date_input(" 2460385.333333333 ")
         self.assertIsInstance(jd, float)
-        self.assertAlmostEqual(jd, 2460385.333333333, places=9) 
+        self.assertAlmostEqual(jd, 2460385.333333333, places=9)

@@ -43,17 +43,17 @@ def test_request_initialization():
     assert req.planet == Planet.SUN
     assert req.location is None
     assert req.quantities.values == [20, 31]  # Default quantities
-    
+
     # Request with location
     loc = Location(latitude=40.0, longitude=-75.0, elevation=0.0)
     req = HorizonsRequest(Planet.SUN, location=loc)
     assert req.location == loc
-    
+
     # Request with time spec
     time_spec = TimeSpec.from_dates([datetime(2024, 1, 1, tzinfo=timezone.utc)])
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec)
     assert req.time_spec == time_spec
-    
+
     # Request with quantities
     quantities = Quantities(values=[1, 2, 3])
     req = HorizonsRequest(Planet.SUN, quantities=quantities)
@@ -136,27 +136,27 @@ def test_request_with_julian_dates():
     # Test single date
     date = datetime(2024, 3, 15, 20, 0, tzinfo=timezone.utc)
     time_spec = TimeSpec.from_dates([date])
-    
+
     # Request with Julian output
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=True)
     url = req.get_url()
     assert "CAL_FORMAT=JD" in url
-    
+
     # Request with Gregorian output (default)
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=False)
     url = req.get_url()
     assert "CAL_FORMAT=JD" not in url
-    
+
     # Test date range
     start = datetime(2024, 3, 15, 20, 0, tzinfo=timezone.utc)
     stop = datetime(2024, 3, 16, 20, 0, tzinfo=timezone.utc)
     time_spec = TimeSpec.from_range(start, stop, "1h")
-    
+
     # Request with Julian output
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=True)
     url = req.get_url()
     assert "CAL_FORMAT=JD" in url
-    
+
     # Request with Gregorian output (default)
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=False)
     url = req.get_url()
@@ -167,29 +167,29 @@ def test_request_with_julian_input():
     """Test requests with Julian date input."""
     # Test single Julian date
     time_spec = TimeSpec.from_dates([2460385.333333333])
-    
+
     # Request with Julian output
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=True)
     url = req.get_url()
     assert "CAL_FORMAT=JD" in url
     assert "TLIST=2460385.333333333" in url
-    
+
     # Request with Gregorian output (default)
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=False)
     url = req.get_url()
     assert "CAL_FORMAT=JD" not in url
     assert "TLIST=2460385.333333333" in url
-    
+
     # Test Julian date range
     time_spec = TimeSpec.from_range(2460385.333333333, 2460386.333333333, "1h")
-    
+
     # Request with Julian output
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=True)
     url = req.get_url()
     assert "CAL_FORMAT=JD" in url
     assert "START_TIME=2460385.333333333" in url
     assert "STOP_TIME=2460386.333333333" in url
-    
+
     # Request with Gregorian output (default)
     req = HorizonsRequest(Planet.SUN, time_spec=time_spec, use_julian=False)
     url = req.get_url()

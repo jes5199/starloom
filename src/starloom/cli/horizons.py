@@ -9,9 +9,7 @@ from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
 from ..horizons.request import HorizonsRequest
 from ..horizons.time_spec import TimeSpec
 from ..horizons.ephem_type import EphemType
-from ..horizons.observer_parser import ObserverParser
 from ..horizons.location import Location
-from ..horizons.quantities import EphemerisQuantity
 
 
 def parse_date_input(date_str: str) -> Union[datetime, float]:
@@ -54,57 +52,6 @@ def horizons() -> None:
 
 
 @horizons.command()
-@click.argument("planet", type=click.Choice([p.name.lower() for p in Planet]))
-@click.option("--date", help="Date in various formats (Julian, ISO, or 'now')")
-@click.option("--julian", is_flag=True, help="Use Julian date format")
-@click.option("--location", help="Observer location (lat,lon,elev)")
-def ecliptic_single(planet: str, date: str, julian: bool, location: str):
-    """Get ecliptic coordinates for a planet."""
-    # Parse planet
-    planet = Planet[planet.upper()]
-
-    # Parse date
-    if date:
-        jd = parse_date_input(date)
-    else:
-        jd = datetime.now(timezone.utc).timestamp() / 86400 + 2440587.5
-
-    # Parse location
-    loc = None
-    if location:
-        try:
-            lat, lon, elev = map(float, location.split(","))
-            loc = Location(latitude=lat, longitude=lon, elevation=elev)
-        except ValueError:
-            raise click.BadParameter("Location must be lat,lon,elev")
-
-    # Create request
-    req = HorizonsRequest(planet, location=loc)
-    req.time_spec = TimeSpec.from_dates([datetime.fromtimestamp((jd - 2440587.5) * 86400, timezone.utc)])
-    req.use_julian = julian
-
-    # Make request
-    response = req.make_request()
-
-    # Parse response
-    parser = ObserverParser(response)
-    data = parser.parse()
-
-    # Print results
-    for jd, values in data:
-        if julian:
-            click.echo(f"JD: {jd}")
-        else:
-            dt = datetime.fromtimestamp((jd - 2440587.5) * 86400, timezone.utc)
-            click.echo(f"Date: {dt.isoformat()}")
-        click.echo(f"Distance: {values[EphemerisQuantity.DISTANCE]} AU")
-        click.echo(f"Range rate: {values[EphemerisQuantity.RANGE_RATE]} km/s")
-        click.echo(f"Ecliptic longitude: {values[EphemerisQuantity.ECLIPTIC_LONGITUDE]}°")
-        click.echo(f"Ecliptic latitude: {values[EphemerisQuantity.ECLIPTIC_LATITUDE]}°")
-        click.echo()
-
-
-@horizons.command(name="ecliptic")
 @click.argument("planet")
 @click.option(
     "--date",
@@ -130,20 +77,43 @@ def ecliptic_single(planet: str, date: str, julian: bool, location: str):
     is_flag=True,
     help="Use Julian dates in output",
 )
-def ecliptic_cmd(
+@click.option(
+    "--location",
+    help="Observer location (lat,lon,elev)",
+)
+def ecliptic(
     planet: str,
     date: tuple[str, ...],
     start: Optional[str] = None,
     stop: Optional[str] = None,
     step: Optional[str] = None,
     julian: bool = False,
+    location: Optional[str] = None,
 ) -> None:
-    """Get ecliptic coordinates for a planet."""
+    """Get ecliptic coordinates for a planet.
+
+    Examples:
+
+    Single time point query:
+       starloom horizons ecliptic venus --date 2025-03-19T20:00:00
+
+    Multiple time points or range query:
+       starloom horizons ecliptic venus --start 2025-03-19T20:00:00 --stop 2025-03-19T22:00:00 --step 1h
+    """
     # Convert planet name to enum
     try:
         planet_enum = Planet[planet.upper()]
     except KeyError:
         raise click.BadParameter(f"Invalid planet: {planet}")
+
+    # Parse location
+    loc = None
+    if location:
+        try:
+            lat, lon, elev = map(float, location.split(","))
+            loc = Location(latitude=lat, longitude=lon, elevation=elev)
+        except ValueError:
+            raise click.BadParameter("Location must be lat,lon,elev")
 
     # Create time specification
     time_spec = None
@@ -155,30 +125,38 @@ def ecliptic_cmd(
         start_str = cast(str, start)
         stop_str = cast(str, stop)
         step_str = cast(str, step)
-        
-        # Parse dates and convert datetime objects to Julian dates if needed
+
+        # Parse dates
         start_date = parse_date_input(start_str)
         stop_date = parse_date_input(stop_str)
-        
+
         time_spec = TimeSpec.from_range(
             start_date,
             stop_date,
             step_str,
         )
     else:
-        raise click.BadParameter(
-            "Must specify either --date or all of --start, --stop, and --step"
-        )
+        # If no time is specified, use current time
+        if not date and not (start and stop and step):
+            now = datetime.now(timezone.utc)
+            time_spec = TimeSpec.from_dates([now])
+        else:
+            raise click.BadParameter(
+                "Must specify either --date or all of --start, --stop, and --step"
+            )
 
-    # Create and make request
+    # Create quantities for the request
     quantities = Quantities(
         [
             HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,  # 20
             HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,  # 31
         ]
     )
+
+    # Create and make request
     request = HorizonsRequest(
         planet=planet_enum,
+        location=loc,
         quantities=quantities,
         time_spec=time_spec,
         use_julian=julian,
@@ -189,6 +167,7 @@ def ecliptic_cmd(
         click.echo(response)
     except Exception as e:
         import traceback
+
         click.echo(f"Error: {str(e)}", err=True)
         click.echo("\nTraceback:", err=True)
         click.echo(traceback.format_exc(), err=True)
@@ -246,11 +225,11 @@ def elements(
         start_str = cast(str, start)
         stop_str = cast(str, stop)
         step_str = cast(str, step)
-        
+
         # Parse dates and convert datetime objects to Julian dates if needed
         start_date = parse_date_input(start_str)
         stop_date = parse_date_input(stop_str)
-        
+
         time_spec = TimeSpec.from_range(
             start_date,
             stop_date,
@@ -282,6 +261,7 @@ def elements(
         click.echo(response)
     except Exception as e:
         import traceback
+
         click.echo(f"Error: {str(e)}", err=True)
         click.echo("\nTraceback:", err=True)
         click.echo(traceback.format_exc(), err=True)

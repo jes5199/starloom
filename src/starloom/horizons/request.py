@@ -35,7 +35,11 @@ class HorizonsRequest:
         """
         self.planet = planet
         self.location = location
-        self.quantities = Quantities(quantities) if isinstance(quantities, list) else (quantities or Quantities())
+        self.quantities = (
+            Quantities(quantities)
+            if isinstance(quantities, list)
+            else (quantities or Quantities())
+        )
         self.time_spec = time_spec
         self.ephem_type = ephem_type
         self.center = center
@@ -60,11 +64,13 @@ class HorizonsRequest:
             params.update(self.time_spec.to_params())
             if self.use_julian:
                 params["CAL_FORMAT"] = "JD"
+
         # First encode everything except single quotes
         def quote_except_quotes(x, *args):
             if x == "'":
                 return x
-            return urlencode({'': x}, safe="'")[1:]
+            return urlencode({"": x}, safe="'")[1:]
+
         url = f"{self.base_url}?{urlencode(params, quote_via=quote_except_quotes)}"
         print(f"Request URL: {url}")  # Debug logging
         return url

@@ -62,7 +62,7 @@ class HorizonsRequestObserverQuantities(Enum):
 
 class EphemerisQuantity(Enum):
     """Quantities that can be parsed from Horizons responses."""
-    
+
     JULIAN_DATE = "JDUT"
     DISTANCE = "delta"
     RANGE_RATE = "deldot"
@@ -174,10 +174,14 @@ class Quantities:
         Args:
             values: List of quantity codes to request
         """
-        self.values = values if values is not None else [
-            HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,  # 20
-            HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,  # 31
-        ]
+        self.values = (
+            values
+            if values is not None
+            else [
+                HorizonsRequestObserverQuantities.TARGET_RANGE_RANGE_RATE.value,  # 20
+                HorizonsRequestObserverQuantities.OBSERVER_ECLIPTIC_LONG_LAT.value,  # 31
+            ]
+        )
 
     def to_string(self) -> str:
         """Convert quantities to string format for Horizons API.
