@@ -253,3 +253,24 @@ Fix test that expects incorrect Julian date value
 - For January 1, 2024 UTC, the correct Julian date is 2460310.5
 - The implementation in julian_calc.py correctly implements the Meeus algorithm
 - Always check expected values in tests when dealing with astronomical calculations 
+
+# Linting Fixes for Horizons CLI Module
+
+## Current Task
+Fix linting issues identified by Ruff in the Horizons CLI module.
+
+## Issues Identified
+1. Undefined name `EphemerisQuantity` in the `ecliptic` function
+2. Redefinition of `ecliptic` function (defined twice)
+
+## Fixes Applied
+[X] Added import for EphemerisQuantity from correct module
+[X] Renamed first `ecliptic` function to `ecliptic_single`
+[X] Used Click's `name` parameter to keep command name as "ecliptic"
+[X] Verified all linting issues are resolved
+[X] Verified all tests still pass
+
+## Notes
+- Using Click's `name` parameter is a clean way to resolve function name conflicts
+- Always make sure to import all required classes and modules
+- Running the linter regularly helps catch issues before they cause problems 

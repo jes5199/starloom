@@ -53,3 +53,25 @@ When working with the JPL Horizons API:
    - Error messages may suggest using a format like "YYYY-MMM-DD {HH:MN}", but the braces are not literal
    
 4. Use Julian dates as a reliable alternative when date formatting is problematic 
+
+## Click CLI Development
+
+When developing command-line interfaces with Click:
+
+1. Use the `name` parameter in `@click.command()` decorators to specify a different name for the CLI command than the function name:
+   ```python
+   @app.command(name="custom-name")
+   def function_name():
+       # This command will be called as "custom-name"
+       pass
+   ```
+
+2. When you need to have multiple implementations of a command (e.g., different parameter signatures):
+   - Use different function names for each implementation
+   - Use the `name` parameter to make them all appear as the same command name
+   - This avoids Python function redefinition errors while maintaining the desired CLI interface
+
+3. Be careful when using nested command groups:
+   - Commands in different groups can have the same name without conflict
+   - Commands within the same group must have unique names (or set with the `name` parameter)
+   - Always validate your command structure with `--help` flags 

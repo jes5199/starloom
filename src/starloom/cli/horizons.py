@@ -11,6 +11,7 @@ from ..horizons.time_spec import TimeSpec
 from ..horizons.ephem_type import EphemType
 from ..horizons.observer_parser import ObserverParser
 from ..horizons.location import Location
+from ..horizons.quantities import EphemerisQuantity
 
 
 def parse_date_input(date_str: str) -> Union[datetime, float]:
@@ -57,7 +58,7 @@ def horizons() -> None:
 @click.option("--date", help="Date in various formats (Julian, ISO, or 'now')")
 @click.option("--julian", is_flag=True, help="Use Julian date format")
 @click.option("--location", help="Observer location (lat,lon,elev)")
-def ecliptic(planet: str, date: str, julian: bool, location: str):
+def ecliptic_single(planet: str, date: str, julian: bool, location: str):
     """Get ecliptic coordinates for a planet."""
     # Parse planet
     planet = Planet[planet.upper()]
@@ -103,7 +104,7 @@ def ecliptic(planet: str, date: str, julian: bool, location: str):
         click.echo()
 
 
-@horizons.command()
+@horizons.command(name="ecliptic")
 @click.argument("planet")
 @click.option(
     "--date",
@@ -129,7 +130,7 @@ def ecliptic(planet: str, date: str, julian: bool, location: str):
     is_flag=True,
     help="Use Julian dates in output",
 )
-def ecliptic(
+def ecliptic_cmd(
     planet: str,
     date: tuple[str, ...],
     start: Optional[str] = None,
