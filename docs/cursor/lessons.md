@@ -39,6 +39,30 @@
   - Include special handling for edge cases (like blank columns) with clear comments
   - For API-specific enums, use the exact string values expected by the API
 
+## API Data Parsing
+
+When parsing astronomical data from APIs like JPL Horizons:
+
+1. Column name handling:
+   - Use case-insensitive comparison for column names (e.g., "JDUT" vs "jdut")
+   - Normalize column names to handle variations (spaces, underscores, formatting)
+   - Include special handling for columns that might contain extra text (like "Date_________JDUT")
+
+2. Pattern recognition:
+   - Use substring matching for common patterns (e.g., "jdut" within longer headers)
+   - Implement direct mapping for the most common column names
+   - Provide fallback mechanisms to handle different API response formats
+
+3. When working with multiple related enums:
+   - Define the mapping between enums at the module level, not locally in functions
+   - Ensure enums are defined in the correct order to avoid NameError issues
+   - Use consistent bidirectional mapping between related enums
+
+4. CSV parsing:
+   - Be careful with blank columns that may have special meaning
+   - Count blank columns to assign appropriate special quantity types
+   - Handle both standard and custom-formatted CSV outputs
+
 ## Julian Date Calculations
 
 When working with Julian dates in astronomical calculations:
