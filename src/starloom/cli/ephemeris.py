@@ -2,7 +2,7 @@
 
 import click
 from datetime import datetime, timezone
-from typing import Optional, Union, Dict, Type
+from typing import Optional, Union, Dict, Type, cast
 
 from ..horizons.ephemeris import HorizonsEphemeris
 from ..horizons.planet import Planet
@@ -10,6 +10,7 @@ from ..ephemeris.quantities import Quantity
 from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance
 from ..local_horizons.ephemeris import LocalHorizonsEphemeris
 from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
+from ..ephemeris.time_spec import TimeSpec
 
 
 # Define available ephemeris sources
@@ -63,8 +64,21 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
 @click.option(
     "--date",
     "-d",
-    default=None,
-    help="Date to get coordinates for. Use ISO format or Julian date. Defaults to current time.",
+    multiple=True,
+    default=(),
+    help="Date(s) to get coordinates for. Can be specified multiple times. Use ISO format or Julian date.",
+)
+@click.option(
+    "--start",
+    help="Start date for range (ISO format or Julian date)",
+)
+@click.option(
+    "--stop",
+    help="Stop date for range (ISO format or Julian date)",
+)
+@click.option(
+    "--step",
+    help="Step size for range (e.g. '1d', '1h', '30m')",
 )
 @click.option(
     "--source",
@@ -79,7 +93,10 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
 )
 def ephemeris(
     planet: str,
-    date: Optional[str] = None,
+    date: tuple[str, ...],
+    start: Optional[str] = None,
+    stop: Optional[str] = None,
+    step: Optional[str] = None,
     source: str = DEFAULT_SOURCE,
     data_dir: str = "./data",
 ) -> None:
@@ -87,11 +104,14 @@ def ephemeris(
 
     Examples:
 
-    Current time:
-       starloom ephemeris venus
-
-    Specific time:
+    Single time point:
        starloom ephemeris venus --date 2025-03-19T20:00:00
+
+    Multiple time points:
+       starloom ephemeris venus --date 2025-03-19T20:00:00 --date 2025-03-19T21:00:00
+
+    Time range:
+       starloom ephemeris venus --start 2025-03-19T20:00:00 --stop 2025-03-19T22:00:00 --step 1h
 
     Using a specific data source:
        starloom ephemeris venus --source sqlite --data-dir ./data
@@ -102,11 +122,35 @@ def ephemeris(
     except KeyError:
         raise click.BadParameter(f"Invalid planet: {planet}")
 
-    # Parse date
+    # Create time specification
+    time_spec = None
     if date:
-        time = parse_date_input(date)
+        dates = [parse_date_input(d) for d in date]
+        time_spec = TimeSpec.from_dates(dates)
+    elif all([start, stop, step]):
+        # We know all three are not None here
+        start_str = cast(str, start)
+        stop_str = cast(str, stop)
+        step_str = cast(str, step)
+
+        # Parse dates
+        start_date = parse_date_input(start_str)
+        stop_date = parse_date_input(stop_str)
+
+        time_spec = TimeSpec.from_range(
+            start_date,
+            stop_date,
+            step_str,
+        )
     else:
-        time = datetime.now(timezone.utc)
+        # If no time is specified, use current time
+        if not date and not (start and stop and step):
+            now = datetime.now(timezone.utc)
+            time_spec = TimeSpec.from_dates([now])
+        else:
+            raise click.BadParameter(
+                "Must specify either --date or all of --start, --stop, and --step"
+            )
 
     # Create appropriate ephemeris instance based on source
     ephemeris_class = EPHEMERIS_SOURCES.get(source)
@@ -120,55 +164,47 @@ def ephemeris(
         ephemeris_instance = ephemeris_class()
 
     try:
-        result = ephemeris_instance.get_planet_position(planet_enum.name, time)
+        # Get positions for all requested times
+        results = ephemeris_instance.get_planet_positions(planet_enum.name, time_spec)
 
-        # Format the time
-        if isinstance(time, datetime):
-            date_str = time.strftime("%Y-%m-%d %H:%M:%S UTC")
-        else:
-            # It's a Julian date
-            date_str = f"JD {time}"
+        # Print results for each time point
+        for jd, position_data in sorted(results.items()):
+            # Format the time as Julian date
+            date_str = f"JD {jd:.6f}"
 
-        # Get Julian date from result
-        julian_date = result.get(Quantity.JULIAN_DATE)
-        if julian_date is not None and isinstance(julian_date, (int, float)):
-            if isinstance(time, datetime):
-                date_str += f", JD {julian_date:.6f}"
-            else:
-                date_str = f"JD {julian_date:.6f}"
+            # Get position values
+            longitude = position_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+            if not isinstance(longitude, (int, float)):
+                try:
+                    longitude = float(longitude) if longitude is not None else 0.0
+                except (ValueError, TypeError):
+                    longitude = 0.0
 
-        # Get position values
-        longitude = result.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-        if not isinstance(longitude, (int, float)):
-            try:
-                longitude = float(longitude) if longitude is not None else 0.0
-            except (ValueError, TypeError):
-                longitude = 0.0
+            latitude = position_data.get(Quantity.ECLIPTIC_LATITUDE, 0.0)
+            if not isinstance(latitude, (int, float)):
+                try:
+                    latitude = float(latitude) if latitude is not None else 0.0
+                except (ValueError, TypeError):
+                    latitude = 0.0
 
-        latitude = result.get(Quantity.ECLIPTIC_LATITUDE, 0.0)
-        if not isinstance(latitude, (int, float)):
-            try:
-                latitude = float(latitude) if latitude is not None else 0.0
-            except (ValueError, TypeError):
-                latitude = 0.0
+            distance = position_data.get(Quantity.DELTA, 0.0)
+            if not isinstance(distance, (int, float)):
+                try:
+                    distance = float(distance) if distance is not None else 0.0
+                except (ValueError, TypeError):
+                    distance = 0.0
 
-        distance = result.get(Quantity.DELTA, 0.0)
-        if not isinstance(distance, (int, float)):
-            try:
-                distance = float(distance) if distance is not None else 0.0
-            except (ValueError, TypeError):
-                distance = 0.0
+            # Format position
+            zodiac_pos = get_zodiac_sign(longitude)
+            lat_formatted = format_latitude(latitude)
+            distance_formatted = format_distance(distance)
 
-        # Format position
-        zodiac_pos = get_zodiac_sign(longitude)
-        lat_formatted = format_latitude(latitude)
-        distance_formatted = format_distance(distance)
-
-        # Print formatted output
-        click.echo(date_str)
-        click.echo(
-            f"{planet_enum.name.capitalize()} {zodiac_pos}, {lat_formatted}, {distance_formatted}"
-        )
+            # Print formatted output
+            click.echo(date_str)
+            click.echo(
+                f"{planet_enum.name.capitalize()} {zodiac_pos}, {lat_formatted}, {distance_formatted}"
+            )
+            click.echo("")  # Add blank line between entries
 
     except ValueError as e:
         click.echo(f"Error: {str(e)}", err=True)
