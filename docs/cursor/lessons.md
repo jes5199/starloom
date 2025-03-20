@@ -81,3 +81,14 @@ When developing command-line interfaces with Click:
 - Some fixtures in the tests/fixtures directory may contain error messages rather than valid data
 - When working with column-based data, it's good to dynamically map column indices to quantity enums
 - There are two different ObserverParser implementations in the codebase that should eventually be consolidated 
+
+# JPL Horizons Parser Development
+
+- Different ephemeris types (OBSERVER vs ELEMENTS) have different column formats and data
+- OBSERVER format has columns that change based on the requested quantities
+- ELEMENTS format has a consistent set of columns with orbital parameters
+- Creating separate parsers for each format improves maintainability
+- Using Enum classes for the different quantity types helps with type checking and code readability
+- The CSV module handles comma-separated parsing better than manual string splitting, especially for complex data
+- When working with astronomical data, it's important to handle scientific notation properly (e.g., 4.829493868247705E-02)
+- Parsing astronomical data requires careful error handling for missing or malformed values 

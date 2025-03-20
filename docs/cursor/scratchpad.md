@@ -297,3 +297,30 @@ Since the standalone parser is actually being used in the test code, and the par
 ## Future Work
 1. Eventually we may want to consolidate the two implementations
 2. Consider making the standalone parser inherit from BaseHorizonsParser for consistency 
+
+# ElementsParser Implementation
+
+## Task
+Create an orbital elements parser for the JPL Horizons ELEMENTS format data.
+
+## Implementation Details
+- Created `ElementsParser` class in `src/starloom/horizons/elements_parser.py`
+- Defined `ElementsQuantity` enum with all possible orbital element columns
+- Implemented parsing logic based on the ObserverParser approach
+- Key points:
+  - Elements data has consistent column format (unlike Observer data that changes based on requested quantities)
+  - Implemented mapping from column headers to ElementsQuantity enum values
+  - Handles CSV parsing, header detection, and data extraction
+  - Provides get_value, get_values, and get_all_values methods for accessing data
+  - Added comprehensive unit tests
+
+## Testing
+- Created tests in `tests/horizons/test_elements_parser.py`
+- Verified the parser correctly extracts data from Jupiter fixture
+- Confirmed all orbital elements are correctly mapped and extracted
+- All tests are passing
+
+## Next Steps
+- Consider creating a base parser class that both ObserverParser and ElementsParser can inherit from
+- Could move common functionality (CSV extraction, data access methods) to the base class
+- Expand to handle more edge cases and error conditions 
