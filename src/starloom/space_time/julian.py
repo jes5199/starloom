@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 from .pythonic_datetimes import ensure_utc
 from .rounding import create_and_round_to_millisecond
@@ -79,3 +79,26 @@ def list_of_datetime_to_list_of_julian_parts(
         List[Tuple[int, float]]: List of integer and fractional parts
     """
     return [datetime_to_julian_parts(date) for date in dates]
+
+
+def get_julian_components(time: Union[float, datetime]) -> Tuple[int, float]:
+    """Convert a time to Julian date integer and fraction components.
+
+    This function provides a flexible interface that accepts either a datetime
+    object or a Julian date as a float and returns the integer and fractional parts.
+
+    Args:
+        time: Either a datetime object or a float representing a Julian date.
+
+    Returns:
+        Tuple[int, float]: A tuple of (julian_date_integer, julian_date_fraction)
+    """
+    if isinstance(time, datetime):
+        # Convert datetime to Julian date
+        jd = julian_from_datetime(time)
+    else:
+        # Assume time is already a Julian date
+        jd = time
+
+    # Split into integer and fractional parts
+    return julian_to_julian_parts(jd)

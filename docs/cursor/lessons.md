@@ -437,3 +437,67 @@ When transitioning from examples to tests:
 - Add test cases for error conditions not covered in examples
 - Structure tests to verify the entire API surface
 - Consider keeping simple usage examples in docstrings for documentation 
+
+## Database Update Operations
+
+When implementing a database storage layer, it's crucial to properly handle update operations to prevent unique constraint violations:
+
+1. **Check Before Insert**: Always check if a record with the same primary key exists before attempting an insert operation.
+
+2. **Update vs Insert**: Use updates for existing records and inserts for new records. SQLAlchemy supports both patterns:
+   ```python
+   # Check if record exists
+   existing = session.execute(select(Model).where(...)).scalar_one_or_none()
+   
+   if existing:
+       # Update existing record
+       for key, value in data.items():
+           setattr(existing, key, value)
+   else:
+       # Insert new record
+       new_record = Model(**data)
+       session.add(new_record)
+   ```
+
+3. **Attribute Updates**: When updating an existing record, iterate through the attributes to avoid hardcoding field names, making the code more maintainable.
+
+4. **Transaction Management**: Use session.commit() after all operations to ensure changes are saved within a single transaction.
+
+5. **Error Handling**: Always handle potential database errors, especially IntegrityError for constraint violations.
+
+6. **Primary Key Fields**: Be explicit about which fields constitute your primary key when checking for existing records.
+
+These patterns help ensure data consistency while providing the ability to update existing records when needed. 
+
+## Code Reuse and DRY Principle
+
+When implementing astronomical calculations in a large codebase, follow these best practices:
+
+1. **Reuse Existing Functionality**: The starloom project already has dedicated modules for calculations like Julian dates. Always use these existing functions rather than reimplementing them in other classes:
+   - Instead of implementing `_datetime_to_julian` in each class, import and use `julian_from_datetime` from `space_time.julian`
+   - Similarly for other common operations like splitting Julian dates into components
+   - For type-flexible interfaces, use `get_julian_components` which accepts both datetime and Julian date inputs
+
+2. **Benefits of Centralized Implementation**:
+   - **Consistency**: All modules use the same calculation algorithm
+   - **Maintenance**: Updates to the algorithm only need to be made in one place
+   - **Testing**: The core implementation can be thoroughly tested once
+   - **Precision**: Consistent handling of precision and rounding
+
+3. **Import Strategy**:
+   - Import specific functions rather than entire modules when possible
+   - Use relative imports within the package (e.g., `from ..space_time.julian import julian_from_datetime`)
+   - Make imports explicit in the module header rather than hiding them in function bodies
+
+4. **Test Updates**:
+   - When converting from a local implementation to using a shared module, update both the implementation and the tests
+   - Tests may need to be modified to use the imported functions directly
+   - Verify that the behavior is consistent by running the tests after changes
+
+5. **Interface Design**:
+   - Create flexible interfaces that accept multiple input types when appropriate
+   - Use Union types to indicate multiple acceptable input formats
+   - Add high-level utility functions that build on more specific functions
+   - Document the expected types clearly in docstrings with examples
+
+The astronomy calculations in starloom (like Julian date conversions) are mathematically complex and sensitive to precision issues. By centralizing these implementations, we ensure accuracy and consistency throughout the codebase. 

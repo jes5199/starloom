@@ -748,3 +748,136 @@ Create dedicated storage tests for LocalHorizonsStorage class and remove example
 - Add integration tests to verify all components work together
 - Enhance query functionality to find closest time points
 - Add CLI commands for data prefetching 
+
+# Current Task
+
+## Task Overview
+Refactoring the LocalHorizonsStorage class to use the existing Julian date functions from space_time.julian instead of reimplementing them.
+
+## Progress
+
+- [X] Identified duplicated Julian date functionality in LocalHorizonsStorage
+- [X] Replaced custom _datetime_to_julian with julian_from_datetime from space_time.julian
+- [X] Replaced custom Julian date component splitting with julian_to_julian_parts
+- [X] Updated affected tests to use the imported functions
+- [X] Document lessons learned about code reuse in lessons.md
+
+## Implementation Changes
+
+1. Removed the following methods from LocalHorizonsStorage:
+   - _datetime_to_julian: Replaced with julian_from_datetime
+   - Integrated the functionality of _get_julian_components with julian_to_julian_parts
+
+2. Updated imports in both the storage class and test file:
+   ```python
+   from ..space_time.julian import julian_from_datetime, datetime_from_julian, julian_to_julian_parts
+   ```
+
+3. Modified test methods to use the imported functions instead of the class methods that were removed.
+
+## Benefits
+
+- **Reduced Duplication**: Eliminated redundant Julian date calculation code
+- **Improved Maintainability**: Future changes to Julian date calculations only need to be made in one place
+- **Consistency**: All modules use the same calculation algorithm with the same precision
+- **Better Testability**: The core Julian date implementation is extensively tested separately
+
+## Next Steps
+
+- [ ] Consider adding timezone awareness validation to ensure all datetime objects are timezone-aware
+- [ ] Look for other areas where common functionality might be duplicated
+- [ ] Add additional utility functions to space_time.julian if needed for other astronomical calculations 
+
+# Current Task
+
+## Task Overview
+Adding a versatile utility function to space_time.julian for handling both datetime objects and Julian dates.
+
+## Progress
+
+- [X] Identified need for a flexible Julian date component handling function
+- [X] Added `get_julian_components` function to space_time.julian module that:
+  - Accepts both datetime objects and Julian date floats
+  - Returns a tuple of (julian_date_integer, julian_date_fraction)
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Updated tests to verify the new function works correctly
+- [X] All tests passing
+
+## Implementation Details
+
+1. Added a new function to space_time.julian:
+   ```python
+   def get_julian_components(time: Union[float, datetime]) -> Tuple[int, float]:
+       """Convert a time to Julian date integer and fraction components."""
+       if isinstance(time, datetime):
+           # Convert datetime to Julian date
+           jd = julian_from_datetime(time)
+       else:
+           # Assume time is already a Julian date
+           jd = time
+       
+       # Split into integer and fractional parts
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Updated storage.py to use this function instead of its own method:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+3. Added specific tests for the function with both types of input.
+
+## Benefits
+
+- **Further Reduced Duplication**: Removed need for individual classes to implement this common logic
+- **Improved API**: Added a more flexible public function to the julian module
+- **Better Type Support**: Explicit handling of Union[float, datetime] makes the API easier to use
+- **Compatibility**: Works with existing code expecting (int, float) tuple for Julian date components
+
+## Next Steps
+
+- [ ] Consider adding more utility functions for common operations
+- [ ] Add support for other date/time types (like numpy.datetime64, pandas.Timestamp)
+- [ ] Expand documentation to highlight the new function 
+
+# Current Task
+
+## Task Overview
+Removing redundant methods in LocalHorizonsStorage after adding the versatile get_julian_components function to space_time.julian.
+
+## Progress
+
+- [X] Added the flexible `get_julian_components` function to space_time.julian
+- [X] Updated LocalHorizonsStorage to use the new function
+- [X] Completely removed the redundant `_get_julian_components` method from LocalHorizonsStorage
+- [X] Verified all tests still pass
+
+## Implementation Details
+
+1. The original `_get_julian_components` method in LocalHorizonsStorage:
+   ```python
+   def _get_julian_components(self, time: Union[float, datetime]) -> Tuple[int, float]:
+       if isinstance(time, datetime):
+           jd = julian_from_datetime(time)
+       else:
+           jd = time
+       return julian_to_julian_parts(jd)
+   ```
+
+2. Was completely replaced by direct calls to the new utility function:
+   ```python
+   jd, jd_fraction = get_julian_components(time)
+   ```
+
+## Benefits
+
+- **Code Simplification**: Removed unnecessary method, making the code cleaner
+- **Reduced Maintenance**: One less piece of code to maintain
+- **Better Organization**: Julian date handling logic now fully centralizes in space_time.julian module
+- **Better API Usage**: Using the proper abstraction level for this functionality
+
+## Next Steps
+
+- [ ] Look for similar opportunities for improvement in other classes
+- [ ] Consider adding utility functions for other common astronomical calculations
+- [ ] Add documentation about the julian module's functions in the project documentation 

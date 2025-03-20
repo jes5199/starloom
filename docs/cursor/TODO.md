@@ -47,11 +47,13 @@
 - [ ] Add integration tests
 
 ## Cache Implementation
-- [X] Implement `LocalHorizonsEphemeris` for reading from local SQLite database
-- [X] Implement `LocalHorizonsStorage` for writing to local database
-- [X] Implement `CachedHorizonsEphemeris` that combines API and local storage
-- [X] Add comprehensive test suite for caching functionality
-- [X] Add dedicated test coverage for storage operations
+
+- [X] Add database caching for ephemeris queries
+- [X] Add dedicated test coverage for storage operations 
 - [X] Replace example files with proper unit tests
-- [ ] Enhance querying to find closest time point when exact match not found
-- [ ] Create CLI command for prefetching and caching large amounts of data
+- [X] Fix test issues related to Julian date conversion and data updates
+- [X] Refactor Julian date conversion to use space_time.julian module
+- [ ] Add error handling for cache misses
+- [ ] Add cache invalidation strategy
+- [ ] Implement prefetching for frequently accessed data
+- [ ] Add migration strategy for schema changes

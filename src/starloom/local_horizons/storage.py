@@ -6,13 +6,18 @@ This module provides functions for storing and retrieving ephemeris data locally
 
 import os
 from pathlib import Path
-from typing import Dict, Any, List, Union, Optional, Tuple
+from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from ..ephemeris.quantities import Quantity
+from ..space_time.julian import (
+    julian_from_datetime,
+    julian_to_julian_parts,
+    get_julian_components,
+)
 from .models.horizons_ephemeris_row import HorizonsGlobalEphemerisRow, Base
 
 
@@ -65,7 +70,7 @@ class LocalHorizonsStorage:
         if time is None:
             time = datetime.utcnow()
 
-        jd, jd_fraction = self._get_julian_components(time)
+        jd, jd_fraction = get_julian_components(time)
 
         # Query the database for the closest matching data point
         with Session(self.engine) as session:
@@ -126,11 +131,38 @@ class LocalHorizonsStorage:
         with Session(self.engine) as session:
             # Create row objects and add them to the session
             for data_point in ephemeris_data:
-                # Create a new row
-                row = HorizonsGlobalEphemerisRow(
-                    body=body, **{k: v for k, v in data_point.items() if k != "body"}
-                )
-                session.add(row)
+                # Check if there's already a row with the same primary key
+                jd = data_point.get("julian_date")
+                jd_fraction = data_point.get("julian_date_fraction")
+
+                if jd is not None and jd_fraction is not None:
+                    # Look for an existing record with the same primary key
+                    existing_query = select(HorizonsGlobalEphemerisRow).where(
+                        HorizonsGlobalEphemerisRow.body == body,
+                        HorizonsGlobalEphemerisRow.julian_date == jd,
+                        HorizonsGlobalEphemerisRow.julian_date_fraction == jd_fraction,
+                    )
+                    existing_row = session.execute(existing_query).scalar_one_or_none()
+
+                    if existing_row:
+                        # Update the existing row with new values
+                        for key, value in data_point.items():
+                            if key != "body" and hasattr(existing_row, key):
+                                setattr(existing_row, key, value)
+                    else:
+                        # Create a new row
+                        row = HorizonsGlobalEphemerisRow(
+                            body=body,
+                            **{k: v for k, v in data_point.items() if k != "body"},
+                        )
+                        session.add(row)
+                else:
+                    # No Julian date components specified, just create a new row
+                    row = HorizonsGlobalEphemerisRow(
+                        body=body,
+                        **{k: v for k, v in data_point.items() if k != "body"},
+                    )
+                    session.add(row)
 
             # Commit the session to save to database
             session.commit()
@@ -147,9 +179,8 @@ class LocalHorizonsStorage:
             quantities: A dictionary mapping Quantity enum values to their corresponding values.
         """
         # Convert datetime to Julian date components
-        jd_float = self._datetime_to_julian(time)
-        jd_int = int(jd_float)
-        jd_frac = jd_float - jd_int
+        jd_float = julian_from_datetime(time)
+        jd_int, jd_frac = julian_to_julian_parts(jd_float)
 
         # Create a dictionary with column names as keys
         data = {
@@ -170,55 +201,3 @@ class LocalHorizonsStorage:
 
         # Store the data
         self.store_ephemeris_data(body, [data])
-
-    # --- Utility methods ---
-
-    def _get_julian_components(self, time: Union[float, datetime]) -> Tuple[int, float]:
-        """
-        Convert a time to Julian date integer and fraction components.
-
-        Args:
-            time: Either a datetime object or a float representing a Julian date.
-
-        Returns:
-            A tuple of (julian_date_integer, julian_date_fraction)
-        """
-        if isinstance(time, datetime):
-            # Convert datetime to Julian date
-            # This is a simplified calculation
-            jd = self._datetime_to_julian(time)
-        else:
-            # Assume time is already a Julian date
-            jd = time
-
-        # Split into integer and fractional parts
-        jd_int = int(jd)
-        jd_frac = jd - jd_int
-
-        return jd_int, jd_frac
-
-    def _datetime_to_julian(self, dt: datetime) -> float:
-        """
-        Convert a datetime object to Julian date.
-
-        Args:
-            dt: The datetime object to convert.
-
-        Returns:
-            The Julian date as a float.
-        """
-        year, month, day = dt.year, dt.month, dt.day
-
-        if month <= 2:
-            year -= 1
-            month += 12
-
-        a = int(year / 100)
-        b = 2 - a + int(a / 4)
-
-        jd = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + b - 1524.5
-
-        # Add time component
-        jd += (dt.hour + dt.minute / 60.0 + dt.second / 3600.0) / 24.0
-
-        return jd
