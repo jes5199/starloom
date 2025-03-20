@@ -95,7 +95,7 @@ def generate_weft_file(
     if prefetch and isinstance(ephemeris, CachedHorizonsEphemeris):
         print(f"Prefetching data for {planet_name} from {start_date} to {end_date}...")
         time_spec = TimeSpec.from_range(
-            start_date=start_date, end_date=end_date, step_hours=step_hours
+            start=start_date, stop=end_date, step=f"{step_hours}h"
         )
         # This will fetch and cache all the data points we need
         ephemeris.get_planet_positions(planet_id, time_spec)
