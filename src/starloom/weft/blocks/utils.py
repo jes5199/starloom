@@ -4,7 +4,6 @@ Utility functions for Weft blocks.
 
 import numpy as np
 from numpy.typing import NDArray
-from datetime import datetime, timezone
 from typing import List, Union
 
 
