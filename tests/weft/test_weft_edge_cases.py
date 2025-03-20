@@ -2,7 +2,6 @@ import unittest
 from datetime import datetime, timedelta, timezone, date
 import tempfile
 import pytest
-import numpy as np
 
 # Import from starloom package
 from src.starloom.weft.weft import WeftFile
@@ -48,7 +47,7 @@ class TestWeftEdgeCases(unittest.TestCase):
 
         # Full coefficients should be padded to header's count
         self.assertEqual(len(block._full_coeffs), header.coefficient_count)
-        self.assertTrue(np.all(block._full_coeffs == 0.0))
+        self.assertTrue(all(x == 0.0 for x in block._full_coeffs))
 
     def test_invalid_coefficients(self):
         """Test handling of invalid coefficient values."""

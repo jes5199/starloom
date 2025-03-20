@@ -557,3 +557,19 @@ When adding CLI modules to starloom:
 - Use type annotations for function parameters and return values
 - Don't use the `name` parameter in `@click.group()` or `@group.command()`
 - CLI main functions should return `None` 
+
+## Type Checking
+- When using evaluate_chebyshev, always pass List[float] - it does not accept numpy arrays
+- NaN checking can be done in pure Python with `x != x` since NaN is the only value not equal to itself
+- Numpy operations can often be replaced with simpler Python list operations:
+  - List concatenation for padding: `list + [value] * count`
+  - List slicing for trimming: `list[:-1]`
+  - Length checks: `len(list)` or `not list` for empty check
+  - Array comparison: `all(x == value for x in list)` instead of `np.all(array == value)`
+
+## Dependencies
+- Avoid unnecessary numpy dependencies when standard Python lists suffice
+- When removing dependencies, check for hidden usages (e.g., type conversions, utility functions)
+- Keep type hints consistent across the codebase (e.g., using List[float] consistently)
+- When removing numpy from a module, also check and update the corresponding test files
+- Remember to update test assertions that use numpy functions (e.g., replace np.all with Python's all()) 

@@ -8,7 +8,6 @@ It provides medium precision and is efficient for most use cases.
 import struct
 from datetime import datetime
 from typing import List, BinaryIO
-import numpy as np
 
 from .utils import evaluate_chebyshev
 from starloom.space_time.pythonic_datetimes import ensure_utc
@@ -44,7 +43,7 @@ class MonthlyBlock:
         self.year = year
         self.month = month
         self.day_count = day_count
-        self.coeffs = np.array(coeffs, dtype=np.float32)
+        self.coeffs = coeffs
 
     def to_bytes(self) -> bytes:
         """

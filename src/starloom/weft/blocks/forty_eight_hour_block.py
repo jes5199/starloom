@@ -5,7 +5,6 @@ FortyEightHourBlock class for handling 48-hour periods with Chebyshev polynomial
 import struct
 from datetime import datetime, timezone
 from typing import List, BinaryIO
-import numpy as np
 
 from .forty_eight_hour_section_header import FortyEightHourSectionHeader
 from .utils import evaluate_chebyshev
@@ -29,26 +28,25 @@ class FortyEightHourBlock:
         """
         self.header = header
 
-        # Convert coefficients to numpy array
-        coeffs_array = np.array(coeffs, dtype=np.float64)
-
         # Check for NaN values
-        if np.any(np.isnan(coeffs_array)):
+        if any(
+            c != c for c in coeffs
+        ):  # NaN is the only value that is not equal to itself
             raise ValueError("Coefficients cannot be NaN")
 
         # If coefficients list is empty, use a single zero coefficient
-        if len(coeffs_array) == 0:
-            coeffs_array = np.array([0.0], dtype=np.float64)
+        if not coeffs:
+            coeffs = [0.0]
 
         # Strip trailing zeros to get significant coefficients
-        while len(coeffs_array) > 1 and coeffs_array[-1] == 0:
-            coeffs_array = coeffs_array[:-1]
+        while len(coeffs) > 1 and coeffs[-1] == 0:
+            coeffs = coeffs[:-1]
 
-        self.coeffs = coeffs_array.tolist()  # Convert back to list for storage
+        self.coeffs = coeffs
 
         # Pad to header's count for binary format
-        self._full_coeffs = np.pad(
-            coeffs_array, (0, self.header.coefficient_count - len(coeffs_array))
+        self._full_coeffs = coeffs + [0.0] * (
+            self.header.coefficient_count - len(coeffs)
         )
 
     def contains(self, dt: datetime) -> bool:
