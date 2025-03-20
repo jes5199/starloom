@@ -4,18 +4,18 @@ import csv
 import unittest
 from pathlib import Path
 
-from starloom.parsers.orbital_elements_parser import (
+from starloom.horizons.parsers.orbital_elements_parser import (
     ElementsParser,
     OrbitalElementsQuantity,
 )
 
 
 class TestOrbitalElementsParser(unittest.TestCase):
-    """Test ElementsParser."""
+    """Test OrbitalElementsParser."""
 
     def setUp(self):
         """Set up the test."""
-        self.fixtures_dir = Path(__file__).parent.parent / "fixtures"
+        self.fixtures_dir = Path(__file__).parent.parent.parent / "fixtures"
         self.elements_fixtures_dir = self.fixtures_dir / "elements"
 
         # Load fixture file

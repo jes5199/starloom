@@ -3,7 +3,7 @@
 import unittest
 from pathlib import Path
 
-from starloom.parsers.observer_parser import ObserverParser
+from starloom.horizons.parsers.observer_parser import ObserverParser
 from starloom.horizons.quantities import EphemerisQuantity
 
 
@@ -12,7 +12,7 @@ class TestObserverParser(unittest.TestCase):
 
     def setUp(self):
         """Set up the test."""
-        self.fixtures_dir = Path(__file__).parent.parent / "fixtures"
+        self.fixtures_dir = Path(__file__).parent.parent.parent / "fixtures"
         self.ecliptic_fixtures_dir = self.fixtures_dir / "ecliptic"
 
         # Load fixture file
