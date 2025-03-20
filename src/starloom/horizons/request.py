@@ -71,8 +71,8 @@ class HorizonsRequest:
         # Add time parameters
         if self.time_spec_param:
             params.update(self.time_spec_param.to_params())
-            if self.use_julian:
-                params["CAL_FORMAT"] = "JD"
+        if self.use_julian:
+            params["CAL_FORMAT"] = "JD"
 
         # First encode everything except single quotes
         def quote_except_quotes(x: str, *args: str) -> str:
@@ -90,7 +90,10 @@ class HorizonsRequest:
             return urlencode({"": x}, safe="'")[1:]
 
         url = f"{self.base_url}?{urlencode(params, quote_via=quote_except_quotes)}"
-        print(f"Request URL: {url}")  # Debug logging
+        if len(url) > self.max_url_length:
+            print(f"POST url: {self.post_url}")
+        else:
+            print(f"Request URL: {url}")  # Debug logging
         return url
 
     def _get_base_params(self) -> Dict[str, str]:
