@@ -45,3 +45,13 @@
 - [ ] Add test for quoted quantities in URL
 - [ ] Test comma handling in parameters
 - [ ] Add integration tests
+
+## Cache Implementation
+- [X] Implement `LocalHorizonsEphemeris` for reading from local SQLite database
+- [X] Implement `LocalHorizonsStorage` for writing to local database
+- [X] Implement `CachedHorizonsEphemeris` that combines API and local storage
+- [X] Add comprehensive test suite for caching functionality
+- [X] Add dedicated test coverage for storage operations
+- [X] Replace example files with proper unit tests
+- [ ] Enhance querying to find closest time point when exact match not found
+- [ ] Create CLI command for prefetching and caching large amounts of data

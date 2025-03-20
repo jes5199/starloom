@@ -642,3 +642,109 @@ Create a new CLI module for ephemeris in the starloom package.
 - Added support for location-based observation
 - Improved error handling with user-friendly messages
 - Properly integrated with the main CLI 
+
+# Current Task: Refactor Local Horizons Implementation
+
+## Task Overview
+Refactor the implementation to make `LocalHorizonsStorage` handle both read and write operations, with `LocalHorizonsEphemeris` as a lightweight wrapper providing the Ephemeris interface.
+
+## Progress
+[X] Move database reading functionality from `LocalHorizonsEphemeris` to `LocalHorizonsStorage`
+[X] Simplify `LocalHorizonsEphemeris` to delegate to the storage class
+[X] Update the example script to demonstrate both interfaces
+[X] Ensure `CachedHorizonsEphemeris` works with the updated architecture
+[X] Update documentation in lessons.md
+
+## Design Approach
+- `LocalHorizonsStorage` provides both reading and writing operations for the local SQLite database
+- `LocalHorizonsEphemeris` is a thin wrapper that delegates to the storage class while implementing the Ephemeris interface
+- `CachedHorizonsEphemeris` checks local storage first and falls back to the Horizons API when needed
+
+## Benefits
+- Centralizes database access logic in one place
+- Simplifies the architecture by clearly separating concerns
+- Ensures consistent handling of database operations
+- Still provides the standard Ephemeris interface for compatibility with other code
+
+## Next Steps
+- Implement more efficient querying to find the closest time point when an exact match is not found
+- Add more error handling and logging for production use
+- Consider adding a command-line interface for prefetching large amounts of data 
+
+# Current Task: Add Unit Tests for Local and Cached Horizons
+
+## Task Overview
+Create comprehensive unit tests for the LocalHorizonsStorage, LocalHorizonsEphemeris, and CachedHorizonsEphemeris classes.
+
+## Progress
+[X] Create unit tests for CachedHorizonsEphemeris
+  - [X] Test cache miss triggering API call
+  - [X] Test cache hit avoiding API call
+  - [X] Test prefetch_data functionality
+  - [X] Test fallback to API on cache failure
+[X] Create unit tests for LocalHorizonsStorage
+  - [X] Test storing and retrieving a single data point
+  - [X] Test storing and retrieving multiple data points
+  - [X] Test error handling for non-existent data
+[X] Create unit tests for LocalHorizonsEphemeris
+  - [X] Test delegating to storage layer
+  - [X] Test error handling for non-existent planet/time
+[X] Create proper test directory structure
+  - [X] tests/cached_horizons
+  - [X] tests/local_horizons
+
+## Testing Approach
+- Used unittest framework with setUp/tearDown for test setup/cleanup
+- Created temporary directories for test databases
+- Employed mocking to isolate test units and avoid real API calls
+- Tested both positive cases (success paths) and negative cases (error handling)
+- Used tempfile module to create isolated test environments
+
+## Benefits
+- Verified correctness of all three components independently
+- Validated the caching behavior functions as intended
+- Ensured proper error handling throughout the system
+- Created reusable test infrastructure for future additions
+
+## Next Steps
+- Add integration tests to verify components work together correctly
+- Implement more complex test scenarios (e.g., near-match time queries)
+- Add test coverage for edge cases (Julian date conversions, leap seconds, etc.) 
+
+# Current Task: Improve Test Coverage and Remove Example Files
+
+## Task Overview
+Create dedicated storage tests for LocalHorizonsStorage class and remove example files in favor of comprehensive unit tests.
+
+## Progress
+[X] Create dedicated test file for LocalHorizonsStorage
+  - [X] Test database creation and structure
+  - [X] Test storing and retrieving data
+  - [X] Test Julian date conversion functions
+  - [X] Test overwriting existing data
+  - [X] Test handling different planets
+  - [X] Test handling missing quantities
+[X] Remove example files
+  - [X] Delete src/starloom/local_horizons/examples.py
+  - [X] Delete src/starloom/cached_horizons/example.py
+
+## Test Improvements
+- Added dedicated test_storage.py file with comprehensive tests for the LocalHorizonsStorage class
+- Added tests for database creation to verify table structure
+- Added tests for Julian date conversion functionality
+- Added tests for overwriting existing data
+- Added tests for storing data for different planets
+- Added tests for handling missing quantities
+- Removed example files in favor of proper unit tests
+
+## Benefits
+- More comprehensive test coverage of storage functionality
+- Cleaner codebase without redundant example files
+- Better isolation of test cases
+- Clear verification of all storage operations
+- Proper testing of Julian date conversion functions
+
+## Next Steps
+- Add integration tests to verify all components work together
+- Enhance query functionality to find closest time points
+- Add CLI commands for data prefetching 

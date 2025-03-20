@@ -332,3 +332,108 @@ When working with the JPL Horizons API, it's important to understand the distinc
    - Add thorough documentation with examples
    - Consider future extensibility (e.g., formatting options)
    - Make functions pure (no side effects) when possible 
+
+## Local Horizons and Cached Horizons Implementation
+
+- Created a `LocalHorizonsStorage` class that provides both reading and writing operations for a local SQLite database containing ephemeris data.
+- Implemented a lightweight `LocalHorizonsEphemeris` class that wraps the storage class to provide a standard Ephemeris interface for reading operations.
+- Implemented a `CachedHorizonsEphemeris` class that combines the real Horizons API (`HorizonsEphemeris`) with local storage. It first checks if data is available locally, and if not, fetches it from the Horizons API and stores it for future use.
+- Created example scripts showing how to use both the local-only and cached implementations.
+- All implementations follow the `Ephemeris` abstract interface defined in `starloom.ephemeris.ephemeris`, ensuring consistent behavior across different data sources.
+
+The key architectural approach is:
+1. `LocalHorizonsStorage` - Centralized class for both reading and writing to the local database
+2. `LocalHorizonsEphemeris` - Lightweight wrapper providing the standard Ephemeris interface by delegating to the storage class
+3. `CachedHorizonsEphemeris` - Combines the real API with local cache for efficient data access
+
+This design ensures the storage logic lives in one place (the Storage class) while still providing the standardized Ephemeris interface through the wrapper class. The cached implementation provides a convenient way to automatically populate the local database when needed. 
+
+## Unit Testing for Local and Cached Horizons
+
+When implementing unit tests for local data storage and caching implementations:
+
+1. **Test Environment Isolation**:
+   - Use `tempfile.TemporaryDirectory()` to create isolated test environments
+   - Clean up resources in `tearDown()` method to avoid test interference
+   - Use separate test databases for each test case to ensure independence
+
+2. **Mocking External Services**:
+   - Use `unittest.mock.patch` to mock external API calls
+   - Patch at the correct import point (where the class is imported, not where it's defined)
+   - Provide appropriate return values or side effects for mocked methods
+
+3. **Testing Caching Behavior**:
+   - Verify cache miss correctly calls the underlying API
+   - Verify cache hit avoids unnecessary API calls
+   - Test proper data persistence between operations
+   - Confirm error handling and fallback mechanisms work correctly
+
+4. **Testing Database Operations**:
+   - Test both read and write operations
+   - Verify data integrity after storage and retrieval
+   - Test edge cases like non-existent data
+   - Use proper assertions for numerical values (e.g., `assertAlmostEqual` for floating-point values)
+
+5. **Comprehensive Test Coverage**:
+   - Test normal operations (happy path)
+   - Test error handling (error path)
+   - Test edge cases and boundary conditions
+   - Test component interactions when applicable
+
+Examples of effective test patterns:
+- Pre-populating the database in setUp to test retrieval
+- Using explicit assertions with clear failure messages
+- Organizing related tests in separate test methods with descriptive names
+- Using documentation strings to explain the purpose of each test 
+
+## Comprehensive Database Testing
+
+When working with database storage components, comprehensive testing should include:
+
+1. **Database Structure Tests**:
+   - Verify database files are created correctly
+   - Check that tables exist with the correct structure
+   - Verify primary keys and constraints are set up correctly
+   - Test that database connections can be established
+
+2. **CRUD Operation Tests**:
+   - Create: Test inserting new data works correctly
+   - Read: Test retrieving stored data returns expected values
+   - Update: Test overwriting existing data works correctly
+   - Delete: If applicable, test deletion functionality
+
+3. **Edge Case Handling**:
+   - Missing data fields
+   - Different data types stored in the same database
+   - Boundary conditions (e.g., dates at year boundaries, large values)
+   - Concurrent access if relevant to the application
+
+4. **Utility Method Testing**:
+   - Test helper methods like date conversions independently
+   - Verify precision and accuracy of mathematical operations
+   - Test format conversions (e.g., datetime to Julian date)
+
+5. **Data Isolation**:
+   - Use temporary directories for test databases
+   - Clean up after tests to avoid cross-test contamination
+   - Use unique identifiers for test data to prevent collisions
+
+## Example Code vs. Unit Tests
+
+We've learned that example files (like `examples.py`) should be replaced by comprehensive unit tests for several reasons:
+
+1. **Test Coverage**: Unit tests provide verifiable test coverage with assertions, while examples only demonstrate usage.
+
+2. **Regression Detection**: Unit tests catch regressions when code changes, while examples won't alert you to broken functionality.
+
+3. **Documentation**: Good unit tests serve as documentation of expected behavior, often more precisely than examples.
+
+4. **CI/CD Integration**: Unit tests can be integrated into CI/CD pipelines, while examples cannot.
+
+5. **Completeness**: Unit tests force you to consider edge cases and error paths, while examples typically cover only the happy path.
+
+When transitioning from examples to tests:
+- Convert example usage into proper test cases with assertions
+- Add test cases for error conditions not covered in examples
+- Structure tests to verify the entire API surface
+- Consider keeping simple usage examples in docstrings for documentation 

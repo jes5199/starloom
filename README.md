@@ -163,6 +163,52 @@ When using time ranges, step sizes can be specified in various formats:
 - `30m` for 30 minutes
 - `1m` for 1 minute
 
+## Data Storage and Caching
+
+### Local Data Storage
+
+The library provides classes for local storage and caching of ephemeris data:
+
+```python
+from starloom.local_horizons.storage import LocalHorizonsStorage
+from starloom.local_horizons.ephemeris import LocalHorizonsEphemeris
+from starloom.ephemeris.quantities import Quantity
+from datetime import datetime
+
+# Store ephemeris data locally
+storage = LocalHorizonsStorage(data_dir="./data")
+data = {
+    Quantity.ECLIPTIC_LONGITUDE: 120.5,
+    Quantity.ECLIPTIC_LATITUDE: 1.5,
+    Quantity.DELTA: 1.5,
+}
+storage.store_ephemeris_quantities("mars", datetime.utcnow(), data)
+
+# Retrieve data using the Ephemeris interface
+ephemeris = LocalHorizonsEphemeris(data_dir="./data")
+position = ephemeris.get_planet_position("mars")
+```
+
+### Cached API Access
+
+For efficient API usage, the library provides a caching layer:
+
+```python
+from starloom.cached_horizons.ephemeris import CachedHorizonsEphemeris
+from datetime import datetime, timedelta
+
+# Create a cached ephemeris instance
+ephemeris = CachedHorizonsEphemeris(data_dir="./data")
+
+# Get a planet's position - will fetch from API if not in cache
+position = ephemeris.get_planet_position("venus", datetime.utcnow())
+
+# Prefetch data for future use
+start_time = datetime.utcnow()
+end_time = start_time + timedelta(days=30)
+ephemeris.prefetch_data("mars", start_time, end_time, step_hours=24)
+```
+
 ## Development
 
 ### Project Structure
@@ -224,6 +270,30 @@ The fixtures use the following time parameters:
 3. Make your changes
 4. Run the tests: `python -m pytest tests/`
 5. Submit a pull request
+
+### Running Tests
+
+Run all tests:
+
+```bash
+python -m pytest
+```
+
+Run specific test modules:
+
+```bash
+# Run local_horizons tests
+python -m pytest tests/local_horizons
+
+# Run cached_horizons tests
+python -m pytest tests/cached_horizons
+```
+
+The test suite includes comprehensive tests for:
+- Local storage operations
+- Ephemeris interface implementation
+- Caching behavior
+- Error handling
 
 ## License
 
