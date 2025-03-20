@@ -1,14 +1,12 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional, Any
-import bisect
 from .weft import (
     WeftFile,
     MultiYearBlock,
     MonthlyBlock,
-    DailySectionHeader,
-    DailyDataBlock,
+    FortyEightHourBlock,
 )
-from ..horizons.quantities import EphemerisQuantity, OrbitalElementsQuantity
+from ..horizons.quantities import EphemerisQuantity
 
 
 class WeftReader:
@@ -33,7 +31,7 @@ class WeftReader:
         self,
         file_path: str,
         file_id: str,
-        quantity: Optional[EphemerisQuantity | OrbitalElementsQuantity] = None,
+        quantity: Optional[EphemerisQuantity] = None,
     ) -> None:
         """
         Load a .weft file and associate it with a file ID.
@@ -86,7 +84,7 @@ class WeftReader:
         # Try daily blocks first (highest priority)
         daily_blocks = []
         for block in weft_file.blocks:
-            if isinstance(block, DailyDataBlock) and block.contains(dt):
+            if isinstance(block, FortyEightHourBlock) and block.contains(dt):
                 daily_blocks.append(block)
 
         # If we have daily blocks, use them
@@ -117,16 +115,16 @@ class WeftReader:
         return weft_file.apply_value_behavior(value)
 
     def _interpolate_daily_blocks(
-        self, blocks: List[DailyDataBlock], dt: datetime, file_id: str
+        self, blocks: List[FortyEightHourBlock], dt: datetime, file_id: str
     ) -> float:
         """
-        Interpolate between multiple daily blocks.
+        Interpolate between multiple forty-eight hour blocks.
 
-        When multiple daily blocks cover the same datetime, we linearly
-        interpolate between them based on their midpoints.
+        When multiple forty-eight hour blocks cover the same datetime, we linearly
+        interpolate between them based on their relative influence.
 
         Args:
-            blocks: List of daily blocks that contain the datetime
+            blocks: List of forty-eight hour blocks that contain the datetime
             dt: The datetime to evaluate at
             file_id: The file ID (used to determine angle handling)
 
@@ -139,7 +137,7 @@ class WeftReader:
         # Calculate midpoints for each block
         midpoints = []
         for block in blocks:
-            # The midpoint of a daily block is midnight on that day
+            # The midpoint of a forty-eight hour block is midnight UTC on the specified day
             midpoint = datetime(
                 block.year, block.month, block.day, 0, 0, 0, tzinfo=timezone.utc
             )
@@ -147,49 +145,16 @@ class WeftReader:
 
         # Convert midpoints to timestamps for easier calculation
         midpoint_ts = [m.timestamp() for m in midpoints]
-
-        # Convert target to timestamp
         target_ts = dt.timestamp()
 
-        # Find which block ranges the target falls into
-        # For daily blocks, the domain is 48 hours centered at the midpoint
-        # Let's calculate time offsets within each block's domain (in [-1, 1] range)
-        block_x_values = []
-        for i, block in enumerate(blocks):
-            # Calculate x coordinate in the range [-1, 1] where:
-            # -1 corresponds to midpoint - 24 hours
-            #  0 corresponds to midpoint
-            #  1 corresponds to midpoint + 24 hours
-            block_start = midpoints[i] - timedelta(hours=24)
-            domain_seconds = 48 * 3600
-            x = 2 * (dt - block_start).total_seconds() / domain_seconds - 1
-            block_x_values.append(x)
-
-        # Calculate values from each block
-        block_values = []
-        for i, block in enumerate(blocks):
-            # Only evaluate if x is in valid range [-1, 1]
-            if -1 <= block_x_values[i] <= 1:
-                block_values.append(block.evaluate(dt))
-            else:
-                # This shouldn't happen if blocks were properly filtered
-                # but handle it gracefully by interpolating from remaining blocks
-                return self._interpolate_remaining_blocks(
-                    blocks, block_values, block_x_values, dt, file_id
-                )
-
-        # Calculate weights based on x-values
-        # As x approaches 1, the block's influence should decrease
-        # As x approaches -1, the block's influence should also decrease
-        # At x=0 (midpoint), the block has maximum influence
+        # Calculate weights based on time distance from each block's midpoint
         weights = []
-        for x in block_x_values:
-            # Convert x from [-1, 1] to weight in [0, 1]
-            # Using the formula w = 1 - |x| so that:
-            # When x=-1 or x=1, weight is 0
-            # When x=0, weight is 1
-            weight = 1 - abs(x)
-            weights.append(max(0.0, weight))
+        for i, block in enumerate(blocks):
+            # Calculate time distance from block's midpoint in hours
+            time_diff = abs(target_ts - midpoint_ts[i]) / 3600  # Convert seconds to hours
+            # Weight decreases linearly from 1 at midpoint to 0 at 24 hours away
+            weight = max(0.0, 1.0 - time_diff / 24.0)
+            weights.append(weight)
 
         # Normalize weights to sum to 1.0
         weight_sum = sum(weights)
@@ -198,6 +163,11 @@ class WeftReader:
         else:
             # This shouldn't happen, but provide a fallback
             return self._interpolate_fallback(blocks, dt, file_id)
+
+        # Calculate values from each block
+        block_values = []
+        for block in blocks:
+            block_values.append(block.evaluate(dt))
 
         # Check if this is a wrapping angle
         if self._is_wrapping_angle(file_id):
@@ -380,7 +350,7 @@ class WeftReader:
                     min_start = start
                 if max_end is None or end > max_end:
                     max_end = end
-            elif isinstance(block, DailyDataBlock):
+            elif isinstance(block, FortyEightHourBlock):
                 start = datetime(block.year, block.month, block.day)
                 end = datetime(block.year, block.month, block.day, 23, 59, 59)
                 if min_start is None or start < min_start:
@@ -419,7 +389,7 @@ class WeftReader:
             1 for block in weft_file.blocks if isinstance(block, MonthlyBlock)
         )
         daily_count = sum(
-            1 for block in weft_file.blocks if isinstance(block, DailyDataBlock)
+            1 for block in weft_file.blocks if isinstance(block, FortyEightHourBlock)
         )
 
         # Get date range
@@ -435,3 +405,44 @@ class WeftReader:
             "start_date": date_range[0],
             "end_date": date_range[1],
         }
+
+    def get_value_with_linear_interpolation(self, dt: datetime, file_id: str = None) -> float:
+        """
+        Get a value from a loaded .weft file for a specific datetime, always using linear interpolation
+        between overlapping blocks.
+
+        Args:
+            dt: The datetime to get the value for (timezone-aware or naive)
+            file_id: The key used when loading the file
+
+        Returns:
+            The interpolated value at the given datetime
+
+        Raises:
+            KeyError: If the key is not found
+            ValueError: If no block covers the given time
+        """
+        # Convert to UTC if timezone-aware, or assume UTC if naive
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+
+        if file_id not in self.files:
+            raise KeyError(f"No weft file loaded for key: {file_id}")
+
+        weft_file = self.files[file_id]
+
+        # Find all daily blocks that contain this datetime
+        daily_blocks = []
+        for block in weft_file.blocks:
+            if isinstance(block, FortyEightHourBlock) and block.contains(dt):
+                daily_blocks.append(block)
+
+        # If we have daily blocks, use them with interpolation
+        if daily_blocks:
+            # Always use interpolation, even with a single block
+            return self._interpolate_daily_blocks(daily_blocks, dt, file_id)
+
+        # If no daily blocks, fall back to regular get_value behavior
+        return self.get_value(dt, file_id)

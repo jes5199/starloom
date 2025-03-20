@@ -10,8 +10,8 @@ to store astronomical values efficiently. It supports multiple levels of precisi
 
 import struct
 from datetime import datetime, timezone, timedelta
-from typing import List, Dict, Tuple, Optional, Any, Union, BinaryIO
-import numpy as np
+from typing import List, Dict, Any, BinaryIO
+from io import BytesIO
 import re
 
 
@@ -69,10 +69,33 @@ def unwrap_angles(angles: List[float]) -> List[float]:
     
     for i in range(1, len(angles)):
         # Calculate the smallest angular difference
-        diff = ((angles[i] - unwrapped[i-1] + 180) % 360) - 180
+        diff = angles[i] - angles[i-1]
+        
+        # Normalize to [-180, 180]
+        if diff > 180:
+            diff -= 360
+        elif diff < -180:
+            diff += 360
+            
+        # Add the normalized difference to the previous unwrapped value
         unwrapped.append(unwrapped[i-1] + diff)
-    
+        
     return unwrapped
+
+
+def _ensure_timezone_aware(dt: datetime) -> datetime:
+    """
+    Ensure a datetime has timezone information, adding UTC if it doesn't.
+    
+    Args:
+        dt: Datetime to check
+        
+    Returns:
+        Timezone-aware datetime
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 class MultiYearBlock:
@@ -154,6 +177,9 @@ class MultiYearBlock:
         Returns:
             True if the datetime is within range
         """
+        # Ensure timezone awareness
+        dt = _ensure_timezone_aware(dt)
+        
         year = dt.year
         return self.start_year <= year < self.start_year + self.duration
     
@@ -170,13 +196,23 @@ class MultiYearBlock:
         Raises:
             ValueError: If the datetime is outside the block's range
         """
+        # Ensure timezone awareness
+        dt = _ensure_timezone_aware(dt)
+        
         if not self.contains(dt):
             raise ValueError(f"Datetime {dt} is outside the block's range")
         
         # Convert datetime to normalized time in [-1, 1] range
         # x = -1 at start of period
         # x = 1 at end of period
-        year_float = dt.year + (dt.timetuple().tm_yday - 1) / 366.0
+        
+        # Get day of year (1-366)
+        dt_tz = dt.tzinfo
+        year_start = datetime(dt.year, 1, 1, tzinfo=dt_tz)
+        days_in_year = 366 if (dt.year % 4 == 0 and (dt.year % 100 != 0 or dt.year % 400 == 0)) else 365
+        day_of_year = (dt - year_start).days + 1
+        
+        year_float = dt.year + (day_of_year - 1) / days_in_year
         x = 2 * ((year_float - self.start_year) / self.duration) - 1
         
         return evaluate_chebyshev(self.coeffs, x)
@@ -264,11 +300,14 @@ class MonthlyBlock:
         Returns:
             True if the datetime is within range
         """
+        # Ensure timezone awareness
+        dt = _ensure_timezone_aware(dt)
+        
         return dt.year == self.year and dt.month == self.month
     
     def evaluate(self, dt: datetime) -> float:
         """
-        Evaluate the block's polynomial at a specific datetime.
+        Evaluate the block at a specific datetime.
         
         Args:
             dt: The datetime to evaluate at
@@ -279,17 +318,25 @@ class MonthlyBlock:
         Raises:
             ValueError: If the datetime is outside the block's range
         """
+        # Ensure timezone awareness
+        dt = _ensure_timezone_aware(dt)
+        
         if not self.contains(dt):
             raise ValueError(f"Datetime {dt} is outside the block's range")
         
         # Convert datetime to normalized time in [-1, 1] range
         # x = -1 at start of month
         # x = 1 at end of month
-        start_of_month = datetime(self.year, self.month, 1, tzinfo=dt.tzinfo or timezone.utc)
+        
+        # Create start and end dates for this month
+        dt_tz = dt.tzinfo
+        start_of_month = datetime(self.year, self.month, 1, tzinfo=dt_tz)
+        
+        # Handle December to January transition
         if self.month == 12:
-            next_month = datetime(self.year + 1, 1, 1, tzinfo=dt.tzinfo or timezone.utc)
+            next_month = datetime(self.year + 1, 1, 1, tzinfo=dt_tz)
         else:
-            next_month = datetime(self.year, self.month + 1, 1, tzinfo=dt.tzinfo or timezone.utc)
+            next_month = datetime(self.year, self.month + 1, 1, tzinfo=dt_tz)
         
         total_seconds = (next_month - start_of_month).total_seconds()
         seconds_elapsed = (dt - start_of_month).total_seconds()
@@ -298,11 +345,11 @@ class MonthlyBlock:
         return evaluate_chebyshev(self.coeffs, x)
 
 
-class DailySectionHeader:
+class FortyEightHourSectionHeader:
     """
-    Header for a section of daily blocks.
+    Header for a section of forty-eight hour blocks.
     
-    This defines the date range and block size for subsequent DailyDataBlock instances.
+    This defines the date range and block size for subsequent FortyEightHourBlock instances.
     """
     
     marker = b"\x00\x02"  # Block type marker
@@ -319,7 +366,7 @@ class DailySectionHeader:
         block_count: int
     ):
         """
-        Initialize a daily section header.
+        Initialize a forty-eight hour section header.
         
         Args:
             start_year: Start year
@@ -328,8 +375,8 @@ class DailySectionHeader:
             end_year: End year
             end_month: End month (1-12)
             end_day: End day (1-31)
-            block_size: Size in bytes of each daily block
-            block_count: Number of daily blocks in this section
+            block_size: Size in bytes of each forty-eight hour block
+            block_count: Number of forty-eight hour blocks in this section
         """
         self.start_year = start_year
         self.start_month = start_month
@@ -372,15 +419,15 @@ class DailySectionHeader:
         return self.marker + header
     
     @classmethod
-    def from_stream(cls, stream: BinaryIO) -> 'DailySectionHeader':
+    def from_stream(cls, stream: BinaryIO) -> 'FortyEightHourSectionHeader':
         """
-        Read a daily section header from a binary stream.
+        Read a forty-eight hour section header from a binary stream.
         
         Args:
             stream: Binary stream positioned after the marker
             
         Returns:
-            A DailySectionHeader instance
+            A FortyEightHourSectionHeader instance
         """
         # Read header
         header = stream.read(14)
@@ -421,18 +468,23 @@ class DailySectionHeader:
         return start_date <= dt < end_date
 
 
-class DailyDataBlock:
+class FortyEightHourBlock:
     """
-    A block covering a single day with a Chebyshev polynomial.
+    A block covering a 48-hour period centered on midnight UTC of the specified day.
     
-    This provides high precision for fast-moving objects.
+    This provides high precision for fast-moving objects. Each block covers a 24-hour period
+    before and after midnight UTC of the specified day, for a total of 48 hours.
+    The time mapping is:
+    - x = -1.0: midnight UTC on the specified day (00:00:00)
+    - x = 0.0: noon UTC on the specified day (12:00:00)
+    - x = 1.0: midnight UTC on the following day (00:00:00)
     """
     
     marker = b"\x00\x01"  # Block type marker
     
     def __init__(self, year: int, month: int, day: int, coeffs: List[float], block_size: int):
         """
-        Initialize a daily data block.
+        Initialize a forty-eight hour block.
         
         Args:
             year: Year
@@ -479,16 +531,16 @@ class DailyDataBlock:
         return data + padding
     
     @classmethod
-    def from_stream(cls, stream: BinaryIO, block_size: int) -> 'DailyDataBlock':
+    def from_stream(cls, stream: BinaryIO, block_size: int) -> 'FortyEightHourBlock':
         """
-        Read a daily data block from a binary stream.
+        Read a forty-eight hour block from a binary stream.
         
         Args:
             stream: Binary stream positioned after the marker
             block_size: Size of the block in bytes
             
         Returns:
-            A DailyDataBlock instance
+            A FortyEightHourBlock instance
         """
         # Read header
         header = stream.read(4)
@@ -519,8 +571,8 @@ class DailyDataBlock:
         """
         Check if a datetime is within this block's effective range.
         
-        The effective range of a daily block is centered on the block's date and extends
-        24 hours in each direction.
+        The effective range of a forty-eight hour block extends from 24 hours before 
+        midnight UTC of the specified day to 24 hours after (48 hours total).
         
         Args:
             dt: The datetime to check
@@ -528,16 +580,20 @@ class DailyDataBlock:
         Returns:
             True if the datetime is within range
         """
-        # Get centered date for comparison
-        block_date = datetime(self.year, self.month, self.day, 0, 0, 0, tzinfo=dt.tzinfo or timezone.utc)
+        # Ensure timezone awareness
+        dt = _ensure_timezone_aware(dt)
         
-        # Daily blocks cover a 48-hour window centered on midnight
+        # Get centered date for comparison with the same timezone as dt
+        dt_tz = dt.tzinfo
+        block_date = datetime(self.year, self.month, self.day, 0, 0, 0, tzinfo=dt_tz)
+        
+        # Blocks cover a 48-hour window centered on midnight
         # i.e., from 24 hours before to 24 hours after midnight
         return block_date - timedelta(hours=24) <= dt < block_date + timedelta(hours=24)
     
     def evaluate(self, dt: datetime) -> float:
         """
-        Evaluate the block's polynomial at a specific datetime.
+        Evaluate the block at a specific datetime.
         
         Args:
             dt: The datetime to evaluate at
@@ -548,19 +604,26 @@ class DailyDataBlock:
         Raises:
             ValueError: If the datetime is outside the block's range
         """
+        # Ensure timezone awareness
+        dt = _ensure_timezone_aware(dt)
+        
         if not self.contains(dt):
             raise ValueError(f"Datetime {dt} is outside the block's range")
         
         # Convert datetime to normalized time in [-1, 1] range
-        # x = -1 at midnight of the previous day
-        # x = 0 at midnight of this day
-        # x = 1 at midnight of the next day
-        block_date = datetime(self.year, self.month, self.day, 0, 0, 0, tzinfo=dt.tzinfo or timezone.utc)
+        # For a forty-eight hour block:
+        # x = -1.0 at 24 hours before midnight UTC of the specified day
+        # x = 0.0 at midnight UTC of the specified day
+        # x = 1.0 at 24 hours after midnight UTC of the specified day
         
-        # Calculate seconds from midnight of the previous day
-        previous_day = block_date - timedelta(days=1)
-        seconds_elapsed = (dt - previous_day).total_seconds()
-        x = seconds_elapsed / 43200 - 1  # 43200 seconds = 12 hours
+        # Use the same timezone as dt
+        dt_tz = dt.tzinfo
+        block_date = datetime(self.year, self.month, self.day, 0, 0, 0, tzinfo=dt_tz)
+        
+        # Calculate normalized position within the 48-hour period
+        # The block is centered on midnight UTC of the specified day
+        seconds_from_center = (dt - block_date).total_seconds()
+        x = seconds_from_center / (24 * 3600)  # Convert to days, giving range [-1, 1] since block is centered
         
         return evaluate_chebyshev(self.coeffs, x)
 
@@ -709,21 +772,21 @@ class WeftFile:
                 blocks.append(block)
                 pos += 8 + 4 * len(block.coeffs)
                 
-            elif marker == DailySectionHeader.marker:
-                # Read daily section header
+            elif marker == FortyEightHourSectionHeader.marker:
+                # Read forty-eight hour section header
                 stream = BytesIO(data[pos:])
-                block = DailySectionHeader.from_stream(stream)
+                block = FortyEightHourSectionHeader.from_stream(stream)
                 blocks.append(block)
                 pos += 14
                 current_daily_header = block
                 
-            elif marker == DailyDataBlock.marker:
-                # Read daily data block
+            elif marker == FortyEightHourBlock.marker:
+                # Read forty-eight hour block
                 if current_daily_header is None:
-                    raise ValueError("Daily data block found but no section header")
+                    raise ValueError("Forty-eight hour block found but no section header")
                     
                 stream = BytesIO(data[pos:])
-                block = DailyDataBlock.from_stream(stream, current_daily_header.block_size - 2)
+                block = FortyEightHourBlock.from_stream(stream, current_daily_header.block_size - 2)
                 blocks.append(block)
                 pos += current_daily_header.block_size - 2
                 

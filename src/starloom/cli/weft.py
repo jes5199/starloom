@@ -3,13 +3,11 @@ CLI commands for generating and using .weft files.
 """
 
 import click
-from datetime import datetime
 import os
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
 from .horizons import parse_date_input
-from ..ephemeris.quantities import Quantity
 
 
 @click.group()

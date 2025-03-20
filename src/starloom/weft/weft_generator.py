@@ -1,23 +1,21 @@
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple, Optional, Any, Callable
+from typing import List, Dict, Tuple, Optional, Any, Callable, Union
 from zoneinfo import ZoneInfo
-import numpy as np
 from numpy.polynomial import chebyshev
 import os
 
 from .weft import (
     MultiYearBlock,
     MonthlyBlock,
-    DailySectionHeader,
-    DailyDataBlock,
+    FortyEightHourSectionHeader,
+    FortyEightHourBlock,
     WeftFile,
     unwrap_angles,
 )
 from ..horizons.quantities import (
     EphemerisQuantity,
-    OrbitalElementsQuantity,
-    ANGLE_QUANTITIES,
 )
+from ..horizons.parsers import OrbitalElementsQuantity
 from ..horizons.planet import Planet
 
 
@@ -51,7 +49,7 @@ class WeftGenerator:
         start_dt: datetime,
         end_dt: datetime,
         sample_count: int,
-        quantity: EphemerisQuantity | OrbitalElementsQuantity,
+        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
     ) -> Tuple[List[float], List[float]]:
         """
         Generate samples between start_dt and end_dt using the provided value_func.
@@ -160,7 +158,7 @@ class WeftGenerator:
         ]
 
         # Debug: Print normalized time values
-        print(f"\nDEBUG: Normalized time values (x_values):")
+        print("\nDEBUG: Normalized time values (x_values):")
         print(f"First 5 x_values: {normalized_times[:5]}")
         print(f"Last 5 x_values: {normalized_times[-5:]}")
 
@@ -192,7 +190,7 @@ class WeftGenerator:
         duration: int,
         samples_per_year: int,
         degree: int,
-        quantity: EphemerisQuantity | OrbitalElementsQuantity,
+        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
     ) -> MultiYearBlock:
         """
         Create a multi-year block covering the specified years.
@@ -230,7 +228,7 @@ class WeftGenerator:
         month_range: Tuple[int, int],
         samples_per_month: int,
         degree: int,
-        quantity: EphemerisQuantity | OrbitalElementsQuantity,
+        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
     ) -> List[MonthlyBlock]:
         """
         Create monthly blocks for the specified year and month range.
@@ -282,10 +280,10 @@ class WeftGenerator:
         samples_per_day: int,
         degree: int,
         block_size: Optional[int] = None,
-        quantity: EphemerisQuantity | OrbitalElementsQuantity = None,
-    ) -> Tuple[DailySectionHeader, List[DailyDataBlock]]:
+        quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
+    ) -> Tuple[FortyEightHourSectionHeader, List[FortyEightHourBlock]]:
         """
-        Create a section of daily blocks.
+        Create a section of forty-eight hour blocks.
 
         Args:
             value_func: Function that returns a value for a given datetime
@@ -297,7 +295,7 @@ class WeftGenerator:
             quantity: The quantity being computed
 
         Returns:
-            Tuple of (DailySectionHeader, List[DailyDataBlock])
+            Tuple of (FortyEightHourSectionHeader, List[FortyEightHourBlock])
         """
         # Ensure we're working with dates at day boundaries
         start_date = datetime(
@@ -322,7 +320,7 @@ class WeftGenerator:
                 block_size += 16 - (block_size % 16)
 
         # Create header
-        header = DailySectionHeader(
+        header = FortyEightHourSectionHeader(
             start_year=start_date.year,
             start_month=start_date.month,
             start_day=start_date.day,
@@ -333,21 +331,18 @@ class WeftGenerator:
             block_count=days,
         )
 
-        # Create daily blocks
+        # Create forty-eight hour blocks
         blocks = []
         current_date = start_date
         while current_date <= end_date:
-            # For daily blocks, the time range is defined as:
-            # x = (hours since midnight UTC) / 24.0
-            # This means:
-            # x = -1 at 24 hours before midnight
-            # x = 0 at midnight
-            # x = 0.5 at noon
-            # x = 1 at 24 hours after midnight
-
-            # To get proper samples, we need to sample 48 hours centered on midnight
-            day_start = current_date - timedelta(hours=24)  # 24 hours before midnight
-            day_end = current_date + timedelta(hours=24)  # 24 hours after midnight
+            # For forty-eight hour blocks, the time range is:
+            # x = -1.0 at midnight UTC of the specified day (00:00:00)
+            # x = 0.0 at noon UTC of the specified day (12:00:00)
+            # x = 1.0 at midnight UTC of the following day (00:00:00)
+            
+            # We need to sample the 24-hour period of the specified day
+            day_start = current_date  # Midnight UTC of the specified day
+            day_end = current_date + timedelta(days=1)  # Midnight UTC of the following day
 
             x_values, values = self._generate_samples(
                 value_func, day_start, day_end, samples_per_day, quantity
@@ -357,7 +352,7 @@ class WeftGenerator:
             coeffs = chebyshev.chebfit(x_values, values, deg=degree)
 
             blocks.append(
-                DailyDataBlock(
+                FortyEightHourBlock(
                     year=current_date.year,
                     month=current_date.month,
                     day=current_date.day,
@@ -374,7 +369,7 @@ class WeftGenerator:
         self,
         value_func: Callable[[datetime], float],
         body: Planet,
-        quantity: EphemerisQuantity | OrbitalElementsQuantity,
+        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
         start_date: datetime,
         end_date: datetime,
         config: Dict[str, Any],

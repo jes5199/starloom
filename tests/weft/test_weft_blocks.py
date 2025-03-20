@@ -1,21 +1,14 @@
 import unittest
 import struct
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from io import BytesIO
-import sys
-import os
-import numpy as np
 
-# Add parent directory to sys.path to import weft.py
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-
-from lib.weft.weft import (
+# Import from starloom package
+from src.starloom.weft.weft import (
     MultiYearBlock,
     MonthlyBlock,
-    DailySectionHeader,
-    DailyDataBlock,
+    FortyEightHourSectionHeader,
+    FortyEightHourBlock,
     WeftFile,
     evaluate_chebyshev,
     unwrap_angles,
@@ -93,14 +86,14 @@ class TestMultiYearBlock(unittest.TestCase):
     def test_evaluate(self):
         """Test evaluation at specific times."""
         # Test at start of period (x = -1)
-        dt = datetime(self.start_year, 1, 1)
+        dt = datetime(self.start_year, 1, 1, tzinfo=timezone.utc)
         self.assertTrue(self.block.contains(dt))
         value = self.block.evaluate(dt)
         expected = evaluate_chebyshev(self.coeffs, -1.0)
         self.assertAlmostEqual(value, expected)
 
         # Test at middle of period (x = 0)
-        dt = datetime(self.start_year + self.duration // 2, 7, 2)
+        dt = datetime(self.start_year + self.duration // 2, 7, 2, tzinfo=timezone.utc)
         self.assertTrue(self.block.contains(dt))
         value = self.block.evaluate(dt)
         # Approximate x value for middle of period
@@ -109,7 +102,7 @@ class TestMultiYearBlock(unittest.TestCase):
         self.assertAlmostEqual(value, expected, places=1)
 
         # Test outside of period
-        dt = datetime(self.start_year + self.duration + 1, 1, 1)
+        dt = datetime(self.start_year + self.duration + 1, 1, 1, tzinfo=timezone.utc)
         self.assertFalse(self.block.contains(dt))
         with self.assertRaises(ValueError):
             self.block.evaluate(dt)
@@ -167,14 +160,14 @@ class TestMonthlyBlock(unittest.TestCase):
     def test_evaluate(self):
         """Test evaluation at specific times."""
         # Test at start of month (x = -1)
-        dt = datetime(self.year, self.month, 1)
+        dt = datetime(self.year, self.month, 1, tzinfo=timezone.utc)
         self.assertTrue(self.block.contains(dt))
         value = self.block.evaluate(dt)
         expected = evaluate_chebyshev(self.coeffs, -1.0)
         self.assertAlmostEqual(value, expected)
 
         # Test at middle of month (x ≈ 0)
-        dt = datetime(self.year, self.month, 16)
+        dt = datetime(self.year, self.month, 16, tzinfo=timezone.utc)
         self.assertTrue(self.block.contains(dt))
         value = self.block.evaluate(dt)
         x_mid = 2 * ((15) / self.day_count) - 1  # Approx 0 for 31-day month
@@ -182,13 +175,13 @@ class TestMonthlyBlock(unittest.TestCase):
         self.assertAlmostEqual(value, expected)
 
         # Test outside of month
-        dt = datetime(self.year, self.month + 1, 1)
+        dt = datetime(self.year, self.month + 1, 1, tzinfo=timezone.utc)
         self.assertFalse(self.block.contains(dt))
         with self.assertRaises(ValueError):
             self.block.evaluate(dt)
 
 
-class TestDailyBlocks(unittest.TestCase):
+class TestFortyEightHourBlocks(unittest.TestCase):
     def setUp(self):
         self.year = 2023
         self.month = 6
@@ -198,8 +191,8 @@ class TestDailyBlocks(unittest.TestCase):
             22  # 2(marker) + 2(year) + 1(month) + 1(day) + 4*3(coeffs) + 4(padding)
         )
 
-        # Daily Section Header
-        self.header = DailySectionHeader(
+        # FortyEightHour Section Header
+        self.header = FortyEightHourSectionHeader(
             start_year=self.year,
             start_month=self.month,
             start_day=self.day,
@@ -210,8 +203,8 @@ class TestDailyBlocks(unittest.TestCase):
             block_count=3,
         )
 
-        # Daily Data Block
-        self.daily = DailyDataBlock(
+        # FortyEightHour Block
+        self.forty_eight_hour = FortyEightHourBlock(
             year=self.year,
             month=self.month,
             day=self.day,
@@ -220,7 +213,7 @@ class TestDailyBlocks(unittest.TestCase):
         )
 
     def test_header_to_bytes(self):
-        """Test serialization of DailySectionHeader."""
+        """Test serialization of FortyEightHourSectionHeader."""
         data = self.header.to_bytes()
 
         # Check marker
@@ -248,11 +241,11 @@ class TestDailyBlocks(unittest.TestCase):
         self.assertEqual(block_count, 3)
 
     def test_header_from_stream(self):
-        """Test deserialization of DailySectionHeader."""
+        """Test deserialization of FortyEightHourSectionHeader."""
         data = self.header.to_bytes()
         stream = BytesIO(data[2:])  # Skip marker which is already read in real usage
 
-        header = DailySectionHeader.from_stream(stream)
+        header = FortyEightHourSectionHeader.from_stream(stream)
         self.assertEqual(header.start_year, self.year)
         self.assertEqual(header.start_month, self.month)
         self.assertEqual(header.start_day, self.day)
@@ -262,9 +255,9 @@ class TestDailyBlocks(unittest.TestCase):
         self.assertEqual(header.block_size, self.block_size)
         self.assertEqual(header.block_count, 3)
 
-    def test_daily_to_bytes(self):
-        """Test serialization of DailyDataBlock."""
-        data = self.daily.to_bytes()
+    def test_forty_eight_hour_to_bytes(self):
+        """Test serialization of FortyEightHourBlock."""
+        data = self.forty_eight_hour.to_bytes()
 
         # Check marker
         self.assertEqual(data[:2], b"\x00\x01")
@@ -286,42 +279,49 @@ class TestDailyBlocks(unittest.TestCase):
         # Check padding
         self.assertEqual(len(data), self.block_size)
 
-    def test_daily_from_stream(self):
-        """Test deserialization of DailyDataBlock."""
-        data = self.daily.to_bytes()
+    def test_forty_eight_hour_from_stream(self):
+        """Test deserialization of FortyEightHourBlock."""
+        data = self.forty_eight_hour.to_bytes()
         stream = BytesIO(data[2:])  # Skip marker which is already read in real usage
 
-        daily = DailyDataBlock.from_stream(stream, self.block_size)
-        self.assertEqual(daily.year, self.year)
-        self.assertEqual(daily.month, self.month)
-        self.assertEqual(daily.day, self.day)
+        forty_eight_hour = FortyEightHourBlock.from_stream(stream, self.block_size)
+        self.assertEqual(forty_eight_hour.year, self.year)
+        self.assertEqual(forty_eight_hour.month, self.month)
+        self.assertEqual(forty_eight_hour.day, self.day)
 
         # Get just the actual coefficients, not including padding zeroes
-        # (The DailyDataBlock.from_stream might read extra padding as coefficients)
+        # (The FortyEightHourBlock.from_stream might read extra padding as coefficients)
         for i in range(len(self.coeffs)):
-            self.assertAlmostEqual(daily.coeffs[i], self.coeffs[i])
+            self.assertAlmostEqual(forty_eight_hour.coeffs[i], self.coeffs[i])
 
-    def test_daily_evaluate(self):
-        """Test evaluation of DailyDataBlock at specific times."""
+    def test_forty_eight_hour_evaluate(self):
+        """Test evaluation of FortyEightHourBlock at specific times."""
         # Test at midnight (x = -1)
-        dt = datetime(self.year, self.month, self.day, 0, 0, 0)
-        self.assertTrue(self.daily.contains(dt))
-        value = self.daily.evaluate(dt)
+        dt = datetime(self.year, self.month, self.day, 0, 0, 0, tzinfo=timezone.utc)
+        self.assertTrue(self.forty_eight_hour.contains(dt))
+        value = self.forty_eight_hour.evaluate(dt)
         expected = evaluate_chebyshev(self.coeffs, -1.0)
         self.assertAlmostEqual(value, expected)
 
         # Test at noon (x = 0)
-        dt = datetime(self.year, self.month, self.day, 12, 0, 0)
-        self.assertTrue(self.daily.contains(dt))
-        value = self.daily.evaluate(dt)
+        dt = datetime(self.year, self.month, self.day, 12, 0, 0, tzinfo=timezone.utc)
+        self.assertTrue(self.forty_eight_hour.contains(dt))
+        value = self.forty_eight_hour.evaluate(dt)
         expected = evaluate_chebyshev(self.coeffs, 0.0)
         self.assertAlmostEqual(value, expected)
+        
+        # Test at end of day (x = 1)
+        dt = datetime(self.year, self.month, self.day, 23, 59, 59, tzinfo=timezone.utc)
+        self.assertTrue(self.forty_eight_hour.contains(dt))
+        value = self.forty_eight_hour.evaluate(dt)
+        expected = evaluate_chebyshev(self.coeffs, 0.9999)  # Almost 1
+        self.assertAlmostEqual(value, expected, places=1)
 
         # Test outside of day
-        dt = datetime(self.year, self.month, self.day + 1, 0, 0, 0)
-        self.assertFalse(self.daily.contains(dt))
+        dt = datetime(self.year, self.month, self.day + 1, 0, 0, 0, tzinfo=timezone.utc)
+        self.assertFalse(self.forty_eight_hour.contains(dt))
         with self.assertRaises(ValueError):
-            self.daily.evaluate(dt)
+            self.forty_eight_hour.evaluate(dt)
 
 
 class TestWeftFile(unittest.TestCase):
@@ -338,7 +338,7 @@ class TestWeftFile(unittest.TestCase):
         block_size = (
             22  # 2(marker) + 2(year) + 1(month) + 1(day) + 4*3(coeffs) + 4(padding)
         )
-        self.daily_header = DailySectionHeader(
+        self.forty_eight_hour_header = FortyEightHourSectionHeader(
             start_year=2003,
             start_month=1,
             start_day=1,
@@ -348,19 +348,19 @@ class TestWeftFile(unittest.TestCase):
             block_size=block_size,
             block_count=2,
         )
-        self.daily1 = DailyDataBlock(
+        self.forty_eight_hour1 = FortyEightHourBlock(
             year=2003, month=1, day=1, coeffs=[0.3, 0.4, 0.5], block_size=block_size
         )
-        self.daily2 = DailyDataBlock(
+        self.forty_eight_hour2 = FortyEightHourBlock(
             year=2003, month=1, day=2, coeffs=[0.6, 0.7, 0.8], block_size=block_size
         )
 
         self.blocks = [
             self.multi_year,
             self.monthly,
-            self.daily_header,
-            self.daily1,
-            self.daily2,
+            self.forty_eight_hour_header,
+            self.forty_eight_hour1,
+            self.forty_eight_hour2,
         ]
         self.weft_file = WeftFile(preamble=self.preamble, blocks=self.blocks)
 
@@ -374,8 +374,8 @@ class TestWeftFile(unittest.TestCase):
         # Check that all blocks are included
         self.assertIn(self.multi_year.marker, data)
         self.assertIn(self.monthly.marker, data)
-        self.assertIn(self.daily_header.marker, data)
-        self.assertIn(self.daily1.marker, data)
+        self.assertIn(self.forty_eight_hour_header.marker, data)
+        self.assertIn(self.forty_eight_hour1.marker, data)
 
     def test_from_bytes(self):
         """Test deserialization of WeftFile."""
@@ -391,9 +391,9 @@ class TestWeftFile(unittest.TestCase):
         # Check block types
         self.assertIsInstance(parsed.blocks[0], MultiYearBlock)
         self.assertIsInstance(parsed.blocks[1], MonthlyBlock)
-        self.assertIsInstance(parsed.blocks[2], DailySectionHeader)
-        self.assertIsInstance(parsed.blocks[3], DailyDataBlock)
-        self.assertIsInstance(parsed.blocks[4], DailyDataBlock)
+        self.assertIsInstance(parsed.blocks[2], FortyEightHourSectionHeader)
+        self.assertIsInstance(parsed.blocks[3], FortyEightHourBlock)
+        self.assertIsInstance(parsed.blocks[4], FortyEightHourBlock)
 
         # Check some properties
         self.assertEqual(parsed.blocks[0].start_year, 2000)

@@ -9,16 +9,16 @@ Each file represents a **single astronomical value** (e.g., ecliptic longitude o
 
 - **Multi-year blocks (`0x00 03`)** – Efficient long-term storage for slow-moving objects.
 - **Monthly blocks (`0x00 00`)** – Standard resolution, balancing precision and storage.
-- **Daily blocks (`0x00 02` and `0x00 01`)** – High-precision storage for fast-moving objects.
+- **Forty-Eight Hour blocks (`0x00 02` and `0x00 01`)** – High-precision storage for fast-moving objects.
 
-Files can freely switch between **multi-year, monthly, and daily blocks**, allowing hybrid datasets.
+Files can freely switch between **multi-year, monthly, and forty-eight hour blocks**, allowing hybrid datasets.
 
 ---
 
 ## File Structure
 
 A `.weft` file consists of a **UTF-8 preamble** followed by binary data blocks.
-All values in the data section are stored in “network” (big-endian) byte order. Negative integers are stored in ones-complement. Floating point numbers follow the IEEE 754 standard.
+All values in the data section are stored in "network" (big-endian) byte order. Negative integers are stored in ones-complement. Floating point numbers follow the IEEE 754 standard.
 
 ### Example Preamble:
 ```
@@ -93,13 +93,13 @@ x = 2 * ((days since start of month + fractional day) / total days in month) - 1
 
 ---
 
-## Daily Blocks (`0x00 02` and `0x00 01`)
+## Forty-Eight Hour Blocks (`0x00 02` and `0x00 01`)
 
-Daily blocks provide **high precision** by storing **one polynomial per day**.
+Forty-Eight Hour blocks provide **high precision** by storing **one polynomial per 48-hour period centered on midnight UTC of a specified day**.
 
-### Daily Section Header (`0x00 02`)
+### Forty-Eight Hour Section Header (`0x00 02`)
 
-A `0x00 02` block **marks the start of a section containing daily blocks**.
+A `0x00 02` block **marks the start of a section containing forty-eight hour blocks**.
 
 #### Format:
 ```
@@ -110,13 +110,13 @@ Start day (1 byte)
 End year (2 bytes)
 End month (1 byte)
 End day (1 byte)
-Block size (2 bytes)       # Defines size of each daily block
-Block count (4 bytes)      # Number of daily blocks in this section
+Block size (2 bytes)       # Defines size of each forty-eight hour block
+Block count (4 bytes)      # Number of forty-eight hour blocks in this section
 ```
 
 A `0x00 02` block **does not contain data**—it defines the date range of the **following** `0x00 01` blocks.
 
-### Daily Data Block (`0x00 01`)
+### Forty-Eight Hour Data Block (`0x00 01`)
 
 #### Format:
 ```
@@ -129,17 +129,17 @@ Padding (if needed)        # Zero-filled to ensure uniform block size
 ```
 
 ### Time Scaling:
-x = (seconds since midnight UTC) / 43,200 - 1
+x = 2 * ((hours since midnight UTC of the specified day) / 24) - 1
 
-- `x = -1.0` at **midnight UTC on the previous day**.
-- `x = 0.0` at **midnight UTC on the current day**.
-- `x = +1.0` at **midnight UTC on the next day**.
+- `x = -1.0` at **midnight UTC on the specified day** (00:00:00).
+- `x = 0.0` at **noon UTC on the specified day** (12:00:00).
+- `x = +1.0` at **midnight UTC on the following day** (00:00:00).
 
-**Daily blocks must be in strict chronological order.**
+**Forty-Eight Hour blocks must be in strict chronological order.**
 
-Note that each day covers a 48 hour period!
-Normally there will be 2 daily chebychevs covering a specific datetime - in that case,
-when reading a value, calculate both! and linearly interpolate between the two.
+Note that each Forty-Eight Hour block is named this way because its effective range extends 24 hours before and 24 hours after midnight UTC of the specified day, totaling a 48-hour coverage period!
+
+When a specific datetime falls within the coverage period of multiple Forty-Eight Hour blocks, the reader should calculate values from each applicable block and linearly interpolate between them based on their relative influence.
 
 ---
 
@@ -200,10 +200,10 @@ The preamble specifies how values should be handled:
 
 ## Summary of Features
 
-* Multi-year, monthly, and daily data blocks
+* Multi-year, monthly, and forty-eight hour data blocks
 * Explicit block markers (0x00 03, 0x00 00, 0x00 02, 0x00 01) for easy parsing
-* Daily section headers (0x00 02) define time ranges for efficient lookup
-* Fixed-size daily blocks enable O(1) seeking
+* Forty-eight hour section headers (0x00 02) define time ranges for efficient lookup
+* Fixed-size forty-eight hour blocks enable O(1) seeking
 * Flexible multi-year and monthly blocks allow efficient long-term storage
 * Blocks are aligned to 16-bit boundaries
 * Value wrapping behavior specified in preamble

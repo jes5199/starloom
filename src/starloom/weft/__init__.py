@@ -10,8 +10,8 @@ from .weft import (
     WeftFile,
     MultiYearBlock,
     MonthlyBlock,
-    DailySectionHeader,
-    DailyDataBlock,
+    FortyEightHourSectionHeader,
+    FortyEightHourBlock,
     evaluate_chebyshev,
     unwrap_angles
 )
@@ -24,8 +24,8 @@ __all__ = [
     "WeftFile",
     "MultiYearBlock",
     "MonthlyBlock", 
-    "DailySectionHeader",
-    "DailyDataBlock",
+    "FortyEightHourSectionHeader",
+    "FortyEightHourBlock",
     "evaluate_chebyshev",
     "unwrap_angles",
     "WeftReader",

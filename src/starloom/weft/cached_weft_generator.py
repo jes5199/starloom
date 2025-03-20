@@ -5,17 +5,16 @@ This module provides a convenient wrapper around WeftGenerator that
 uses CachedHorizonsEphemeris as a data source for generating .weft files.
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List, Union
+from datetime import datetime
+from typing import Dict, Any, Optional, Union
 import os
-from pathlib import Path
 
 from ..cached_horizons import CachedHorizonsEphemeris
 from ..horizons.planet import Planet
 from ..ephemeris.quantities import Quantity
-from ..horizons.quantities import EphemerisQuantity, OrbitalElementsQuantity
+from ..horizons.quantities import EphemerisQuantity
+from ..horizons.parsers import OrbitalElementsQuantity
 from .weft_generator import WeftGenerator
-from .weft import WeftFile
 
 
 def generate_weft_file(

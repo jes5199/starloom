@@ -295,3 +295,17 @@ class Quantities:
         if isinstance(other, Quantities):
             return self.values == other.values
         return NotImplemented
+
+
+# Add ANGLE_QUANTITIES after the EphemerisQuantity class definition
+# This should be a set of quantities that represent angles
+
+# Set of quantities that represent angles and need to be handled specially
+ANGLE_QUANTITIES = {
+    EphemerisQuantity.RIGHT_ASCENSION,
+    EphemerisQuantity.DECLINATION,
+    EphemerisQuantity.ECLIPTIC_LONGITUDE,
+    EphemerisQuantity.ECLIPTIC_LATITUDE,
+    EphemerisQuantity.APPARENT_AZIMUTH,
+    EphemerisQuantity.APPARENT_ELEVATION,
+}

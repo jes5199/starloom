@@ -1,25 +1,17 @@
 import unittest
-import os
-import tempfile
 from datetime import datetime, timedelta, timezone
-import sys
-import struct
-from io import BytesIO
+import tempfile
+import os
 
-# Add parent directory to sys.path to import weft modules
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-
-from lib.weft.weft import (
+# Import from starloom package
+from src.starloom.weft.weft import (
     MultiYearBlock,
     MonthlyBlock,
     DailySectionHeader,
     DailyDataBlock,
     WeftFile,
-    evaluate_chebyshev,
 )
-from lib.weft.weft_reader import WeftReader
+from src.starloom.weft.weft_reader import WeftReader
 
 
 class TestWeftEdgeCases(unittest.TestCase):
@@ -141,7 +133,7 @@ class TestWeftEdgeCases(unittest.TestCase):
         with self.assertRaises(ValueError):
             try:
                 dt3 = datetime(2021, 2, 29)
-            except ValueError as e:
+            except ValueError:
                 raise ValueError("Invalid date: February 29th in non-leap year")
 
     def test_timezone_handling(self):
