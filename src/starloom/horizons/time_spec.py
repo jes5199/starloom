@@ -25,7 +25,18 @@ class TimeSpec:
         if self.dates is not None and len(self.dates) > 100:
             raise ValueError("Maximum of 100 dates allowed")
         if self.start_time is not None and self.stop_time is not None:
-            if self.start_time > self.stop_time:
+            # Convert both to Julian dates for comparison if needed
+            start_jd = (
+                self.start_time
+                if isinstance(self.start_time, float)
+                else julian_from_datetime(self.start_time)
+            )
+            stop_jd = (
+                self.stop_time
+                if isinstance(self.stop_time, float)
+                else julian_from_datetime(self.stop_time)
+            )
+            if start_jd > stop_jd:
                 raise ValueError("Start time must be before stop time")
 
     def to_params(self) -> Dict[str, str]:

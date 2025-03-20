@@ -5,8 +5,10 @@ The parser handles the standard column format for orbital elements.
 """
 
 import csv
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional, TypeVar, cast
 from enum import Enum
+
+T = TypeVar("T")
 
 
 class OrbitalElementsQuantity(Enum):
@@ -52,7 +54,7 @@ class ElementsParser:
             response: Response text from Horizons API
         """
         self.response = response
-        self._column_map = None
+        self._column_map: Optional[Dict[int, OrbitalElementsQuantity]] = None
 
     def _extract_csv_lines(self) -> List[str]:
         """Extract CSV lines from the Horizons response.
@@ -68,8 +70,8 @@ class ElementsParser:
         $$EOE
         **********************************************************
         """
-        csv_lines = []
-        header_line = None
+        csv_lines: List[str] = []
+        header_line: Optional[str] = None
         in_table = False
 
         for line in self.response.split("\n"):
@@ -89,7 +91,7 @@ class ElementsParser:
             # Store header line if we find one before $$SOE
             if not in_table and "JDTDB" in line:
                 header_line = line
-                csv_lines.append(header_line)
+                csv_lines.append(cast(str, header_line))
                 continue
 
             # Store data lines
@@ -112,7 +114,7 @@ class ElementsParser:
         if self._column_map is not None:
             return self._column_map
 
-        result = {}
+        result: Dict[int, OrbitalElementsQuantity] = {}
 
         for i, header in enumerate(headers):
             header = header.strip()
@@ -130,7 +132,7 @@ class ElementsParser:
         Returns:
             List of (Julian date, values) tuples
         """
-        data = []
+        data: List[Tuple[float, Dict[OrbitalElementsQuantity, str]]] = []
         csv_lines = self._extract_csv_lines()
 
         if not csv_lines:
@@ -149,7 +151,7 @@ class ElementsParser:
         col_map = self._map_columns_to_quantities(headers)
 
         # Find column index for Julian date
-        jd_col = None
+        jd_col: Optional[int] = None
         for col_idx, quantity in col_map.items():
             if quantity == OrbitalElementsQuantity.JULIAN_DATE:
                 jd_col = col_idx
@@ -168,7 +170,7 @@ class ElementsParser:
             except (ValueError, IndexError):
                 continue
 
-            values = {}
+            values: Dict[OrbitalElementsQuantity, str] = {}
             for col_idx, quantity in col_map.items():
                 if col_idx < len(row):
                     values[quantity] = row[col_idx].strip()
