@@ -72,38 +72,41 @@ def analyze_data_coverage(
     Raises:
         ValueError: If step_size is None or has an invalid format
     """
+    print(f"DEBUG: analyze_data_coverage for period {start} to {end}")
+    print(f"DEBUG: Total timestamps available: {len(timestamps)}")
+    
     if not timestamps:
+        print("DEBUG: No timestamps available")
         return 0.0, 0.0
 
     # Filter timestamps to those in range
     in_range = [t for t in timestamps if start <= t <= end]
+    print(f"DEBUG: Timestamps in range: {len(in_range)}")
+    
     if not in_range:
+        print("DEBUG: No timestamps in range")
         return 0.0, 0.0
 
-    # Calculate coverage
-    total_days = (end - start).total_seconds() / (24 * 3600)
-    # Adjust point count for inclusive endpoints
-    points_per_day = (len(in_range) - 1) / total_days
+    # Calculate coverage based on the span between earliest and latest points
+    total_period = (end - start).total_seconds()
+    if len(in_range) >= 2:
+        # Sort timestamps just to be safe
+        in_range.sort()
+        # Coverage is determined by the span between first and last timestamp
+        covered_span = (in_range[-1] - in_range[0]).total_seconds()
+        coverage = covered_span / total_period
+    else:
+        # If only one point, coverage is minimal
+        coverage = 0.0
 
-    # Calculate actual coverage based on gaps
-    if time_spec.step_size is None:
-        raise ValueError("TimeSpec step_size cannot be None")
-
-    step_str = time_spec.step_size
-    expected_gap = timedelta(
-        hours=float(step_str[:-1])
-        if step_str.endswith("h")
-        else float(step_str[:-1]) / 60
-    )
-    max_allowed_gap = expected_gap * 1.5  # Allow 50% larger gaps
-
-    covered_time = timedelta()
-    for i in range(1, len(in_range)):
-        gap = in_range[i] - in_range[i - 1]
-        if gap <= max_allowed_gap:
-            covered_time += gap
-
-    coverage = covered_time.total_seconds() / (end - start).total_seconds()
+    # Calculate points per day
+    total_days = total_period / (24 * 3600)
+    points_per_day = len(in_range) / total_days
+    
+    print(f"DEBUG: Total days: {total_days}, Points per day: {points_per_day}")
+    print(f"DEBUG: First point: {in_range[0] if in_range else 'None'}")
+    print(f"DEBUG: Last point: {in_range[-1] if len(in_range) > 0 else 'None'}")
+    print(f"DEBUG: Coverage: {coverage:.4f} (based on span between first and last points)")
 
     return coverage, points_per_day
 
@@ -172,7 +175,7 @@ def should_include_monthly_block(
 
 
 def should_include_daily_block(
-    time_spec: TimeSpec, data_source: Any, date: datetime
+    time_spec: TimeSpec, data_source: Any, date: datetime, force_include: bool = False
 ) -> bool:
     """
     Determine if a daily block should be included.
@@ -181,10 +184,15 @@ def should_include_daily_block(
         time_spec: The TimeSpec used for sampling
         data_source: The data source to analyze
         date: The date to analyze
+        force_include: If True, bypass regular coverage checks
 
     Returns:
         True if the block should be included
     """
+    # If force_include is True, skip coverage checks
+    if force_include:
+        return True
+        
     # Get time range for this day
     start = datetime(date.year, date.month, date.day, tzinfo=timezone.utc)
     end = start + timedelta(days=1)
@@ -193,19 +201,24 @@ def should_include_daily_block(
     points_per_day = calculate_sampling_rate(time_spec)
 
     # Get data coverage
-    coverage, _ = analyze_data_coverage(time_spec, start, end, data_source.timestamps)
+    coverage, actual_points = analyze_data_coverage(time_spec, start, end, data_source.timestamps)
 
-    # Daily blocks need at least 24 points per day (hourly)
-    # and 66.6% coverage
-    return coverage >= 0.666 and points_per_day >= 24.0
+    # Use actual measured points per day if available
+    if actual_points > 0:
+        points_per_day = actual_points
+
+    # Daily blocks need at least 8 points per day
+    # and 66.6% coverage (the same threshold used for monthly blocks)
+    return coverage >= 0.666 and points_per_day >= 8.0
 
 
-def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
+def get_recommended_blocks(data_source: Any, force_forty_eight_hour_blocks: bool = False) -> Dict[str, Dict[str, Any]]:
     """
     Get recommended block configuration based on data availability.
 
     Args:
         data_source: The data source to analyze
+        force_forty_eight_hour_blocks: If True, always enable forty_eight_hour blocks regardless of time span
 
     Returns:
         Dictionary of block type to configuration
@@ -237,10 +250,12 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
             "sample_count": 48,  # Half-hourly samples
             "polynomial_degree": 11,  # 12 coefficients
         },
+        # Special flag for forcing 48-hour blocks to be included regardless of coverage
+        "force_include_daily": force_forty_eight_hour_blocks
     }
 
     # Enable blocks based on data availability, preferring higher precision
-    if points_per_day >= 24.0:  # At least hourly points
+    if points_per_day >= 8.0:  # At least 8 points per day (every 3 hours)
         if total_days <= 7:
             # For very short spans (up to 7 days), use only forty-eight hour blocks
             config["forty_eight_hour"]["enabled"] = True
@@ -256,10 +271,16 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
             config["forty_eight_hour"]["enabled"] = True
             print("Enabling monthly and forty-eight hour blocks for medium time span")
         else:
-            # For long spans, use all block types except forty-eight hour
+            # For long spans, use all block types
             config["monthly"]["enabled"] = True
             config["multi_year"]["enabled"] = True
-            print("Enabling multi-year and monthly blocks for long time span")
+            
+            # For long spans, only enable forty-eight hour blocks when explicitly requested
+            if force_forty_eight_hour_blocks:
+                config["forty_eight_hour"]["enabled"] = True
+                print("Enabling multi-year, monthly, and forty-eight hour blocks (forced) for long time span")
+            else:
+                print("Enabling multi-year and monthly blocks for long time span")
     elif points_per_day >= 4.0:  # At least 6-hourly points
         # Use monthly blocks for spans of 7 days or more
         if total_days >= 7:
@@ -269,10 +290,20 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         if total_days >= 365:
             config["multi_year"]["enabled"] = True
             print("Enabling multi-year blocks for long time span")
+        
+        # Enable forty-eight hour blocks if forced
+        if force_forty_eight_hour_blocks:
+            config["forty_eight_hour"]["enabled"] = True
+            print("Enabling forty-eight hour blocks (forced) with lower data density")
     elif points_per_day >= 1 / 7:  # At least weekly points
         # Use multi-year blocks for spans of a year or more
         if total_days >= 365:
             config["multi_year"]["enabled"] = True
             print("Enabling multi-year blocks for long time span")
+        
+        # Enable forty-eight hour blocks if forced (though this might not be useful with such low density)
+        if force_forty_eight_hour_blocks:
+            config["forty_eight_hour"]["enabled"] = True
+            print("Enabling forty-eight hour blocks (forced) with very low data density")
 
     return config

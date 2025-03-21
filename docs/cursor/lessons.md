@@ -737,3 +737,65 @@ When generating .weft files with different precision blocks (multi-year, monthly
    - Test with date ranges that include partial periods at both start and end
    - Verify that blocks with insufficient coverage are excluded from the final file
    - Confirm that the .weft file contains the expected number of blocks based on coverage criteria 
+
+# WEFT File Generation
+
+## Block Selection and Coverage
+
+1. When generating WEFT files with different block types (multi-year, monthly, 48-hour), coverage checks are important:
+   - Each block type has a minimum coverage requirement (e.g., 66.6% for monthly blocks)
+   - The `should_include_X_block` functions in `block_selection.py` determine if a block has sufficient coverage
+   - When extending date ranges beyond available data, these checks prevent the inclusion of low-quality blocks
+
+2. Implementation of partial month support:
+   - Modified `MonthlyBlock` class to handle day counts outside the typical 28-31 day range
+   - Added coverage checks in `create_monthly_blocks` to ensure partial months still meet coverage criteria
+   - Used `TimeSpec.from_range` to calculate the actual coverage percentage within the data source range
+
+3. Force inclusion flags:
+   - Added `force_include` parameter to `should_include_daily_block` to bypass coverage checks when needed
+   - Configured this flag through a special `force_include_daily` entry in the block configuration
+   - This allows 48-hour blocks to be included even when they would normally be filtered out
+
+4. Configuration structure:
+   - The WEFT configuration dictionary uses a specific structure with block types as keys
+   - Each block type has its own configuration with `enabled`, `sample_count`, and `polynomial_degree`
+   - Special flags like `force_include_daily` need to be handled separately from block configurations
+
+5. Debug logging:
+   - Added debug statements to track which blocks are included or excluded
+   - These statements provide visibility into the block selection process
+   - Useful for troubleshooting issues with block coverage and selection
+
+6. Attribute naming consistency:
+   - Ensured consistent naming across similar classes (e.g., `coefficients` vs `coeffs`)
+   - Inconsistent naming can lead to errors when accessing attributes
+   - Tools like the `weft info` command depend on consistent attribute names across block types
+
+7. Configuration auto-detection:
+   - The `get_recommended_blocks` function analyzes the data source to determine appropriate block types
+   - Block types are enabled based on data availability and time span
+   - Default configuration can be overridden with explicit parameters 
+
+When working with .weft file generation:
+
+1. Data coverage calculation is critical:
+   - Coverage should be calculated based on the span between the earliest and latest timestamps in the range
+   - A good coverage threshold is 66.6% of the time period
+   - For daily blocks, require at least 8 data points per day for adequate coverage
+
+2. Block selection logic:
+   - The minimum data density for 48-hour blocks should be 8 points per day (1 point every 3 hours)
+   - Monthly blocks can work with lower data density (4 points per day)
+   - Include a `force_forty_eight_hour_blocks` parameter to override normal coverage requirements
+   - Make CLI flags match the underlying parameter names (e.g., `--force-48h-blocks`)
+
+3. Testing weft file generation:
+   - Test with various time steps (1h, 3h, 6h) to verify behavior at different data densities
+   - Verify the content of generated files with `weft info` to confirm block inclusion
+   - Compare file sizes between versions with different blocks (e.g., monthly-only vs. monthly+daily)
+
+4. Coverage calculation approach:
+   - Don't evaluate gaps between consecutive timestamps
+   - Instead, check if the overall span between first and last timestamps covers a sufficient portion of the period
+   - This better handles regular sampling patterns at different frequencies 

@@ -173,3 +173,57 @@
 3. When implementing methods that might not produce valid blocks, return Optional types
 4. Always verify block selection behavior with test cases for partial periods
 5. Proper error handling and null checks are needed throughout the code
+
+# Current Task: Add Force Include Flag for 48-hour Blocks
+
+## Issues Identified
+1. When including 48-hour blocks in long time spans, the coverage criteria would sometimes filter out valid blocks
+2. Missing attribute 'coeffs' in FortyEightHourBlock class (actually named 'coefficients')
+3. Special handling needed for force_include_daily flag in the configuration
+
+## Implementation Plan
+[X] Add force_include parameter to should_include_daily_block
+  - Add a parameter to bypass coverage checks
+  - Update docstring to explain the parameter
+  - Make it default to False for backward compatibility
+  
+[X] Update create_forty_eight_hour_blocks to use force_include
+  - Add force_include parameter to the method
+  - Pass it to should_include_daily_block
+  - Add debug statements to track force inclusion
+
+[X] Update create_multi_precision_file to pass force_include flag
+  - Use force_include_daily from config
+  - Pass to create_forty_eight_hour_blocks
+
+[X] Update get_recommended_blocks to set force_include_daily
+  - Add special flag outside block type configurations
+  - Set based on force_forty_eight_hour_blocks parameter
+
+[X] Fix attribute name inconsistency in weft info command
+  - Update to use 'coefficients' instead of 'coeffs' for FortyEightHourBlock
+
+[X] Fix formatting issues in block_selection.py
+  - Handle special flags separately from block type configs
+
+## Progress
+- Added force_include parameter to should_include_daily_block
+- Updated create_forty_eight_hour_blocks to use this parameter
+- Modified create_multi_precision_file to pass the flag from config
+- Updated get_recommended_blocks to set force_include_daily flag
+- Fixed attribute name in weft info command
+- Fixed special flag handling in ephemeris_weft_generator.py
+- Tested with force inclusion flag to verify blocks are included
+
+## Testing Results
+- Without force_include flag: Only blocks with sufficient coverage included
+- With force_include flag: All blocks included regardless of coverage
+- Fixed FortyEightHourBlock attribute access in weft info command
+- Successfully generated a WEFT file with both monthly and 48-hour blocks
+
+## Lessons Learned
+1. Special configuration flags need careful handling in multi-level configurations
+2. Always ensure consistent attribute naming across similar classes
+3. Force inclusion flags provide flexibility when coverage criteria are too restrictive
+4. When iterating over dictionary items, type checking helps prevent unexpected errors
+5. Debug logging is invaluable for tracking block selection decisions

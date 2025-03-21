@@ -30,6 +30,7 @@ def generate_weft_file(
     data_dir: str = "./data",
     config: Optional[Dict[str, Any]] = None,
     step_hours: Union[int, str] = "24h",
+    force_forty_eight_hour_blocks: bool = False,
 ) -> str:
     """
     Generate a .weft file for a planet and quantity using an ephemeris source.
@@ -44,6 +45,7 @@ def generate_weft_file(
         data_dir: Directory for data storage (only used if ephemeris is None)
         config: Configuration for the WEFT generator (if None, will be auto-configured)
         step_hours: Step size for sampling ephemeris data. Can be a string like '1h', '30m' or an integer for hours.
+        force_forty_eight_hour_blocks: If True, force inclusion of 48-hour blocks even when coverage criteria aren't met
 
     Returns:
         The path to the generated .weft file
@@ -112,10 +114,13 @@ def generate_weft_file(
 
     # Use provided config or get recommended blocks based on data
     if config is None:
-        config = get_recommended_blocks(data_source)
+        config = get_recommended_blocks(
+            data_source, 
+            force_forty_eight_hour_blocks=force_forty_eight_hour_blocks
+        )
         print("Using auto-configured blocks based on data availability:")
         for block_type, settings in config.items():
-            if settings.get("enabled", False):
+            if block_type != "force_include_daily" and isinstance(settings, dict) and settings.get("enabled", False):
                 print(f"  {block_type}: {settings}")
 
     weft_file = writer.create_multi_precision_file(

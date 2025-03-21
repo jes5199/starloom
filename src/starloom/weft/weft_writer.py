@@ -438,6 +438,7 @@ class WeftWriter:
         degree: int,
         block_size: Optional[int] = None,
         quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
+        force_include: bool = False,
     ) -> List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]]:
         """
         Create a section of forty-eight hour blocks with a single header.
@@ -450,6 +451,7 @@ class WeftWriter:
             degree: Degree of Chebyshev polynomial to fit
             block_size: Fixed size for each block (computed if None)
             quantity: Optional quantity override
+            force_include: If True, include all blocks without checking coverage
 
         Returns:
             List containing one FortyEightHourSectionHeader followed by FortyEightHourBlocks
@@ -461,6 +463,11 @@ class WeftWriter:
         end_date = datetime(
             end_date.year, end_date.month, end_date.day, tzinfo=ZoneInfo("UTC")
         )
+        
+        print(f"DEBUG: Creating 48-hour blocks from {start_date} to {end_date}")
+        print(f"DEBUG: Data source range: {data_source.start_date} to {data_source.end_date}")
+        print(f"DEBUG: Data source has {len(data_source.timestamps)} timestamps")
+        print(f"DEBUG: Force include is {force_include}")
 
         # If block_size not specified, compute it based on coefficient count
         if block_size is None:
@@ -475,18 +482,27 @@ class WeftWriter:
 
         blocks = []
         current_date = start_date
+        day_count = 0
+        included_count = 0
+        
         while (
             current_date < end_date
         ):  # Changed from <= to < to avoid going past end_date
+            day_count += 1
             # Check if this day should be included based on coverage criteria
             time_spec = TimeSpec.from_range(
                 start=current_date,
                 stop=current_date + timedelta(days=1) - timedelta(microseconds=1),
                 step=f"{24 / samples_per_day}h",
             )
-            if not should_include_daily_block(time_spec, data_source, current_date):
+            include_block = should_include_daily_block(time_spec, data_source, current_date, force_include)
+            print(f"DEBUG: Day {current_date.date()}: should_include_daily_block = {include_block}")
+            
+            if not include_block:
                 current_date += timedelta(days=1)
                 continue
+                
+            included_count += 1
 
             # Create a header for this block
             block_date = date(current_date.year, current_date.month, current_date.day)
@@ -535,7 +551,9 @@ class WeftWriter:
             )
 
             current_date += timedelta(days=1)
-
+            
+        print(f"DEBUG: Checked {day_count} days, included {included_count} blocks")
+        
         return blocks
 
     def create_multi_precision_file(
@@ -599,6 +617,7 @@ class WeftWriter:
                 samples_per_day=forty_eight_hour_config["sample_count"],
                 degree=forty_eight_hour_config["polynomial_degree"],
                 quantity=quantity,
+                force_include=config.get("force_include_daily", False)
             )
             # The first block is the header, followed by the actual blocks
             if forty_eight_hour_blocks:
