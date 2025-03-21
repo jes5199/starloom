@@ -8,7 +8,7 @@ from src.starloom.ephemeris.time_spec import TimeSpec
 from src.starloom.weft.block_selection import (
     calculate_sampling_rate,
     analyze_data_coverage,
-    should_include_century_block,
+    should_include_multi_year_block,
     should_include_monthly_block,
     should_include_fourty_eight_hour_block,
     get_recommended_blocks,
@@ -135,7 +135,7 @@ class TestBlockInclusion(unittest.TestCase):
 
         # Should include with weekly data
         self.assertTrue(
-            should_include_century_block(data_source.time_spec, data_source, 2025, 1)
+            should_include_multi_year_block(data_source.time_spec, data_source, 2025, 1)
         )
 
         # Should not include with sparse data
@@ -147,7 +147,7 @@ class TestBlockInclusion(unittest.TestCase):
             timestamps=sparse_timestamps,
         )
         self.assertFalse(
-            should_include_century_block(
+            should_include_multi_year_block(
                 sparse_data_source.time_spec, sparse_data_source, 2025, 1
             )
         )

@@ -87,8 +87,19 @@ def analyze_data_coverage(
         print("DEBUG: No timestamps in range")
         return 0.0, 0.0
 
-    # Calculate coverage based on the span between earliest and latest points
+    # Calculate total period in days
     total_period = (end - start).total_seconds()
+    total_days = total_period / (24 * 3600)
+
+    # Handle single-point time spans
+    if total_days == 0:
+        if len(in_range) > 0:
+            return 1.0, float('inf')  # Perfect coverage for a single point
+        return 0.0, 0.0
+
+    print(f"DEBUG: Total days: {total_days}, Points per day: {len(in_range) / total_days}")
+
+    # Calculate coverage based on the span between earliest and latest points
     if len(in_range) >= 2:
         # Sort timestamps just to be safe
         in_range.sort()
@@ -99,48 +110,39 @@ def analyze_data_coverage(
         # If only one point, coverage is minimal
         coverage = 0.0
 
-    # Calculate points per day
-    total_days = total_period / (24 * 3600)
-    points_per_day = len(in_range) / total_days
-
-    print(f"DEBUG: Total days: {total_days}, Points per day: {points_per_day}")
     print(f"DEBUG: First point: {in_range[0] if in_range else 'None'}")
     print(f"DEBUG: Last point: {in_range[-1] if len(in_range) > 0 else 'None'}")
     print(
         f"DEBUG: Coverage: {coverage:.4f} (based on span between first and last points)"
     )
 
-    return coverage, points_per_day
+    return coverage, len(in_range) / total_days
 
 
-def should_include_century_block(
-    time_spec: TimeSpec, data_source: Any, year: int, century_number: int
+def should_include_multi_year_block(
+    time_spec: TimeSpec, data_source: Any, start_year: int, duration: int
 ) -> bool:
     """
-    Determine if a century block should be included.
+    Determine if a multi-year block should be included.
 
     Args:
         time_spec: The TimeSpec used for sampling
         data_source: The data source to analyze
-        year: The year to analyze
-        century_number: The century block number (1-36)
+        start_year: The start year of the block
+        duration: The duration of the block in years
 
     Returns:
         True if the block should be included
     """
-    # Get time range for this century block
-    start = datetime(year, 1, 1, tzinfo=timezone.utc)
-    end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-
-    # Check sampling rate
-    points_per_day = calculate_sampling_rate(time_spec)
+    # Get time range for this block
+    start = datetime(start_year, 1, 1, tzinfo=timezone.utc)
+    end = datetime(start_year + duration, 1, 1, tzinfo=timezone.utc)
 
     # Get data coverage
     coverage, _ = analyze_data_coverage(time_spec, start, end, data_source.timestamps)
 
-    # Century blocks need at least weekly points (1/7 points per day)
-    # and 66.6% coverage
-    return coverage >= 0.666 and points_per_day >= 1 / 7
+    # Multi-year blocks need at least 66.6% coverage
+    return coverage >= 0.666
 
 
 def should_include_monthly_block(
@@ -237,22 +239,33 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         "multi_year": {
             "enabled": False,
             "sample_count": 12,  # Monthly samples
-            "polynomial_degree": 3,  # Cubic fit
+            "polynomial_degree": 31,  # 32 coefficients
         },
         "monthly": {
-            "enabled": True,
+            "enabled": False,
             "sample_count": 30,  # Daily samples
             "polynomial_degree": 23,  # 24 coefficients
         },
         "forty_eight_hour": {
-            "enabled": True,
-            "sample_count": 48,  # Half-hourly samples
+            "enabled": False,
+            "sample_count": 48,  # Hourly samples
             "polynomial_degree": 11,  # 12 coefficients
         },
     }
 
-    if total_days >= 365:
+    # Enable multi-year blocks if we have at least weekly points and span is at least a year
+    if points_per_day >= 1/7 and total_days >= 365:
         config["multi_year"]["enabled"] = True
         print("Enabling multi-year blocks for long time span")
+
+    # Enable monthly blocks if we have at least 4 points per day
+    if points_per_day >= 4:
+        config["monthly"]["enabled"] = True
+        print("Enabling monthly blocks for high sampling rate")
+
+    # Enable forty-eight hour blocks if we have at least 8 points per day
+    if points_per_day >= 8:
+        config["forty_eight_hour"]["enabled"] = True
+        print("Enabling forty-eight hour blocks for very high sampling rate")
 
     return config
