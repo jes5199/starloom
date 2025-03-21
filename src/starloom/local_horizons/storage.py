@@ -79,7 +79,8 @@ class LocalHorizonsStorage:
                 conditions.append(
                     and_(
                         HorizonsGlobalEphemerisRow.julian_date == jd,
-                        HorizonsGlobalEphemerisRow.julian_date_fraction == jd_fraction,
+                        HorizonsGlobalEphemerisRow.julian_date_fraction
+                        == round(jd_fraction, 9),
                     )
                 )
 
@@ -290,7 +291,9 @@ class LocalHorizonsStorage:
         data = {
             "body": body,
             "julian_date": int(jd_int),  # Ensure this is an integer
-            "julian_date_fraction": float(jd_frac),  # Ensure this is a float
+            "julian_date_fraction": round(
+                float(jd_frac), 9
+            ),  # Ensure this is a float with consistent precision
             "date_time": time.isoformat(),
         }
 

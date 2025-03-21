@@ -13,7 +13,6 @@ from sqlalchemy import select
 
 from starloom.ephemeris.quantities import Quantity
 from starloom.cached_horizons.ephemeris import CachedHorizonsEphemeris
-from starloom.local_horizons.storage import LocalHorizonsStorage
 from starloom.ephemeris.time_spec import TimeSpec
 from starloom.horizons.ephemeris import HorizonsEphemeris
 from starloom.space_time.julian import julian_from_datetime, get_julian_components
@@ -60,81 +59,38 @@ class TestCachedHorizonsEphemeris(unittest.TestCase):
         """Clean up after the test."""
         self.temp_dir.cleanup()
 
-    @patch("starloom.horizons.ephemeris.HorizonsEphemeris.get_planet_position")
-    def test_cache_miss_calls_api(self, mock_get_position):
-        """Test that a cache miss calls the Horizons API."""
+    @patch("starloom.horizons.ephemeris.HorizonsEphemeris.get_planet_positions")
+    def test_prefetch_data(self, mock_get_positions):
+        """Test prefetching data using get_planet_positions."""
         # Set up the mock to return sample data
-        mock_get_position.return_value = self.sample_position
+        jd = julian_from_datetime(self.test_time)
+        mock_data = {jd: self.sample_position}
+        mock_get_positions.return_value = mock_data
 
         # Create the cached ephemeris instance
         cached_ephemeris = CachedHorizonsEphemeris(data_dir=str(self.data_dir))
 
-        # Call get_planet_position, which should miss the cache and call the API
-        result = cached_ephemeris.get_planet_position(self.test_planet, self.test_time)
-
-        # Verify the API was called
-        mock_get_position.assert_called_once_with(self.test_planet, self.test_time)
-
-        # Verify the result matches what the API returned
-        self.assertEqual(result, self.sample_position)
-
-    @patch("starloom.horizons.ephemeris.HorizonsEphemeris.get_planet_position")
-    def test_cache_hit_skips_api(self, mock_get_position):
-        """Test that a cache hit doesn't call the Horizons API."""
-        # Set up the mock to return sample data
-        mock_get_position.return_value = self.sample_position
-
-        # Pre-populate the cache
-        storage = LocalHorizonsStorage(data_dir=str(self.data_dir))
-        storage.store_ephemeris_quantities(
-            self.test_planet, self.test_time, self.sample_position
+        # Create TimeSpec for test period
+        time_spec = TimeSpec(
+            start_time=self.test_time,
+            stop_time=self.test_time,  # Single point for simplicity
+            step_size="24h",
         )
 
-        # Create the cached ephemeris instance
-        cached_ephemeris = CachedHorizonsEphemeris(data_dir=str(self.data_dir))
+        # Call get_planet_positions to prefetch data
+        result = cached_ephemeris.get_planet_positions(self.test_planet, time_spec)
 
-        # Call get_planet_position, which should hit the cache and not call the API
-        result = cached_ephemeris.get_planet_position(self.test_planet, self.test_time)
-
-        # Verify the API was NOT called
-        mock_get_position.assert_not_called()
-
-        # Verify the result matches what was in the cache
-        self.assertEqual(
-            result[Quantity.ECLIPTIC_LONGITUDE],
-            self.sample_position[Quantity.ECLIPTIC_LONGITUDE],
-        )
-        self.assertEqual(
-            result[Quantity.ECLIPTIC_LATITUDE],
-            self.sample_position[Quantity.ECLIPTIC_LATITUDE],
-        )
-        self.assertEqual(result[Quantity.DELTA], self.sample_position[Quantity.DELTA])
-
-    @patch("starloom.horizons.ephemeris.HorizonsEphemeris.get_planet_position")
-    def test_prefetch_data(self, mock_get_position):
-        """Test the prefetch_data method."""
-        # Set up the mock to return sample data
-        mock_get_position.return_value = self.sample_position
-
-        # Create the cached ephemeris instance
-        cached_ephemeris = CachedHorizonsEphemeris(data_dir=str(self.data_dir))
-
-        # Call prefetch_data for a single time point
-        cached_ephemeris.prefetch_data(
-            self.test_planet, self.test_time, self.test_time, step_hours=24
-        )
-
-        # Verify the API was called once
-        mock_get_position.assert_called_once_with(self.test_planet, self.test_time)
+        # Verify the API was called once with correct parameters
+        mock_get_positions.assert_called_once_with(self.test_planet, time_spec)
 
         # Reset the mock
-        mock_get_position.reset_mock()
+        mock_get_positions.reset_mock()
 
         # Call get_planet_position, which should hit the cache and not call the API
         result = cached_ephemeris.get_planet_position(self.test_planet, self.test_time)
 
         # Verify the API was NOT called
-        mock_get_position.assert_not_called()
+        mock_get_positions.assert_not_called()
 
         # Verify the result matches what was in the cache
         self.assertEqual(

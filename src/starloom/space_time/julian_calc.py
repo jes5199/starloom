@@ -6,6 +6,7 @@ Only supports dates after 1583 (Gregorian calendar adoption).
 """
 
 from datetime import datetime, timezone
+from typing import Union
 
 # Precision for Julian dates (microsecond precision = 12 decimal places)
 JD_PRECISION = 12
@@ -121,19 +122,32 @@ def datetime_to_julian(dt: datetime) -> float:
     return round(jd, JD_PRECISION)
 
 
-def julian_to_datetime(jd: float) -> datetime:
+def julian_to_datetime(jd: Union[float, datetime]) -> datetime:
     """Convert a Julian Date to a datetime object using Meeus algorithm.
 
     Implementation based on the algorithm from Meeus's "Astronomical Algorithms".
 
     Args:
-        jd: Julian Date
+        jd: Julian Date or datetime object
 
     Returns:
         datetime object with UTC timezone
     """
+    # If input is already a datetime, just return it
+    if isinstance(jd, datetime):
+        return jd
+
     # Round Julian date to microsecond precision to avoid floating point errors
     jd = round(jd, JD_PRECISION)
+
+    # Extract the integer and fractional parts
+    jd_int = int(jd)
+    jd_frac = jd - jd_int
+
+    # Adjust if the fraction is negative
+    if jd_frac < 0:
+        jd_frac += 1
+        jd_int -= 1
 
     # Add 0.5 to JD (noon epoch adjustment)
     jd_plus_half = jd + 0.5

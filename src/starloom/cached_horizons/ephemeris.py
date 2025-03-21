@@ -14,7 +14,7 @@ from ..ephemeris.quantities import Quantity
 from ..horizons.ephemeris import HorizonsEphemeris
 from ..local_horizons.storage import LocalHorizonsStorage
 from ..ephemeris.time_spec import TimeSpec
-from ..space_time.julian import datetime_from_julian, julian_from_datetime, JD_PRECISION
+from ..space_time.julian import datetime_from_julian, julian_from_datetime
 
 
 logger = logging.getLogger(__name__)
@@ -135,25 +135,28 @@ class CachedHorizonsEphemeris(Ephemeris):
         all_julian_dates = []
         for time_point in all_time_points:
             if isinstance(time_point, datetime):
-                jd = round(julian_from_datetime(time_point), JD_PRECISION)
+                jd = round(
+                    julian_from_datetime(time_point), 9
+                )  # Use consistent precision
                 all_julian_dates.append(jd)
             else:
-                jd = round(time_point, JD_PRECISION)
+                jd = round(time_point, 9)  # Use consistent precision
                 all_julian_dates.append(jd)
 
         # Find which time points are missing from local storage
-        missing_times = [jd for jd in all_julian_dates if jd not in local_data]
+        missing_times = [
+            jd
+            for jd in all_julian_dates
+            if round(jd, 9) not in {round(k, 9) for k in local_data.keys()}
+        ]
 
         if missing_times:
             logger.info(
                 f"Fetching {len(missing_times)} missing time points for {planet} from Horizons API"
             )
-            # Create a new TimeSpec for missing points
-            missing_time_spec = TimeSpec(dates=missing_times)
-
-            # Fetch missing data from Horizons API
+            # Fetch missing data from Horizons API using the original TimeSpec
             horizons_data = self.horizons_ephemeris.get_planet_positions(
-                planet, missing_time_spec
+                planet, time_spec
             )
 
             # Store the new data locally

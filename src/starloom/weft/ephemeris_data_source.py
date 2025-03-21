@@ -11,7 +11,7 @@ import bisect
 
 from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris.time_spec import TimeSpec
-from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
+from ..horizons.quantities import EphemerisQuantity
 from ..space_time.julian import datetime_from_julian
 
 
@@ -92,9 +92,6 @@ class EphemerisDataSource:
         if dt < self.start_date or dt > self.end_date:
             raise ValueError(f"Datetime {dt} is outside data range")
 
-        # Convert EphemerisQuantity to Quantity for lookup
-        quantity = EphemerisQuantityToQuantity[self.quantity]
-
         # Find nearest timestamps
         idx = bisect.bisect_left(self.timestamps, dt)
 
@@ -102,11 +99,13 @@ class EphemerisDataSource:
             # Use first value if before first timestamp
             t1 = self.timestamps[0]
             try:
-                return float(self.data[t1][quantity])
+                return float(self.data[t1][self.quantity])
             except KeyError:
                 # Debug: print what we have when the error occurs
                 print("Debug: KeyError in get_value_at")
-                print(f"Looking for quantity: {quantity} (value: {quantity.value})")
+                print(
+                    f"Looking for quantity: {self.quantity} (value: {self.quantity.value})"
+                )
                 print(f"Available data at {t1}: {self.data[t1]}")
                 print(f"Available keys: {list(self.data[t1].keys())}")
                 raise
@@ -114,14 +113,14 @@ class EphemerisDataSource:
         if idx == len(self.timestamps):
             # Use last value if after last timestamp
             t1 = self.timestamps[-1]
-            return float(self.data[t1][quantity])
+            return float(self.data[t1][self.quantity])
 
         # Interpolate between surrounding timestamps
         t1 = self.timestamps[idx - 1]
         t2 = self.timestamps[idx]
 
-        v1 = float(self.data[t1][quantity])
-        v2 = float(self.data[t2][quantity])
+        v1 = float(self.data[t1][self.quantity])
+        v2 = float(self.data[t2][self.quantity])
 
         # Linear interpolation
         total_seconds = (t2 - t1).total_seconds()

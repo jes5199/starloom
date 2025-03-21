@@ -610,3 +610,42 @@ When working with Julian dates in the codebase:
 - Use `round(jd, JD_PRECISION)` when comparing Julian dates for equality
 
 Example bug: Cache misses occurred when `2460754.3333333335` (query) didn't match `2460754.333333333` (stored). 
+
+## API Changes
+- The `prefetch_data` method in `CachedHorizonsEphemeris` has been removed in favor of using `get_planet_positions`
+  - `get_planet_positions` provides the same functionality with a more robust implementation
+  - It handles bulk data fetching, caching, and time range queries using `TimeSpec`
+  - Tests should use `get_planet_positions` instead of the old `prefetch_data` method
+
+## Known Issues
+- DateTime rounding issues in `EphemerisDataSource` tests need to be addressed
+  - Affects value retrieval at bounds
+  - Affects interpolation
+  - Affects range operations 
+
+## Julian Date and DateTime Handling
+
+1. When working with functions that convert between Julian dates and datetimes:
+   - Always handle both float (Julian date) and datetime inputs
+   - Use type hints with Union[float, datetime] to indicate multiple accepted types
+   - Check input type before performing operations like rounding
+   - Return consistent timezone-aware datetime objects
+
+2. Common pitfalls:
+   - Trying to round datetime objects (they don't support __round__)
+   - Not handling negative Julian date fractions correctly
+   - Assuming input is always a float when it could be a datetime
+
+## Test Mocking Best Practices
+
+1. When mocking API calls:
+   - Mock the exact method being called, not a similar one
+   - For example, mock `get_planet_positions` if that's what's used, not `get_planet_position`
+   - Provide appropriate mock return values matching the actual method's format
+   - Verify mock calls with correct parameters
+
+2. Common mocking mistakes:
+   - Mocking the wrong method name (singular vs plural)
+   - Not matching the expected return value format
+   - Not verifying mock calls with correct parameters
+   - Not resetting mocks between test phases 
