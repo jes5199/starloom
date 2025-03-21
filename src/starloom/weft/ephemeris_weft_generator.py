@@ -9,7 +9,8 @@ from datetime import datetime
 from typing import Dict, Any, Optional, Union
 import os
 
-from ..cached_horizons import CachedHorizonsEphemeris
+from starloom.horizons.ephemeris import HorizonsEphemeris
+
 from ..horizons.planet import Planet
 from ..ephemeris.quantities import Quantity
 from ..horizons.quantities import EphemerisQuantity
@@ -92,7 +93,7 @@ def generate_weft_file(
 
     # Create or use provided ephemeris client
     if ephemeris is None:
-        ephemeris = CachedHorizonsEphemeris(data_dir=data_dir)
+        ephemeris = HorizonsEphemeris()
 
     # Create the writer
     writer = WeftWriter(quantity=ephemeris_quantity)

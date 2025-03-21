@@ -251,7 +251,7 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         },
     }
 
-    if total_days > 365:
+    if total_days >= 365:
         config["multi_year"]["enabled"] = True
         print("Enabling multi-year blocks for long time span")
 
