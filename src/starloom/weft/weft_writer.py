@@ -494,7 +494,9 @@ class WeftWriter:
                 stop=current_date + timedelta(days=1) - timedelta(microseconds=1),
                 step=f"{24 / samples_per_day}h",
             )
-            include_block = should_include_fourty_eight_hour_block(time_spec, data_source, current_date)
+            include_block = should_include_fourty_eight_hour_block(
+                time_spec, data_source, current_date
+            )
             print(
                 f"DEBUG: Day {current_date.date()}: should_include_daily_block = {include_block}"
             )

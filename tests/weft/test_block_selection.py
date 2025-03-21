@@ -204,7 +204,9 @@ class TestBlockInclusion(unittest.TestCase):
 
         # Should include with hourly data
         self.assertTrue(
-            should_include_fourty_eight_hour_block(data_source.time_spec, data_source, day_start)
+            should_include_fourty_eight_hour_block(
+                data_source.time_spec, data_source, day_start
+            )
         )
 
         # Should not include with 6-hour data
