@@ -20,6 +20,7 @@ from ..weft.weft import (
     FortyEightHourBlock,
 )
 
+
 # Add signal handler for SIGINT (Ctrl+C)
 def sigint_handler(sig, frame):
     """
@@ -27,19 +28,21 @@ def sigint_handler(sig, frame):
     """
     print("\n\nCaught SIGINT (Ctrl+C). Stack trace:")
     traceback.print_stack(frame)
-    
+
     print("\nLocal variables in current frame:")
     local_vars = frame.f_locals
     for var_name, var_value in local_vars.items():
         try:
             print(f"  {var_name} = {var_value}")
-        except:
+        except Exception:
             print(f"  {var_name} = <unprintable value>")
-    
+
     sys.exit(1)
+
 
 # Register the signal handler
 signal.signal(signal.SIGINT, sigint_handler)
+
 
 @click.group()
 def weft() -> None:

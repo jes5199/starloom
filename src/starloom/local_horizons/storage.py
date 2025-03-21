@@ -73,14 +73,19 @@ class LocalHorizonsStorage:
         ]
 
         # Create tuples of (julian_date, julian_date_fraction) for the IN clause
-        date_tuples = [(jd, round(jd_fraction, 9)) for jd, jd_fraction in julian_components]
+        date_tuples = [
+            (jd, round(jd_fraction, 9)) for jd, jd_fraction in julian_components
+        ]
 
         with Session(self.engine) as session:
             # Build the query using IN operator with tuples
             query = select(HorizonsGlobalEphemerisRow).where(
                 and_(
                     HorizonsGlobalEphemerisRow.body == body,
-                    tuple_(HorizonsGlobalEphemerisRow.julian_date, HorizonsGlobalEphemerisRow.julian_date_fraction).in_(date_tuples)
+                    tuple_(
+                        HorizonsGlobalEphemerisRow.julian_date,
+                        HorizonsGlobalEphemerisRow.julian_date_fraction,
+                    ).in_(date_tuples),
                 )
             )
 

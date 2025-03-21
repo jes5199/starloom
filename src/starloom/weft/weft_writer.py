@@ -172,28 +172,32 @@ class WeftWriter:
             start_dt = data_source.start_date
         else:
             start_dt = datetime(start_year, 1, 1, tzinfo=ZoneInfo("UTC"))
-        
+
         # Use the data source's end date if it's in the end year or earlier
         end_year = start_year + duration
         if data_source.end_date.year < end_year:
             end_dt = data_source.end_date
         else:
             end_dt = datetime(end_year, 1, 1, tzinfo=ZoneInfo("UTC"))
-        
+
         # Check if this block should be included based on coverage criteria
-        time_spec = TimeSpec.from_range(start=start_dt, stop=end_dt, step=f"{365*24/samples_per_year}h")
+        time_spec = TimeSpec.from_range(
+            start=start_dt, stop=end_dt, step=f"{365 * 24 / samples_per_year}h"
+        )
         if not should_include_century_block(time_spec, data_source, start_year, 1):
             return None
-            
+
         # Calculate actual duration in years (may be partial)
-        actual_duration = (end_dt.year - start_dt.year) + (end_dt.month - start_dt.month) / 12
+        actual_duration = (end_dt.year - start_dt.year) + (
+            end_dt.month - start_dt.month
+        ) / 12
         if actual_duration < 0.5:
             # Use at least 6 months of duration to ensure a reasonable fit
             actual_duration = 0.5
-        
+
         # Adjust sample count based on actual duration
         sample_count = max(degree + 1, int(samples_per_year * actual_duration))
-        
+
         # Generate samples
         x_values, values = self._generate_samples(
             data_source, start_dt, end_dt, sample_count, quantity
@@ -231,15 +235,22 @@ class WeftWriter:
             List of MonthlyBlock objects
         """
         blocks = []
-        
+
         # Handle special case for very short ranges
         total_days = (end_date - start_date).days + 1
         if total_days <= 31:
             # Create a single monthly block for the entire range if it has sufficient coverage
             day_count = total_days
-            
+
             # Check if this block should be included based on coverage criteria
-            if should_include_monthly_block(TimeSpec.from_range(start=start_date, stop=end_date, step=f"{24/samples_per_day}h"), data_source, start_date.year, start_date.month):
+            if should_include_monthly_block(
+                TimeSpec.from_range(
+                    start=start_date, stop=end_date, step=f"{24 / samples_per_day}h"
+                ),
+                data_source,
+                start_date.year,
+                start_date.month,
+            ):
                 x_values, values = self._generate_samples(
                     data_source,
                     start_date,
@@ -247,11 +258,11 @@ class WeftWriter:
                     samples_per_day * day_count,
                     quantity,
                 )
-                
+
                 # Fit Chebyshev coefficients
                 coeffs = chebyshev.chebfit(x_values, values, deg=degree)
                 coeffs_list = cast(List[float], coeffs.tolist())
-                
+
                 blocks.append(
                     MonthlyBlock(
                         year=start_date.year,
@@ -261,10 +272,10 @@ class WeftWriter:
                     )
                 )
             return blocks
-        
+
         # For longer ranges, create blocks for each month
         current_date = start_date
-        
+
         # Create first partial month if start_date is not the first of the month
         if start_date.day > 1:
             # Calculate end of current month
@@ -276,15 +287,22 @@ class WeftWriter:
                 month_end = datetime(
                     current_date.year, current_date.month + 1, 1, tzinfo=ZoneInfo("UTC")
                 ) - timedelta(seconds=1)
-            
+
             # If month_end is after end_date, use end_date instead
             if month_end > end_date:
                 month_end = end_date
-            
+
             day_count = (month_end - current_date).days + 1
-            
+
             # Only include this partial month if it meets coverage criteria
-            if should_include_monthly_block(TimeSpec.from_range(start=current_date, stop=month_end, step=f"{24/samples_per_day}h"), data_source, current_date.year, current_date.month):
+            if should_include_monthly_block(
+                TimeSpec.from_range(
+                    start=current_date, stop=month_end, step=f"{24 / samples_per_day}h"
+                ),
+                data_source,
+                current_date.year,
+                current_date.month,
+            ):
                 # Generate samples for this partial month
                 x_values, values = self._generate_samples(
                     data_source,
@@ -293,11 +311,11 @@ class WeftWriter:
                     samples_per_day * day_count,
                     quantity,
                 )
-                
+
                 # Fit Chebyshev coefficients
                 coeffs = chebyshev.chebfit(x_values, values, deg=degree)
                 coeffs_list = cast(List[float], coeffs.tolist())
-                
+
                 blocks.append(
                     MonthlyBlock(
                         year=current_date.year,
@@ -306,7 +324,7 @@ class WeftWriter:
                         coeffs=coeffs_list,
                     )
                 )
-            
+
             # Move to the first day of the next month
             if current_date.month == 12:
                 current_date = datetime(
@@ -316,11 +334,11 @@ class WeftWriter:
                 current_date = datetime(
                     current_date.year, current_date.month + 1, 1, tzinfo=ZoneInfo("UTC")
                 )
-            
+
             # If we've gone beyond end_date, return the blocks so far
             if current_date > end_date:
                 return blocks
-        
+
         # Process full months
         while current_date < end_date:
             # Calculate next month's start
@@ -332,13 +350,22 @@ class WeftWriter:
                 next_month = datetime(
                     current_date.year, current_date.month + 1, 1, tzinfo=ZoneInfo("UTC")
                 )
-            
+
             # If next_month would go beyond end_date, handle the final partial month
             if next_month > end_date:
                 day_count = (end_date - current_date).days + 1
-                
+
                 # Only include this partial month if it meets coverage criteria
-                if should_include_monthly_block(TimeSpec.from_range(start=current_date, stop=end_date, step=f"{24/samples_per_day}h"), data_source, current_date.year, current_date.month):
+                if should_include_monthly_block(
+                    TimeSpec.from_range(
+                        start=current_date,
+                        stop=end_date,
+                        step=f"{24 / samples_per_day}h",
+                    ),
+                    data_source,
+                    current_date.year,
+                    current_date.month,
+                ):
                     # Generate samples for this partial month
                     x_values, values = self._generate_samples(
                         data_source,
@@ -347,11 +374,11 @@ class WeftWriter:
                         samples_per_day * day_count,
                         quantity,
                     )
-                    
+
                     # Fit Chebyshev coefficients
                     coeffs = chebyshev.chebfit(x_values, values, deg=degree)
                     coeffs_list = cast(List[float], coeffs.tolist())
-                    
+
                     blocks.append(
                         MonthlyBlock(
                             year=current_date.year,
@@ -361,12 +388,21 @@ class WeftWriter:
                         )
                     )
                 break
-            
+
             # Handle a full month
             day_count = (next_month - current_date).days
-            
+
             # Only include this month if it meets coverage criteria
-            if should_include_monthly_block(TimeSpec.from_range(start=current_date, stop=next_month - timedelta(microseconds=1), step=f"{24/samples_per_day}h"), data_source, current_date.year, current_date.month):
+            if should_include_monthly_block(
+                TimeSpec.from_range(
+                    start=current_date,
+                    stop=next_month - timedelta(microseconds=1),
+                    step=f"{24 / samples_per_day}h",
+                ),
+                data_source,
+                current_date.year,
+                current_date.month,
+            ):
                 # Generate samples for this month
                 x_values, values = self._generate_samples(
                     data_source,
@@ -375,11 +411,11 @@ class WeftWriter:
                     samples_per_day * day_count,
                     quantity,
                 )
-                
+
                 # Fit Chebyshev coefficients
                 coeffs = chebyshev.chebfit(x_values, values, deg=degree)
                 coeffs_list = cast(List[float], coeffs.tolist())
-                
+
                 blocks.append(
                     MonthlyBlock(
                         year=current_date.year,
@@ -388,9 +424,9 @@ class WeftWriter:
                         coeffs=coeffs_list,
                     )
                 )
-            
+
             current_date = next_month
-        
+
         return blocks
 
     def create_forty_eight_hour_blocks(
@@ -446,12 +482,12 @@ class WeftWriter:
             time_spec = TimeSpec.from_range(
                 start=current_date,
                 stop=current_date + timedelta(days=1) - timedelta(microseconds=1),
-                step=f"{24/samples_per_day}h"
+                step=f"{24 / samples_per_day}h",
             )
             if not should_include_daily_block(time_spec, data_source, current_date):
                 current_date += timedelta(days=1)
                 continue
-                
+
             # Create a header for this block
             block_date = date(current_date.year, current_date.month, current_date.day)
             next_date = block_date + timedelta(days=1)

@@ -40,8 +40,11 @@ class MonthlyBlock:
         # Allow any positive day count, but warn if outside normal range
         if not 28 <= day_count <= 31:
             import warnings
-            warnings.warn(f"Unusual day count for month: {day_count}. Normal range is 28-31.")
-        
+
+            warnings.warn(
+                f"Unusual day count for month: {day_count}. Normal range is 28-31."
+            )
+
         self.year = year
         self.month = month
         self.day_count = day_count
