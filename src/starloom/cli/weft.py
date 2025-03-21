@@ -147,6 +147,18 @@ def info(file_path: str) -> None:
         # Display preamble
         print(f"Preamble: {weft_file.preamble.strip()}")
 
+        # Display file size
+        file_size_bytes = os.path.getsize(file_path)
+        if file_size_bytes < 1024:
+            size_str = f"{file_size_bytes} B"
+        elif file_size_bytes < 1024 * 1024:
+            size_str = f"{file_size_bytes / 1024:.1f} KB"
+        elif file_size_bytes < 1024 * 1024 * 1024:
+            size_str = f"{file_size_bytes / (1024 * 1024):.1f} MB"
+        else:
+            size_str = f"{file_size_bytes / (1024 * 1024 * 1024):.1f} GB"
+        print(f"File size: {size_str}")
+
         # Display block counts
         multi_year_blocks = [
             b for b in weft_file.blocks if isinstance(b, MultiYearBlock)
