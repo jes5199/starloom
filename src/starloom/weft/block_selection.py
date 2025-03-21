@@ -280,15 +280,7 @@ def get_recommended_blocks(
             # For long spans, use all block types
             config["monthly"]["enabled"] = True
             config["multi_year"]["enabled"] = True
-
-            # For long spans, only enable forty-eight hour blocks when explicitly requested
-            if force_forty_eight_hour_blocks:
-                config["forty_eight_hour"]["enabled"] = True
-                print(
-                    "Enabling multi-year, monthly, and forty-eight hour blocks (forced) for long time span"
-                )
-            else:
-                print("Enabling multi-year and monthly blocks for long time span")
+            config["forty_eight_hour"]["enabled"] = True
     elif points_per_day >= 4.0:  # At least 6-hourly points
         # Use monthly blocks for spans of 7 days or more
         if total_days >= 7:
