@@ -157,7 +157,7 @@ def info(file_path: str) -> None:
             size_str = f"{file_size_bytes / (1024 * 1024):.1f} MB"
         else:
             size_str = f"{file_size_bytes / (1024 * 1024 * 1024):.1f} GB"
-        print(f"File size: {size_str}")
+        print(f"{size_str}", end=". ")
 
         # Display block counts
         multi_year_blocks = [
@@ -168,10 +168,9 @@ def info(file_path: str) -> None:
             b for b in weft_file.blocks if isinstance(b, FortyEightHourBlock)
         ]
 
-        print(f"Total blocks: {len(weft_file.blocks)}")
-        print(f"Multi-year blocks: {len(multi_year_blocks)}")
-        print(f"Monthly blocks: {len(monthly_blocks)}")
-        print(f"Forty-eight hour blocks: {len(forty_eight_hour_blocks)}")
+        print(
+            f"{len(weft_file.blocks)} blocks ({len(multi_year_blocks)} multi-year, {len(monthly_blocks)} monthly, {len(forty_eight_hour_blocks)} days)"
+        )
 
         # Display overall date range
         if weft_file.blocks:
@@ -219,7 +218,7 @@ def info(file_path: str) -> None:
             else:
                 end_date = datetime(2100, 1, 1, tzinfo=ZoneInfo("UTC"))
 
-            print(f"Overall: {start_date} to {end_date}")
+            print(f"{start_date} to {end_date}")
 
         # Display block details
         for block in weft_file.blocks:
