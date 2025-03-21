@@ -10,7 +10,7 @@ from src.starloom.weft.block_selection import (
     analyze_data_coverage,
     should_include_century_block,
     should_include_monthly_block,
-    should_include_daily_block,
+    should_include_fourty_eight_hour_block,
     get_recommended_blocks,
 )
 from src.starloom.weft.blocks import MonthlyBlock
@@ -204,7 +204,7 @@ class TestBlockInclusion(unittest.TestCase):
 
         # Should include with hourly data
         self.assertTrue(
-            should_include_daily_block(data_source.time_spec, data_source, day_start)
+            should_include_fourty_eight_hour_block(data_source.time_spec, data_source, day_start)
         )
 
         # Should not include with 6-hour data
@@ -216,7 +216,7 @@ class TestBlockInclusion(unittest.TestCase):
             timestamps=sparse_timestamps,
         )
         self.assertFalse(
-            should_include_daily_block(
+            should_include_fourty_eight_hour_block(
                 sparse_data_source.time_spec, sparse_data_source, day_start
             )
         )

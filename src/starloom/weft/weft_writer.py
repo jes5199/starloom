@@ -29,7 +29,7 @@ from .ephemeris_data_source import EphemerisDataSource
 from .block_selection import (
     should_include_century_block,
     should_include_monthly_block,
-    should_include_daily_block,
+    should_include_fourty_eight_hour_block,
 )
 from ..ephemeris.time_spec import TimeSpec
 
@@ -438,7 +438,6 @@ class WeftWriter:
         degree: int,
         block_size: Optional[int] = None,
         quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
-        force_include: bool = False,
     ) -> List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]]:
         """
         Create a section of forty-eight hour blocks with a single header.
@@ -451,7 +450,6 @@ class WeftWriter:
             degree: Degree of Chebyshev polynomial to fit
             block_size: Fixed size for each block (computed if None)
             quantity: Optional quantity override
-            force_include: If True, include all blocks without checking coverage
 
         Returns:
             List containing one FortyEightHourSectionHeader followed by FortyEightHourBlocks
@@ -469,7 +467,6 @@ class WeftWriter:
             f"DEBUG: Data source range: {data_source.start_date} to {data_source.end_date}"
         )
         print(f"DEBUG: Data source has {len(data_source.timestamps)} timestamps")
-        print(f"DEBUG: Force include is {force_include}")
 
         # If block_size not specified, compute it based on coefficient count
         if block_size is None:
@@ -497,9 +494,7 @@ class WeftWriter:
                 stop=current_date + timedelta(days=1) - timedelta(microseconds=1),
                 step=f"{24 / samples_per_day}h",
             )
-            include_block = should_include_daily_block(
-                time_spec, data_source, current_date, force_include
-            )
+            include_block = should_include_fourty_eight_hour_block(time_spec, data_source, current_date)
             print(
                 f"DEBUG: Day {current_date.date()}: should_include_daily_block = {include_block}"
             )
@@ -623,7 +618,6 @@ class WeftWriter:
                 samples_per_day=forty_eight_hour_config["sample_count"],
                 degree=forty_eight_hour_config["polynomial_degree"],
                 quantity=quantity,
-                force_include=config.get("force_include_daily", False),
             )
             # The first block is the header, followed by the actual blocks
             if forty_eight_hour_blocks:

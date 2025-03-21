@@ -176,7 +176,7 @@ def should_include_monthly_block(
     return coverage >= 0.666 and points_per_day >= 4.0
 
 
-def should_include_daily_block(
+def should_include_fourty_eight_hour_block(
     time_spec: TimeSpec, data_source: Any, date: datetime
 ) -> bool:
     """
@@ -191,8 +191,9 @@ def should_include_daily_block(
         True if the block should be included
     """
     # Get time range for this day
-    start = datetime(date.year, date.month, date.day, tzinfo=timezone.utc)
-    end = start + timedelta(days=1)
+    center = datetime(date.year, date.month, date.day, tzinfo=timezone.utc)
+    start = center - timedelta(hours=24)
+    end = center + timedelta(hours=24)
 
     # Check sampling rate
     points_per_day = calculate_sampling_rate(time_spec)
