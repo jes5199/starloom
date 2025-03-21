@@ -5,6 +5,7 @@ from sqlalchemy import (
     Float,
     String,
     PrimaryKeyConstraint,
+    Index,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase
@@ -55,4 +56,8 @@ class HorizonsGlobalEphemerisRow(Base):
     created_on = Column(DateTime, server_default=func.now(), nullable=False)
     __table_args__ = (
         PrimaryKeyConstraint("body", "julian_date", "julian_date_fraction"),
+        Index(
+            "idx_body_julian_components", "body", "julian_date", "julian_date_fraction"
+        ),
+        Index("idx_julian_lookup", "julian_date", "julian_date_fraction"),
     )

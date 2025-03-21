@@ -316,3 +316,30 @@
 2. Keep attribute names consistent across classes and tests
 3. Pay attention to test failures - they often reveal inconsistencies in naming or implementation
 4. After significant refactoring, run tests early to identify issues quickly
+
+# Optimizing LocalHorizonsStorage Database Queries - 2025-03-28
+
+## Task
+Optimize database queries in `LocalHorizonsStorage` to ensure efficient lookups, particularly for bulk ephemeris data retrieval.
+
+## Approach
+[X] Add indexes to `HorizonsGlobalEphemerisRow` model
+  - Added `idx_body_julian_components` on (`body`, `julian_date`, `julian_date_fraction`)
+  - Added `idx_julian_lookup` on (`julian_date`, `julian_date_fraction`) specifically for bulk lookups
+
+[X] Implement `ensure_indexes()` utility method in `LocalHorizonsStorage`
+  - Checks for existing indexes and creates missing ones
+  - Called during initialization
+
+[X] Update documentation to explain index usage
+  - Added class docstring explaining index purpose
+  - Added method comments on how indexes are used
+
+## Benefits
+- `get_ephemeris_data_bulk` will now use `idx_julian_lookup` for efficient tuple-based lookups
+- `get_ephemeris_data` continues to use the primary key index for single-point lookups
+- Automatic index creation ensures older databases are updated
+
+## Next Steps
+[ ] Consider adding query logging/monitoring to verify index usage
+[ ] Add performance tests to measure query speed improvements

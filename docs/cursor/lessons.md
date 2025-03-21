@@ -826,3 +826,32 @@ When making significant changes to core algorithms or data structures:
    - When renaming, search the entire codebase for references
    - Document naming patterns in comments or docstrings
    - Use constants for feature flags and configuration keys to ensure consistency 
+
+## SQLAlchemy Database Optimization
+
+### Indexes for Optimizing Queries
+- Added composite indexes to optimize query patterns:
+  - Primary keys automatically create indexes, but custom indexes may be needed for specific query patterns
+  - For tuple-based lookups with `.in_()`, create specific indexes on the tuple columns
+  - Use `Index()` in SQLAlchemy model `__table_args__` to define indexes
+  - Use `inspect()` to programmatically verify index existence and create them if missing
+  
+```python
+from sqlalchemy import Index, inspect
+
+# In model definition:
+__table_args__ = (
+    PrimaryKeyConstraint("body", "julian_date", "julian_date_fraction"),
+    Index("idx_julian_lookup", "julian_date", "julian_date_fraction"),
+)
+
+# Utility to ensure indexes exist:
+def ensure_indexes(self):
+    inspector = inspect(self.engine)
+    existing_indexes = {idx['name'] for idx in inspector.get_indexes(table_name)}
+    
+    # Create missing indexes if needed
+    if "idx_name" not in existing_indexes:
+        sql = 'CREATE INDEX IF NOT EXISTS idx_name ON table (col1, col2)'
+        session.execute(sql)
+``` 

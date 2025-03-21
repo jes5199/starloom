@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, select, and_, tuple_
+from sqlalchemy import create_engine, select, and_, tuple_, inspect
 from sqlalchemy.orm import Session
 
 from ..ephemeris.quantities import Quantity
@@ -27,6 +27,13 @@ class LocalHorizonsStorage:
     Storage manager for local horizons ephemeris data.
 
     This class provides methods to read and write ephemeris data to a local SQLite database.
+    It creates and maintains the following indexes to optimize queries:
+
+    1. Primary Key on (body, julian_date, julian_date_fraction) for uniqueness
+    2. idx_body_julian_components on (body, julian_date, julian_date_fraction) for lookups
+    3. idx_julian_lookup on (julian_date, julian_date_fraction) to optimize bulk time-based lookups
+
+    These indexes ensure efficient retrieval of data, especially for bulk operations.
     """
 
     def __init__(self, data_dir: str = "./data"):
@@ -48,6 +55,37 @@ class LocalHorizonsStorage:
         # Create tables if they don't exist
         Base.metadata.create_all(self.engine)
 
+        # Check if indexes exist, create them if needed
+        self.ensure_indexes()
+
+    def ensure_indexes(self) -> None:
+        """
+        Ensure all necessary indexes exist in the database.
+        This method checks for the existence of indexes and creates them if missing.
+        """
+        inspector = inspect(self.engine)
+        table_name = HorizonsGlobalEphemerisRow.__tablename__
+        existing_indexes = {idx["name"] for idx in inspector.get_indexes(table_name)}
+
+        indexes_to_check = {
+            "idx_body_julian_components": [
+                "body",
+                "julian_date",
+                "julian_date_fraction",
+            ],
+            "idx_julian_lookup": ["julian_date", "julian_date_fraction"],
+        }
+
+        with Session(self.engine) as session:
+            for idx_name, columns in indexes_to_check.items():
+                if idx_name not in existing_indexes:
+                    # Create the missing index
+                    columns_str = ", ".join([f'"{col}"' for col in columns])
+                    sql = f'CREATE INDEX IF NOT EXISTS "{idx_name}" ON "{table_name}" ({columns_str})'
+                    session.execute(sql)
+                    session.commit()
+                    print(f"Created missing index: {idx_name}")
+
     # --- Reading methods ---
 
     def get_ephemeris_data_bulk(
@@ -55,6 +93,9 @@ class LocalHorizonsStorage:
     ) -> Dict[float, Dict[Quantity, Any]]:
         """
         Get ephemeris data for a celestial body at multiple time points.
+
+        This method efficiently retrieves data for multiple time points using the
+        idx_julian_lookup index for optimized tuple-based lookups.
 
         Args:
             body: The name or identifier of the celestial body.
@@ -130,6 +171,9 @@ class LocalHorizonsStorage:
     ) -> Dict[Quantity, Any]:
         """
         Get ephemeris data for a celestial body at a specific time.
+
+        This method uses the primary key index on (body, julian_date, julian_date_fraction)
+        for efficient point lookups.
 
         Args:
             body: The name or identifier of the celestial body.
