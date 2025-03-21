@@ -239,7 +239,7 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
             "polynomial_degree": 3,  # Cubic fit
         },
         "monthly": {
-            "enabled": False,
+            "enabled": True,
             "sample_count": 30,  # Daily samples
             "polynomial_degree": 23,  # 24 coefficients
         },
@@ -250,40 +250,8 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         },
     }
 
-    # Enable blocks based on data availability, preferring higher precision
-    if points_per_day >= 8.0:  # At least 8 points per day (every 3 hours)
-        if total_days <= 7:
-            # For very short spans (up to 7 days), use only forty-eight hour blocks
-            config["forty_eight_hour"]["enabled"] = True
-            print("Enabling forty-eight hour blocks for short time span")
-        elif total_days <= 14:
-            # For spans up to 2 weeks, use monthly and daily blocks
-            config["monthly"]["enabled"] = True
-            config["forty_eight_hour"]["enabled"] = True
-            print("Enabling monthly and forty-eight hour blocks for medium time span")
-        elif total_days <= 31:
-            # For spans up to a month, use all high-precision blocks
-            config["monthly"]["enabled"] = True
-            config["forty_eight_hour"]["enabled"] = True
-            print("Enabling monthly and forty-eight hour blocks for medium time span")
-        else:
-            # For long spans, use all block types
-            config["monthly"]["enabled"] = True
-            config["multi_year"]["enabled"] = True
-            config["forty_eight_hour"]["enabled"] = True
-    elif points_per_day >= 4.0:  # At least 6-hourly points
-        # Use monthly blocks for spans of 7 days or more
-        if total_days >= 7:
-            config["monthly"]["enabled"] = True
-            print("Enabling monthly blocks for medium time span")
-        # Use multi-year blocks for spans of a year or more
-        if total_days >= 365:
-            config["multi_year"]["enabled"] = True
-            print("Enabling multi-year blocks for long time span")
-    elif points_per_day >= 1 / 7:  # At least weekly points
-        # Use multi-year blocks for spans of a year or more
-        if total_days >= 365:
-            config["multi_year"]["enabled"] = True
-            print("Enabling multi-year blocks for long time span")
+    if total_days > 365:
+        config["multi_year"]["enabled"] = True
+        print("Enabling multi-year blocks for long time span")
 
     return config
