@@ -129,7 +129,6 @@ def generate(
 def info(file_path: str) -> None:
     """Display information about a .weft file."""
     from ..weft import WeftReader
-    from datetime import datetime, timezone
 
     try:
         reader = WeftReader()

@@ -60,7 +60,7 @@ class EphemerisDataSource:
 
         # Debug: print first data point to see structure
         first_timestamp = next(iter(self.data))
-        print(f"Debug: First data point structure:")
+        print("Debug: First data point structure:")
         print(f"Timestamp: {first_timestamp}")
         print(f"Data: {self.data[first_timestamp]}")
         print(f"Available keys: {list(self.data[first_timestamp].keys())}")
@@ -105,7 +105,7 @@ class EphemerisDataSource:
                 return float(self.data[t1][quantity])
             except KeyError:
                 # Debug: print what we have when the error occurs
-                print(f"Debug: KeyError in get_value_at")
+                print("Debug: KeyError in get_value_at")
                 print(f"Looking for quantity: {quantity} (value: {quantity.value})")
                 print(f"Available data at {t1}: {self.data[t1]}")
                 print(f"Available keys: {list(self.data[t1].keys())}")

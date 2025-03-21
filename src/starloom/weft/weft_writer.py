@@ -500,7 +500,7 @@ class WeftWriter:
 
         # Add value behavior range to preamble if applicable
         behavior_str = self.wrapping_behavior
-        if isinstance(self.value_behavior, RangedBehavior):
+        if self.value_behavior["type"] in ("wrapping", "bounded"):
             min_val, max_val = self.value_behavior["range"]
             behavior_str = f"{behavior_str}[{min_val},{max_val}]"
 
