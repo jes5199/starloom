@@ -145,7 +145,7 @@ def info(file_path: str) -> None:
             raise click.ClickException(f"Failed to load .weft file: {file_path}")
 
         # Display preamble
-        print(f"Preamble: {weft_file.preamble}")
+        print(f"Preamble: {weft_file.preamble.strip()}")
 
         # Display block counts
         multi_year_blocks = [
@@ -156,7 +156,6 @@ def info(file_path: str) -> None:
             b for b in weft_file.blocks if isinstance(b, FortyEightHourBlock)
         ]
 
-        print("\nBlock Summary:")
         print(f"Total blocks: {len(weft_file.blocks)}")
         print(f"Multi-year blocks: {len(multi_year_blocks)}")
         print(f"Monthly blocks: {len(monthly_blocks)}")
@@ -208,10 +207,9 @@ def info(file_path: str) -> None:
             else:
                 end_date = datetime(2100, 1, 1, tzinfo=ZoneInfo("UTC"))
 
-            print(f"\nOverall Date Range: from {start_date} to {end_date}")
+            print(f"Overall: {start_date} to {end_date}")
 
         # Display block details
-        print("\nBlock Details:")
         for block in weft_file.blocks:
             if isinstance(block, MultiYearBlock):
                 print(
