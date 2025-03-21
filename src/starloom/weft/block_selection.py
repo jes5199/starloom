@@ -177,7 +177,7 @@ def should_include_monthly_block(
 
 
 def should_include_daily_block(
-    time_spec: TimeSpec, data_source: Any, date: datetime, force_include: bool = False
+    time_spec: TimeSpec, data_source: Any, date: datetime
 ) -> bool:
     """
     Determine if a daily block should be included.
@@ -186,15 +186,10 @@ def should_include_daily_block(
         time_spec: The TimeSpec used for sampling
         data_source: The data source to analyze
         date: The date to analyze
-        force_include: If True, bypass regular coverage checks
 
     Returns:
         True if the block should be included
     """
-    # If force_include is True, skip coverage checks
-    if force_include:
-        return True
-
     # Get time range for this day
     start = datetime(date.year, date.month, date.day, tzinfo=timezone.utc)
     end = start + timedelta(days=1)
@@ -216,15 +211,12 @@ def should_include_daily_block(
     return coverage >= 0.666 and points_per_day >= 8.0
 
 
-def get_recommended_blocks(
-    data_source: Any, force_forty_eight_hour_blocks: bool = False
-) -> Dict[str, Dict[str, Any]]:
+def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
     """
     Get recommended block configuration based on data availability.
 
     Args:
         data_source: The data source to analyze
-        force_forty_eight_hour_blocks: If True, always enable forty_eight_hour blocks regardless of time span
 
     Returns:
         Dictionary of block type to configuration
@@ -252,12 +244,10 @@ def get_recommended_blocks(
             "polynomial_degree": 23,  # 24 coefficients
         },
         "forty_eight_hour": {
-            "enabled": False,
+            "enabled": True,
             "sample_count": 48,  # Half-hourly samples
             "polynomial_degree": 11,  # 12 coefficients
         },
-        # Special flag for forcing 48-hour blocks to be included regardless of coverage
-        "force_include_daily": force_forty_eight_hour_blocks,
     }
 
     # Enable blocks based on data availability, preferring higher precision
@@ -290,22 +280,10 @@ def get_recommended_blocks(
         if total_days >= 365:
             config["multi_year"]["enabled"] = True
             print("Enabling multi-year blocks for long time span")
-
-        # Enable forty-eight hour blocks if forced
-        if force_forty_eight_hour_blocks:
-            config["forty_eight_hour"]["enabled"] = True
-            print("Enabling forty-eight hour blocks (forced) with lower data density")
     elif points_per_day >= 1 / 7:  # At least weekly points
         # Use multi-year blocks for spans of a year or more
         if total_days >= 365:
             config["multi_year"]["enabled"] = True
             print("Enabling multi-year blocks for long time span")
-
-        # Enable forty-eight hour blocks if forced (though this might not be useful with such low density)
-        if force_forty_eight_hour_blocks:
-            config["forty_eight_hour"]["enabled"] = True
-            print(
-                "Enabling forty-eight hour blocks (forced) with very low data density"
-            )
 
     return config

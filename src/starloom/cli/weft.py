@@ -73,11 +73,6 @@ def weft() -> None:
     default="24h",
     type=str,
 )
-@click.option(
-    "--force-48h-blocks/--no-force-48h-blocks",
-    help="Force inclusion of 48-hour blocks even when coverage criteria aren't met",
-    default=False,
-)
 def generate(
     planet: str,
     quantity: str,
@@ -87,7 +82,6 @@ def generate(
     data_dir: str,
     prefetch: bool,
     step: str,
-    force_48h_blocks: bool,
 ) -> None:
     """Generate a .weft binary ephemeris file."""
     print("Starting generation with parameters:")
@@ -99,7 +93,6 @@ def generate(
     print(f"  Data dir: {data_dir}")
     print(f"  Prefetch: {prefetch}")
     print(f"  Step: {step}")
-    print(f"  Force 48h blocks: {force_48h_blocks}")
 
     print("Parsing dates...")
     try:
@@ -153,7 +146,6 @@ def generate(
                 output_path=output,
                 data_dir=data_dir,
                 step_hours=step,
-                force_forty_eight_hour_blocks=force_48h_blocks,
             )
 
             click.echo(f"Successfully generated .weft file: {file_path}")
