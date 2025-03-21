@@ -181,9 +181,10 @@ def info(file_path: str) -> None:
             elif isinstance(block, MonthlyBlock):
                 click.echo(f"  Monthly block: {block.year}-{block.month:02d}")
             elif isinstance(block, FortyEightHourSectionHeader):
-                click.echo(f"  48-hour section: {block.start_day} to {block.end_day}")
+                # Show just the start day since that's the center of the 48-hour block
+                click.echo(f"  48-hour block centered at: {block.start_day}")
             elif isinstance(block, FortyEightHourBlock):
-                click.echo(f"  48-hour block: {len(block.coefficients)} coefficients")
+                click.echo(f"    {len(block.coefficients)} coefficients")
 
     except Exception as e:
         raise click.ClickException(f"Error reading .weft file: {e}")

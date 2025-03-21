@@ -649,3 +649,18 @@ Example bug: Cache misses occurred when `2460754.3333333335` (query) didn't matc
    - Not matching the expected return value format
    - Not verifying mock calls with correct parameters
    - Not resetting mocks between test phases 
+
+## .weft File Format
+1. Each FortyEightHourBlock must be immediately preceded by its header in the file
+2. Each 48-hour block is centered at midnight of its date and extends 24 hours in each direction
+3. The visualization should emphasize the center date of each block rather than its range
+4. Block headers must have end_day after start_day
+
+## Block Types
+1. Multi-year blocks: For long-term, low-precision data
+2. Monthly blocks: For medium-term, medium-precision data
+3. Forty-eight hour blocks: For short-term, high-precision data
+   - Each block is centered at midnight UTC of its date
+   - Extends 24 hours before and after midnight
+   - Uses a quintic fit (degree 5 polynomial)
+   - Typically uses 48 samples per day 

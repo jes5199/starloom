@@ -109,10 +109,6 @@ def generate_weft_file(
 
     # Generate the file
     print(f"Generating .weft file for {planet_name} {ephemeris_quantity.name}...")
-    try:
-        planet_enum = Planet[planet_name.upper()]
-    except KeyError:
-        raise ValueError(f"Planet {planet_name} is not a valid Planet enum member")
 
     # Use provided config or get recommended blocks based on data
     if config is None:
@@ -124,7 +120,6 @@ def generate_weft_file(
 
     weft_file = writer.create_multi_precision_file(
         data_source=data_source,
-        body=planet_enum,
         quantity=ephemeris_quantity,
         start_date=start_date,
         end_date=end_date,

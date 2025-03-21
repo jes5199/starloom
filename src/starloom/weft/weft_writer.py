@@ -25,7 +25,6 @@ from ..horizons.quantities import (
     EphemerisQuantity,
 )
 from ..horizons.parsers import OrbitalElementsQuantity
-from ..horizons.planet import Planet
 from .ephemeris_data_source import EphemerisDataSource
 
 T = TypeVar("T", bound=BlockType)
@@ -181,52 +180,56 @@ class WeftWriter:
     def create_monthly_blocks(
         self,
         data_source: EphemerisDataSource,
-        year: int,
-        month_range: Tuple[int, int],
-        samples_per_month: int,
+        start_date: datetime,
+        end_date: datetime,
+        samples_per_day: int,
         degree: int,
         quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
-        end_date: Optional[datetime] = None,
     ) -> List[MonthlyBlock]:
         """
         Create monthly blocks for the specified months.
 
         Args:
             data_source: The data source to get values from
-            year: Year to create blocks for
-            month_range: Tuple of (start_month, end_month) inclusive
-            samples_per_month: Number of sample points per month
+            start_date: Start date
+            end_date: End date (inclusive)
+            samples_per_day: Number of sample points per day
             degree: Degree of Chebyshev polynomial to fit
             quantity: Optional quantity override
-            end_date: Optional end date to limit sampling within the last month
 
         Returns:
             List of MonthlyBlock objects
         """
         blocks = []
-        start_month, end_month = month_range
 
-        for month in range(start_month, end_month + 1):
+        # Calculate month range
+        current_date = datetime(
+            start_date.year, start_date.month, 1, tzinfo=ZoneInfo("UTC")
+        )
+        while current_date < end_date:
             # Calculate days in month
-            if month == 12:
-                next_month = datetime(year + 1, 1, 1, tzinfo=ZoneInfo("UTC"))
+            if current_date.month == 12:
+                next_month = datetime(
+                    current_date.year + 1, 1, 1, tzinfo=ZoneInfo("UTC")
+                )
             else:
-                next_month = datetime(year, month + 1, 1, tzinfo=ZoneInfo("UTC"))
-            current_month = datetime(year, month, 1, tzinfo=ZoneInfo("UTC"))
+                next_month = datetime(
+                    current_date.year, current_date.month + 1, 1, tzinfo=ZoneInfo("UTC")
+                )
 
             # If this is the last month and we have an end date, use it
             block_end = next_month
-            if end_date and month == end_month and end_date < next_month:
+            if block_end > end_date:
                 block_end = end_date
 
-            day_count = (next_month - current_month).days
+            day_count = (next_month - current_date).days
 
             # Generate samples
             x_values, values = self._generate_samples(
                 data_source,
-                current_month,
+                current_date,
                 block_end - timedelta(microseconds=1),
-                samples_per_month,
+                samples_per_day * day_count,
                 quantity,
             )
 
@@ -236,12 +239,14 @@ class WeftWriter:
 
             blocks.append(
                 MonthlyBlock(
-                    year=year,
-                    month=month,
+                    year=current_date.year,
+                    month=current_date.month,
                     day_count=day_count,
                     coeffs=coeffs_list,
                 )
             )
+
+            current_date = next_month
 
         return blocks
 
@@ -254,9 +259,9 @@ class WeftWriter:
         degree: int,
         block_size: Optional[int] = None,
         quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
-    ) -> Tuple[FortyEightHourSectionHeader, List[FortyEightHourBlock]]:
+    ) -> List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]]:
         """
-        Create a section of forty-eight hour blocks.
+        Create a section of forty-eight hour blocks with a single header.
 
         Args:
             data_source: The data source to get values from
@@ -268,7 +273,7 @@ class WeftWriter:
             quantity: Optional quantity override
 
         Returns:
-            Tuple of (FortyEightHourSectionHeader, List[FortyEightHourBlock])
+            List containing one FortyEightHourSectionHeader followed by FortyEightHourBlocks
         """
         # Ensure we're working with dates at day boundaries
         start_date = datetime(
@@ -289,26 +294,34 @@ class WeftWriter:
             if block_size % 16 != 0:
                 block_size += 16 - (block_size % 16)
 
-        # Create blocks
         blocks = []
         current_date = start_date
         while (
             current_date < end_date
         ):  # Changed from <= to < to avoid going past end_date
-            # Calculate block end date
-            block_end = min(current_date + timedelta(days=1), end_date)
-
-            # Create header for this block
+            # Create a header for this block
+            block_date = date(current_date.year, current_date.month, current_date.day)
+            next_date = block_date + timedelta(days=1)
             header = FortyEightHourSectionHeader(
-                start_day=date(current_date.year, current_date.month, current_date.day),
-                end_day=date(block_end.year, block_end.month, block_end.day),
+                start_day=block_date,
+                end_day=next_date,  # End day must be after start day
             )
             blocks.append(header)
+
+            # Generate samples for this 48-hour period centered at current_date
+            block_start = current_date - timedelta(days=1)  # Start 24h before midnight
+            block_end = current_date + timedelta(days=1)  # End 24h after midnight
+
+            # Adjust if we're at the boundaries of our data
+            if block_start < start_date:
+                block_start = start_date
+            if block_end > end_date:
+                block_end = end_date
 
             # Generate samples for this 48-hour period
             x_values, values = self._generate_samples(
                 data_source,
-                current_date,
+                block_start,
                 block_end,
                 samples_per_day,
                 quantity,
@@ -327,20 +340,18 @@ class WeftWriter:
 
             blocks.append(
                 FortyEightHourBlock(
-                    header=header,
+                    header=header,  # Use this block's header
                     coeffs=coeffs_list,
                 )
             )
 
-            current_date = block_end
+            current_date += timedelta(days=1)
 
-        # Return the first header (for compatibility) and all blocks
-        return blocks[0], blocks[1:]
+        return blocks
 
     def create_multi_precision_file(
         self,
         data_source: EphemerisDataSource,
-        body: Planet,
         quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
         start_date: datetime,
         end_date: datetime,
@@ -351,175 +362,70 @@ class WeftWriter:
 
         Args:
             data_source: The data source to get values from
-            body: The celestial body
-            quantity: The quantity being computed
+            quantity: The quantity to generate data for
             start_date: Start date
-            end_date: End date
-            config: Configuration dictionary with settings for different precision levels
-                Example:
-                {
-                    "century": {
-                        "enabled": True,
-                        "samples_per_year": 12,
-                        "degree": 20
-                    },
-                    "yearly": {
-                        "enabled": False
-                    },
-                    "monthly": {
-                        "enabled": True,
-                        "samples_per_month": 30,
-                        "degree": 10,
-                        "years": [2023, 2024]
-                    },
-                    "daily": {
-                        "enabled": True,
-                        "samples_per_day": 48,
-                        "degree": 8,
-                        "date_ranges": [
-                            ("2023-01-01", "2023-01-31"),
-                            ("2023-06-01", "2023-06-30")
-                        ]
-                    },
-                    "forty_eight_hour": {
-                        "enabled": True,
-                        "samples_per_day": 48,
-                        "degree": 5
-                    }
-                }
+            end_date: End date (inclusive)
+            config: Configuration for each block type
 
         Returns:
-            A WeftFile with blocks at the specified precision levels
+            A WeftFile instance
         """
-        blocks: List[BlockType] = []
+        blocks = []
 
-        # Create century/multi-year blocks if enabled
-        if config.get("century", {}).get("enabled", False):
-            century_config = config["century"]
-
-            # Calculate years covered
-            start_year = start_date.year
-            end_year = end_date.year
-            duration = end_year - start_year + 1
-
-            # Create a multi-year block
-            multi_year = self.create_multi_year_block(
-                data_source=data_source,
-                start_year=start_year,
-                duration=duration,
-                samples_per_year=century_config.get("samples_per_year", 12),
-                degree=century_config.get("degree", 20),
-                quantity=quantity,
-            )
-            blocks.append(multi_year)
-
-        # Create yearly blocks if enabled
-        if config.get("yearly", {}).get("enabled", False):
-            yearly_config = config["yearly"]
-            years = yearly_config.get(
-                "years", range(start_date.year, end_date.year + 1)
-            )
-
-            for year in years:
-                if year < start_date.year or year > end_date.year:
-                    continue
-
-                # Create a multi-year block for a single year
-                yearly = self.create_multi_year_block(
-                    data_source=data_source,
-                    start_year=year,
-                    duration=1,
-                    samples_per_year=yearly_config.get("samples_per_year", 365),
-                    degree=yearly_config.get("degree", 15),
-                    quantity=quantity,
-                )
-                blocks.append(yearly)
-
-        # Create monthly blocks if enabled
-        if config.get("monthly", {}).get("enabled", False):
-            monthly_config = config["monthly"]
-            years = monthly_config.get(
-                "years", range(start_date.year, end_date.year + 1)
-            )
-
-            for year in years:
-                if year < start_date.year or year > end_date.year:
-                    continue
-
-                # Calculate month range for this year
-                if year == start_date.year:
-                    start_month = start_date.month
-                else:
-                    start_month = 1
-
-                if year == end_date.year:
-                    end_month = end_date.month
-                else:
-                    end_month = 12
-
-                # Create monthly blocks
-                monthly_blocks = self.create_monthly_blocks(
-                    data_source=data_source,
-                    year=year,
-                    month_range=(start_month, end_month),
-                    samples_per_month=monthly_config.get("samples_per_month", 30),
-                    degree=monthly_config.get("degree", 10),
-                    quantity=quantity,
-                    end_date=end_date if year == end_date.year else None,
-                )
-                blocks.extend(monthly_blocks)
-
-        # Create daily blocks if enabled
-        if config.get("daily", {}).get("enabled", False):
-            daily_config = config["daily"]
-            # Create daily blocks for the entire span
-            header, daily_blocks = self.create_forty_eight_hour_blocks(
-                data_source=data_source,
-                start_date=start_date,
-                end_date=end_date,
-                samples_per_day=daily_config.get("samples_per_day", 48),
-                degree=daily_config.get("degree", 8),
-                quantity=quantity,
-            )
-            blocks.append(header)
-            blocks.extend(daily_blocks)
-
-        # Create forty-eight hour blocks if enabled
-        if config.get("forty_eight_hour", {}).get("enabled", False):
+        # Add blocks in order of decreasing precision
+        if config["forty_eight_hour"]["enabled"]:
             forty_eight_hour_config = config["forty_eight_hour"]
             # Create forty-eight hour blocks for the entire span
-            header, forty_eight_hour_blocks = self.create_forty_eight_hour_blocks(
+            forty_eight_hour_blocks = self.create_forty_eight_hour_blocks(
                 data_source=data_source,
                 start_date=start_date,
                 end_date=end_date,
-                samples_per_day=forty_eight_hour_config.get("samples_per_day", 48),
-                degree=forty_eight_hour_config.get("degree", 5),
+                samples_per_day=forty_eight_hour_config["sample_count"],
+                degree=forty_eight_hour_config["polynomial_degree"],
                 quantity=quantity,
             )
-            blocks.append(header)
-            blocks.extend(forty_eight_hour_blocks)
+            # The first block is the header, followed by the actual blocks
+            header = forty_eight_hour_blocks[0]
+            data_blocks = forty_eight_hour_blocks[1:]
+            blocks.append(header)  # Add header first
+            blocks.extend(data_blocks)  # Then add all blocks
+
+        if config["monthly"]["enabled"]:
+            monthly_config = config["monthly"]
+            # Create monthly blocks for each month in the span
+            monthly_blocks = self.create_monthly_blocks(
+                data_source=data_source,
+                start_date=start_date,
+                end_date=end_date,
+                samples_per_day=monthly_config["sample_count"],
+                degree=monthly_config["polynomial_degree"],
+                quantity=quantity,
+            )
+            blocks.extend(monthly_blocks)
+
+        if config["multi_year"]["enabled"]:
+            multi_year_config = config["multi_year"]
+            # Create multi-year blocks for the entire span
+            multi_year_blocks = self.create_multi_year_blocks(
+                data_source=data_source,
+                start_date=start_date,
+                end_date=end_date,
+                samples_per_day=multi_year_config["sample_count"],
+                degree=multi_year_config["polynomial_degree"],
+                quantity=quantity,
+            )
+            blocks.extend(multi_year_blocks)
 
         # Create preamble
-        now = datetime.utcnow()
-        timespan = f"{start_date.year}-{end_date.year}"
-
-        # Add value behavior range to preamble if applicable
-        behavior_str = self.wrapping_behavior
-        if self.value_behavior["type"] in ("wrapping", "bounded"):
-            min_val, max_val = self.value_behavior["range"]
-            behavior_str = f"{behavior_str}[{min_val},{max_val}]"
-
-        preamble = (
-            f"#weft! v0.02 {body.name} jpl:horizons {timespan} "
-            f"32bit {quantity.name} {behavior_str} chebychevs "
-            f"generated@{now.isoformat()}\n"
+        preamble = self._create_preamble(
+            data_source=data_source,
+            quantity=quantity,
+            start_date=start_date,
+            end_date=end_date,
+            config=config,
         )
 
-        return WeftFile(
-            preamble=preamble,
-            blocks=blocks,
-            value_behavior=self.value_behavior,
-        )
+        return WeftFile(preamble=preamble, blocks=blocks)
 
     def save_file(self, weft_file: WeftFile, output_path: str) -> None:
         """
@@ -534,3 +440,41 @@ class WeftWriter:
 
         # Save the file
         weft_file.write_to_file(output_path)
+
+    def _create_preamble(
+        self,
+        data_source: EphemerisDataSource,
+        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
+        start_date: datetime,
+        end_date: datetime,
+        config: Dict[str, Any],
+    ) -> str:
+        """
+        Create the preamble for a .weft file.
+
+        Args:
+            data_source: The data source to get values from
+            quantity: The quantity to generate data for
+            start_date: Start date
+            end_date: End date (inclusive)
+            config: Configuration for each block type
+
+        Returns:
+            The preamble string
+        """
+        now = datetime.utcnow()
+        timespan = f"{start_date.year}-{end_date.year}"
+
+        # Add value behavior range to preamble if applicable
+        behavior_str = self.wrapping_behavior
+        if self.value_behavior["type"] in ("wrapping", "bounded"):
+            min_val, max_val = self.value_behavior["range"]
+            behavior_str = f"{behavior_str}[{min_val},{max_val}]"
+
+        preamble = (
+            f"#weft! v0.02 {data_source.planet_id} jpl:horizons {timespan} "
+            f"32bit {quantity.name} {behavior_str} chebychevs "
+            f"generated@{now.isoformat()}\n\n"
+        )
+
+        return preamble
