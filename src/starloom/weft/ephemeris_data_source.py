@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
 import bisect
 
-from ..ephemeris import Ephemeris, Quantity
+from ..ephemeris import Ephemeris
 from ..ephemeris.time_spec import TimeSpec
 from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
 from ..space_time.julian import datetime_from_julian
