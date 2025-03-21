@@ -134,5 +134,4 @@ def generate_weft_file(
     # Save the file
     writer.save_file(weft_file, output_path)
 
-    print(f"Successfully generated .weft file at {output_path}")
     return output_path
