@@ -5,7 +5,7 @@ This module provides functionality to write .weft files with century, year, mont
 and daily blocks, using Chebyshev polynomials for efficient storage.
 """
 
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Tuple, Optional, Any, Union, TypeVar, cast
 from zoneinfo import ZoneInfo
 import os
@@ -30,7 +30,6 @@ from .block_selection import (
     should_include_multi_year_block,
     should_include_monthly_block,
     should_include_fourty_eight_hour_block,
-    analyze_data_coverage,
 )
 from ..ephemeris.time_spec import TimeSpec
 
@@ -185,8 +184,12 @@ class WeftWriter:
         time_spec = TimeSpec.from_range(
             start=start_dt, stop=end_dt, step=f"{365 * 24 / samples_per_year}h"
         )
-        if not should_include_multi_year_block(time_spec, data_source, start_year, duration):
-            print(f"DEBUG: Multi-year block not included for {start_year}-{start_year + duration-1}")
+        if not should_include_multi_year_block(
+            time_spec, data_source, start_year, duration
+        ):
+            print(
+                f"DEBUG: Multi-year block not included for {start_year}-{start_year + duration - 1}"
+            )
             return None
 
         # Calculate actual duration in years (may be partial)
@@ -587,19 +590,38 @@ class WeftWriter:
         # Add blocks in order of decreasing precision (least precise first)
         if config["multi_year"]["enabled"]:
             multi_year_config = config["multi_year"]
-            
-            # Try to create a year-long block for 2020
-            year_block = self.create_multi_year_block(
-                data_source=data_source,
-                start_year=2020,
-                duration=1,
-                samples_per_year=multi_year_config["sample_count"],
-                degree=multi_year_config["polynomial_degree"],
-                quantity=quantity,
-            )
-            if year_block:
-                blocks.append(year_block)
-                print(f"Added year block for 2020")
+
+            # Get the time range from the data source
+            start_year = data_source.start_date.year
+            end_year = data_source.end_date.year
+
+            # Create blocks for each decade in the range
+            for decade_start in range(start_year - (start_year % 10), end_year + 1, 10):
+                decade_block = self.create_multi_year_block(
+                    data_source=data_source,
+                    start_year=decade_start,
+                    duration=10,
+                    samples_per_year=multi_year_config["sample_count"],
+                    degree=multi_year_config["polynomial_degree"],
+                    quantity=quantity,
+                )
+                if decade_block:
+                    blocks.append(decade_block)
+                    print(f"Added decade block for {decade_start}-{decade_start + 9}")
+
+            # Create blocks for each year in the range
+            for year in range(start_year, end_year + 1):
+                year_block = self.create_multi_year_block(
+                    data_source=data_source,
+                    start_year=year,
+                    duration=1,
+                    samples_per_year=multi_year_config["sample_count"],
+                    degree=multi_year_config["polynomial_degree"],
+                    quantity=quantity,
+                )
+                if year_block:
+                    blocks.append(year_block)
+                    print(f"Added year block for {year}")
 
         if config["monthly"]["enabled"]:
             monthly_config = config["monthly"]

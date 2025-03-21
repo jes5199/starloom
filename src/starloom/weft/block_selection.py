@@ -94,10 +94,12 @@ def analyze_data_coverage(
     # Handle single-point time spans
     if total_days == 0:
         if len(in_range) > 0:
-            return 1.0, float('inf')  # Perfect coverage for a single point
+            return 1.0, float("inf")  # Perfect coverage for a single point
         return 0.0, 0.0
 
-    print(f"DEBUG: Total days: {total_days}, Points per day: {len(in_range) / total_days}")
+    print(
+        f"DEBUG: Total days: {total_days}, Points per day: {len(in_range) / total_days}"
+    )
 
     # Calculate coverage based on the span between earliest and latest points
     if len(in_range) >= 2:
@@ -239,7 +241,7 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         "multi_year": {
             "enabled": False,
             "sample_count": 12,  # Monthly samples
-            "polynomial_degree": 31,  # 32 coefficients
+            "polynomial_degree": 63,  # 64 coefficients
         },
         "monthly": {
             "enabled": False,
@@ -254,7 +256,7 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
     }
 
     # Enable multi-year blocks if we have at least weekly points and span is at least a year
-    if points_per_day >= 1/7 and total_days >= 365:
+    if points_per_day >= 1 / 7 and total_days >= 365:
         config["multi_year"]["enabled"] = True
         print("Enabling multi-year blocks for long time span")
 

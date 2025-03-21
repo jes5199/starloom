@@ -248,7 +248,7 @@ def info(file_path: str) -> None:
         for block in weft_file.blocks:
             if isinstance(block, MultiYearBlock):
                 print(
-                    f"Multi-year block: {block.start_year} to {block.start_year + block.duration} ({len(block.coeffs)} coefficients)"
+                    f"Multi-year block: {block.start_year} +{block.duration} ({len(block.coeffs)} coefficients)"
                 )
             elif isinstance(block, MonthlyBlock):
                 print(
