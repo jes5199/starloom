@@ -11,7 +11,7 @@ import bisect
 
 from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris.time_spec import TimeSpec
-from ..horizons.quantities import EphemerisQuantity
+from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
 from ..space_time.julian import datetime_from_julian
 
 
@@ -58,6 +58,14 @@ class EphemerisDataSource:
         print(f"Fetching ephemeris data from {start_date} to {end_date}...")
         self.data = ephemeris.get_planet_positions(planet_id, self.time_spec)
 
+        # Debug: print first data point to see structure
+        first_timestamp = next(iter(self.data))
+        print(f"Debug: First data point structure:")
+        print(f"Timestamp: {first_timestamp}")
+        print(f"Data: {self.data[first_timestamp]}")
+        print(f"Available keys: {list(self.data[first_timestamp].keys())}")
+        print(f"Looking for quantity: {self.quantity} (value: {self.quantity.value})")
+
         # Convert float timestamps to datetime objects and sort for binary search
         # Create a new dict with datetime keys
         datetime_data = {}
@@ -84,25 +92,36 @@ class EphemerisDataSource:
         if dt < self.start_date or dt > self.end_date:
             raise ValueError(f"Datetime {dt} is outside data range")
 
+        # Convert EphemerisQuantity to Quantity for lookup
+        quantity = EphemerisQuantityToQuantity[self.quantity]
+
         # Find nearest timestamps
         idx = bisect.bisect_left(self.timestamps, dt)
 
         if idx == 0:
             # Use first value if before first timestamp
             t1 = self.timestamps[0]
-            return float(self.data[t1][self.quantity])
+            try:
+                return float(self.data[t1][quantity])
+            except KeyError:
+                # Debug: print what we have when the error occurs
+                print(f"Debug: KeyError in get_value_at")
+                print(f"Looking for quantity: {quantity} (value: {quantity.value})")
+                print(f"Available data at {t1}: {self.data[t1]}")
+                print(f"Available keys: {list(self.data[t1].keys())}")
+                raise
 
         if idx == len(self.timestamps):
             # Use last value if after last timestamp
             t1 = self.timestamps[-1]
-            return float(self.data[t1][self.quantity])
+            return float(self.data[t1][quantity])
 
         # Interpolate between surrounding timestamps
         t1 = self.timestamps[idx - 1]
         t2 = self.timestamps[idx]
 
-        v1 = float(self.data[t1][self.quantity])
-        v2 = float(self.data[t2][self.quantity])
+        v1 = float(self.data[t1][quantity])
+        v2 = float(self.data[t2][quantity])
 
         # Linear interpolation
         total_seconds = (t2 - t1).total_seconds()
