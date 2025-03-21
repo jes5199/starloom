@@ -13,6 +13,7 @@ from src.starloom.weft.block_selection import (
     should_include_daily_block,
     get_recommended_blocks,
 )
+from src.starloom.weft.blocks import MonthlyBlock
 
 
 class MockEphemerisDataSource:
@@ -286,7 +287,7 @@ class TestBlockEvaluation(unittest.TestCase):
             year=2025,
             month=3,
             day_count=31,
-            coeffs=[1.0, 2.0, 3.0]  # Simple coefficients for testing
+            coeffs=[1.0, 2.0, 3.0],  # Simple coefficients for testing
         )
 
         # Test with a datetime outside the block's range

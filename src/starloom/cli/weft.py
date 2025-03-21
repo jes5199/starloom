@@ -116,6 +116,7 @@ def generate(
             click.echo(f"Successfully generated .weft file: {file_path}")
         except Exception as e:
             import traceback
+
             print("Error during generation:")
             print(traceback.format_exc())
             raise click.ClickException(f"Error generating .weft file: {e}")

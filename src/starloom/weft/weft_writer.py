@@ -120,19 +120,19 @@ class WeftWriter:
 
         # Instead of incrementing by time step, calculate each point's time directly
         total_seconds = (end_dt - start_dt).total_seconds()
-        
+
         for i in range(sample_count):
             # Calculate fraction through the interval [0, 1]
             fraction = i / (sample_count - 1)
-            
+
             # Calculate the exact time for this sample
             seconds_offset = total_seconds * fraction
             current_dt = start_dt + timedelta(seconds=seconds_offset)
-            
+
             # Ensure we don't exceed end_dt due to floating point errors
             if i == sample_count - 1:
                 current_dt = end_dt
-            
+
             value = data_source.get_value_at(current_dt)
             values.append(value)
             x_values.append(-1.0 + 2.0 * fraction)  # Map [0,1] to [-1,1]
@@ -217,12 +217,12 @@ class WeftWriter:
             else:
                 next_month = datetime(year, month + 1, 1, tzinfo=ZoneInfo("UTC"))
             current_month = datetime(year, month, 1, tzinfo=ZoneInfo("UTC"))
-            
+
             # If this is the last month and we have an end date, use it
             block_end = next_month
             if end_date and month == end_month and end_date < next_month:
                 block_end = end_date
-            
+
             day_count = (next_month - current_month).days
 
             # Generate samples

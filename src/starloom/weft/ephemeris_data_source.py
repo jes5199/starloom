@@ -72,7 +72,7 @@ class EphemerisDataSource:
         for timestamp, values in self.data.items():
             dt = datetime_from_julian(timestamp)
             datetime_data[dt] = values
-        
+
         self.data = datetime_data
         self.timestamps = sorted(self.data.keys())
 
