@@ -107,39 +107,60 @@ class WeftWriter:
         quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
     ) -> Tuple[List[float], List[float]]:
         """
-        Generate sample points for fitting.
+        Generate sample points for fitting using all available data points.
 
         Args:
             data_source: The data source to get values from
             start_dt: Start datetime
             end_dt: End datetime
-            sample_count: Number of sample points to generate
+            sample_count: Number of sample points to generate (ignored when using all data points)
             quantity: Optional quantity override
 
         Returns:
             Tuple of (x_values, values)
         """
-        # Generate evenly spaced sample points
-        total_seconds = (end_dt - start_dt).total_seconds()
-        step_seconds = total_seconds / (sample_count - 1)
+        # Get all timestamps within the range
+        timestamps = [dt for dt in data_source.timestamps if start_dt <= dt <= end_dt]
 
+        if not timestamps:
+            # If no timestamps found, fall back to evenly spaced samples
+            total_seconds = (end_dt - start_dt).total_seconds()
+            step_seconds = total_seconds / (sample_count - 1)
+
+            x_values = []
+            values = []
+
+            # Generate samples
+            for i in range(sample_count):
+                # Calculate x value in [-1, 1] range
+                x = -1.0 + 2.0 * i / (sample_count - 1)
+                x_values.append(x)
+
+                # Calculate datetime for this sample
+                current_dt = start_dt + timedelta(seconds=i * step_seconds)
+                # Ensure we don't exceed the data range
+                if current_dt > end_dt:
+                    current_dt = end_dt
+
+                # Get value at this time
+                value = data_source.get_value_at(current_dt)
+                values.append(value)
+
+            return x_values, values
+
+        # Calculate x values for each timestamp
+        total_seconds = (end_dt - start_dt).total_seconds()
         x_values = []
         values = []
 
-        # Generate samples
-        for i in range(sample_count):
+        for dt in timestamps:
             # Calculate x value in [-1, 1] range
-            x = -1.0 + 2.0 * i / (sample_count - 1)
+            elapsed_seconds = (dt - start_dt).total_seconds()
+            x = -1.0 + 2.0 * elapsed_seconds / total_seconds
             x_values.append(x)
 
-            # Calculate datetime for this sample
-            current_dt = start_dt + timedelta(seconds=i * step_seconds)
-            # Ensure we don't exceed the data range
-            if current_dt > end_dt:
-                current_dt = end_dt
-
             # Get value at this time
-            value = data_source.get_value_at(current_dt)
+            value = data_source.get_value_at(dt)
             values.append(value)
 
         return x_values, values
