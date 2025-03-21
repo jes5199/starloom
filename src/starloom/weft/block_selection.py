@@ -230,12 +230,12 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         "monthly": {
             "enabled": False,
             "sample_count": 30,  # Daily samples
-            "polynomial_degree": 4,  # Quartic fit
+            "polynomial_degree": 23,  # 24 coefficients
         },
         "forty_eight_hour": {
             "enabled": False,
             "sample_count": 48,  # Half-hourly samples
-            "polynomial_degree": 5,  # Quintic fit
+            "polynomial_degree": 11,  # 12 coefficients
         },
     }
 

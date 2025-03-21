@@ -31,17 +31,21 @@ class WeftReader:
         if file_path is not None:
             self.load_file(file_path, "default")
 
-    def load_file(self, file_path: str, file_id: str = "default") -> None:
+    def load_file(self, file_path: str, file_id: str = "default") -> WeftFile:
         """
         Load a .weft file.
 
         Args:
             file_path: Path to the .weft file
             file_id: Identifier for the loaded file
+
+        Returns:
+            The loaded WeftFile instance
         """
         with open(file_path, "rb") as f:
             data = f.read()
         self.files[file_id] = WeftFile.from_bytes(data)
+        return self.files[file_id]
 
     def unload_file(self, file_id: str = "default") -> None:
         """

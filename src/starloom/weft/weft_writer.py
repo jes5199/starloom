@@ -372,7 +372,33 @@ class WeftWriter:
         """
         blocks = []
 
-        # Add blocks in order of decreasing precision
+        # Add blocks in order of decreasing precision (least precise first)
+        if config["multi_year"]["enabled"]:
+            multi_year_config = config["multi_year"]
+            # Create multi-year blocks for the entire span
+            multi_year_blocks = self.create_multi_year_blocks(
+                data_source=data_source,
+                start_date=start_date,
+                end_date=end_date,
+                samples_per_day=multi_year_config["sample_count"],
+                degree=multi_year_config["polynomial_degree"],
+                quantity=quantity,
+            )
+            blocks.extend(multi_year_blocks)
+
+        if config["monthly"]["enabled"]:
+            monthly_config = config["monthly"]
+            # Create monthly blocks for each month in the span
+            monthly_blocks = self.create_monthly_blocks(
+                data_source=data_source,
+                start_date=start_date,
+                end_date=end_date,
+                samples_per_day=monthly_config["sample_count"],
+                degree=monthly_config["polynomial_degree"],
+                quantity=quantity,
+            )
+            blocks.extend(monthly_blocks)
+
         if config["forty_eight_hour"]["enabled"]:
             forty_eight_hour_config = config["forty_eight_hour"]
             # Create forty-eight hour blocks for the entire span
@@ -389,32 +415,6 @@ class WeftWriter:
             data_blocks = forty_eight_hour_blocks[1:]
             blocks.append(header)  # Add header first
             blocks.extend(data_blocks)  # Then add all blocks
-
-        if config["monthly"]["enabled"]:
-            monthly_config = config["monthly"]
-            # Create monthly blocks for each month in the span
-            monthly_blocks = self.create_monthly_blocks(
-                data_source=data_source,
-                start_date=start_date,
-                end_date=end_date,
-                samples_per_day=monthly_config["sample_count"],
-                degree=monthly_config["polynomial_degree"],
-                quantity=quantity,
-            )
-            blocks.extend(monthly_blocks)
-
-        if config["multi_year"]["enabled"]:
-            multi_year_config = config["multi_year"]
-            # Create multi-year blocks for the entire span
-            multi_year_blocks = self.create_multi_year_blocks(
-                data_source=data_source,
-                start_date=start_date,
-                end_date=end_date,
-                samples_per_day=multi_year_config["sample_count"],
-                degree=multi_year_config["polynomial_degree"],
-                quantity=quantity,
-            )
-            blocks.extend(multi_year_blocks)
 
         # Create preamble
         preamble = self._create_preamble(

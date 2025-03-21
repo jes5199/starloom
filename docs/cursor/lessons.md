@@ -655,6 +655,11 @@ Example bug: Cache misses occurred when `2460754.3333333335` (query) didn't matc
 2. Each 48-hour block is centered at midnight of its date and extends 24 hours in each direction
 3. The visualization should emphasize the center date of each block rather than its range
 4. Block headers must have end_day after start_day
+5. Blocks are ordered by decreasing precision (least precise first):
+   - Multi-year blocks first (lowest precision, longest time span)
+   - Monthly blocks second (medium precision, medium time span)
+   - Forty-eight hour blocks last (highest precision, shortest time span)
+   - This ordering allows truncating the file while maintaining progressively less precise but still useful data
 
 ## Block Types
 1. Multi-year blocks: For long-term, low-precision data
