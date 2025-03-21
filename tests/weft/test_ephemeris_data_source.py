@@ -5,19 +5,20 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict
 
 from starloom.ephemeris.time_spec import TimeSpec
-from starloom.horizons.quantities import EphemerisQuantity
+from starloom.ephemeris import Quantity
+from starloom.horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
 from starloom.weft.ephemeris_data_source import EphemerisDataSource
 
 
 class MockEphemeris:
     """Mock ephemeris source for testing."""
 
-    def __init__(self, data: Dict[datetime, Dict[EphemerisQuantity, float]]):
+    def __init__(self, data: Dict[datetime, Dict[Quantity, float]]):
         self.data = data
 
     def get_planet_positions(
         self, planet_id: str, time_spec: TimeSpec
-    ) -> Dict[datetime, Dict[EphemerisQuantity, float]]:
+    ) -> Dict[datetime, Dict[Quantity, float]]:
         """Return mock data for the given time range."""
         # Filter data to time range
         return {
@@ -35,13 +36,14 @@ class TestEphemerisDataSource(unittest.TestCase):
         self.start = datetime(2025, 1, 1, tzinfo=timezone.utc)
         self.end = datetime(2025, 1, 2, tzinfo=timezone.utc)
         self.quantity = EphemerisQuantity.ECLIPTIC_LONGITUDE
+        self.standard_quantity = EphemerisQuantityToQuantity[self.quantity]
 
         # Create hourly test data
         self.test_data = {}
         for i in range(25):  # 24 hours + endpoint
             dt = self.start + timedelta(hours=i)
             # Simple linear progression from 0 to 360 degrees
-            self.test_data[dt] = {self.quantity: (i * 15.0) % 360.0}
+            self.test_data[dt] = {self.standard_quantity: (i * 15.0) % 360.0}
 
         self.mock_ephemeris = MockEphemeris(self.test_data)
 

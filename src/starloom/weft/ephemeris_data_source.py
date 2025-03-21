@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
 import bisect
 
-from ..ephemeris.ephemeris import Ephemeris
+from ..ephemeris import Ephemeris, Quantity
 from ..ephemeris.time_spec import TimeSpec
-from ..horizons.quantities import EphemerisQuantity
+from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
 from ..space_time.julian import datetime_from_julian
 
 
@@ -30,7 +30,7 @@ class EphemerisDataSource:
         quantity: EphemerisQuantity,
         start_date: datetime,
         end_date: datetime,
-        step_hours: int = 24,
+        step_hours: float,
     ):
         """
         Initialize the data source.
@@ -49,6 +49,9 @@ class EphemerisDataSource:
         self.start_date = start_date
         self.end_date = end_date
         self.step_hours = step_hours
+
+        # Convert EphemerisQuantity to Quantity for data access
+        self.standard_quantity = EphemerisQuantityToQuantity[quantity]
 
         # Create TimeSpec for data fetching
         self.time_spec = TimeSpec.from_range(
@@ -77,20 +80,19 @@ class EphemerisDataSource:
         self.timestamps = sorted(self.data.keys())
 
     def get_value_at(self, dt: datetime) -> float:
-        """
-        Get the value at a specific datetime.
+        """Get the value of the quantity at the given datetime.
 
         Args:
-            dt: The datetime to get the value for
+            dt: The datetime to get the value for.
 
         Returns:
-            The interpolated value at that datetime
-
-        Raises:
-            ValueError: If the datetime is outside the data range
+            The value of the quantity at the given datetime.
         """
         if dt < self.start_date or dt > self.end_date:
-            raise ValueError(f"Datetime {dt} is outside data range")
+            raise ValueError(
+                f"Datetime {dt} is outside the range of this data source "
+                f"({self.start_date} to {self.end_date})"
+            )
 
         # Find nearest timestamps
         idx = bisect.bisect_left(self.timestamps, dt)
@@ -99,7 +101,7 @@ class EphemerisDataSource:
             # Use first value if before first timestamp
             t1 = self.timestamps[0]
             try:
-                return float(self.data[t1][self.quantity])
+                return float(self.data[t1][self.standard_quantity])
             except KeyError:
                 # Debug: print what we have when the error occurs
                 print("Debug: KeyError in get_value_at")
@@ -113,14 +115,14 @@ class EphemerisDataSource:
         if idx == len(self.timestamps):
             # Use last value if after last timestamp
             t1 = self.timestamps[-1]
-            return float(self.data[t1][self.quantity])
+            return float(self.data[t1][self.standard_quantity])
 
         # Interpolate between surrounding timestamps
         t1 = self.timestamps[idx - 1]
         t2 = self.timestamps[idx]
 
-        v1 = float(self.data[t1][self.quantity])
-        v2 = float(self.data[t2][self.quantity])
+        v1 = float(self.data[t1][self.standard_quantity])
+        v2 = float(self.data[t2][self.standard_quantity])
 
         # Linear interpolation
         total_seconds = (t2 - t1).total_seconds()
@@ -130,7 +132,7 @@ class EphemerisDataSource:
         return v1 + (v2 - v1) * fraction
 
     def get_values_in_range(
-        self, start: datetime, end: datetime, step_hours: Optional[int] = None
+        self, start: datetime, end: datetime, step_hours: Optional[float] = None
     ) -> List[Tuple[datetime, float]]:
         """
         Get values within a date range at specified intervals.
