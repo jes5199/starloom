@@ -463,9 +463,11 @@ class WeftWriter:
         end_date = datetime(
             end_date.year, end_date.month, end_date.day, tzinfo=ZoneInfo("UTC")
         )
-        
+
         print(f"DEBUG: Creating 48-hour blocks from {start_date} to {end_date}")
-        print(f"DEBUG: Data source range: {data_source.start_date} to {data_source.end_date}")
+        print(
+            f"DEBUG: Data source range: {data_source.start_date} to {data_source.end_date}"
+        )
         print(f"DEBUG: Data source has {len(data_source.timestamps)} timestamps")
         print(f"DEBUG: Force include is {force_include}")
 
@@ -484,7 +486,7 @@ class WeftWriter:
         current_date = start_date
         day_count = 0
         included_count = 0
-        
+
         while (
             current_date < end_date
         ):  # Changed from <= to < to avoid going past end_date
@@ -495,13 +497,17 @@ class WeftWriter:
                 stop=current_date + timedelta(days=1) - timedelta(microseconds=1),
                 step=f"{24 / samples_per_day}h",
             )
-            include_block = should_include_daily_block(time_spec, data_source, current_date, force_include)
-            print(f"DEBUG: Day {current_date.date()}: should_include_daily_block = {include_block}")
-            
+            include_block = should_include_daily_block(
+                time_spec, data_source, current_date, force_include
+            )
+            print(
+                f"DEBUG: Day {current_date.date()}: should_include_daily_block = {include_block}"
+            )
+
             if not include_block:
                 current_date += timedelta(days=1)
                 continue
-                
+
             included_count += 1
 
             # Create a header for this block
@@ -551,9 +557,9 @@ class WeftWriter:
             )
 
             current_date += timedelta(days=1)
-            
+
         print(f"DEBUG: Checked {day_count} days, included {included_count} blocks")
-        
+
         return blocks
 
     def create_multi_precision_file(
@@ -617,7 +623,7 @@ class WeftWriter:
                 samples_per_day=forty_eight_hour_config["sample_count"],
                 degree=forty_eight_hour_config["polynomial_degree"],
                 quantity=quantity,
-                force_include=config.get("force_include_daily", False)
+                force_include=config.get("force_include_daily", False),
             )
             # The first block is the header, followed by the actual blocks
             if forty_eight_hour_blocks:

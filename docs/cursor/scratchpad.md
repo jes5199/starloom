@@ -227,3 +227,60 @@
 3. Force inclusion flags provide flexibility when coverage criteria are too restrictive
 4. When iterating over dictionary items, type checking helps prevent unexpected errors
 5. Debug logging is invaluable for tracking block selection decisions
+
+# Current Task: Fix Coverage Calculation for .weft File Generation
+
+## Issues Identified
+1. The coverage calculation used gaps between consecutive timestamps
+2. This caused hourly data with regular 1-hour gaps to be incorrectly flagged as having 0% coverage
+3. Daily blocks were not being included for hourly data without forcing them
+4. The minimum data density for 48-hour blocks was set too high (24 points per day)
+
+## Implementation Plan
+[X] Fix analyze_data_coverage function to calculate coverage differently
+  - Calculate coverage based on span between first and last points
+  - Remove gap-based calculation that was causing issues
+  - Add better debug logging to show coverage calculation method
+  
+[X] Update should_include_daily_block to use the new coverage calculation
+  - Use a 66.6% coverage threshold (matching monthly blocks)
+  - Require at least 8 points per day for sufficient coverage
+
+[X] Lower the minimum data density threshold in get_recommended_blocks
+  - Change from 24 points per day (hourly) to 8 points per day (3-hourly)
+  - Keep the rest of the block selection logic the same
+
+[X] Test with different data densities
+  - 1-hour data (24 points per day)
+  - 3-hour data (8 points per day)
+  - 6-hour data (4 points per day)
+
+## Progress
+- Modified analyze_data_coverage to calculate coverage based on span between first and last timestamps
+- Updated should_include_daily_block to use a 66.6% coverage threshold
+- Changed get_recommended_blocks to enable 48-hour blocks at 8 points per day
+- Tested with 1-hour, 3-hour, and 6-hour data
+- Verified that 48-hour blocks are included for 1-hour and 3-hour data, but not 6-hour data (as expected)
+
+## Testing Results
+- With 1-hour data (24 points per day):
+  - All days report 100% coverage
+  - All 48-hour blocks included
+  - Generated .weft file contains 63 blocks (1 monthly + 31 daily)
+  
+- With 3-hour data (8 points per day):
+  - All days report 100% coverage
+  - All 48-hour blocks included
+  - Generated .weft file contains 63 blocks (1 monthly + 31 daily)
+  
+- With 6-hour data (4 points per day):
+  - All days report 100% coverage
+  - No 48-hour blocks included (below 8 points/day threshold)
+  - Generated .weft file contains 1 block (monthly only)
+
+## Lessons Learned
+1. Coverage calculation should focus on the overall span covered, not gaps between timestamps
+2. For astronomical data with regular sampling patterns, the span-based approach is more reliable
+3. A threshold of 8 points per day (3-hour data) is sufficient for 48-hour blocks
+4. The force_include parameter is still useful for cases that don't meet coverage criteria
+5. Clear debug logging is essential for understanding coverage calculations

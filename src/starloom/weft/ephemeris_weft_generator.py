@@ -115,12 +115,15 @@ def generate_weft_file(
     # Use provided config or get recommended blocks based on data
     if config is None:
         config = get_recommended_blocks(
-            data_source, 
-            force_forty_eight_hour_blocks=force_forty_eight_hour_blocks
+            data_source, force_forty_eight_hour_blocks=force_forty_eight_hour_blocks
         )
         print("Using auto-configured blocks based on data availability:")
         for block_type, settings in config.items():
-            if block_type != "force_include_daily" and isinstance(settings, dict) and settings.get("enabled", False):
+            if (
+                block_type != "force_include_daily"
+                and isinstance(settings, dict)
+                and settings.get("enabled", False)
+            ):
                 print(f"  {block_type}: {settings}")
 
     weft_file = writer.create_multi_precision_file(
