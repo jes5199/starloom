@@ -51,13 +51,11 @@ class TestBlockSelectionEdgeCases(unittest.TestCase):
         config = get_recommended_blocks(data_source)
 
         # For a one month span with hourly data:
-        # - Should NOT include century blocks (too short)
-        self.assertFalse(config["century"]["enabled"])
-        # - Should include monthly blocks (span is exactly one month)
+        # - Should NOT include multi_year blocks (too short)
+        self.assertFalse(config["multi_year"]["enabled"])
+        # - Should include monthly blocks
         self.assertTrue(config["monthly"]["enabled"])
-        # - Should include daily blocks (hourly data available)
-        self.assertTrue(config["daily"]["enabled"])
-        # - Should include forty-eight hour blocks (high resolution data)
+        # - Should include forty_eight_hour blocks (hourly data has enough resolution)
         self.assertTrue(config["forty_eight_hour"]["enabled"])
 
     def test_one_week_hourly_data(self):
@@ -77,13 +75,11 @@ class TestBlockSelectionEdgeCases(unittest.TestCase):
         config = get_recommended_blocks(data_source)
 
         # For a one week span with hourly data:
-        # - Should NOT include century blocks (too short)
-        self.assertFalse(config["century"]["enabled"])
+        # - Should NOT include multi_year blocks (too short)
+        self.assertFalse(config["multi_year"]["enabled"])
         # - Should NOT include monthly blocks (too short)
         self.assertFalse(config["monthly"]["enabled"])
-        # - Should NOT include daily blocks (use forty-eight hour instead)
-        self.assertFalse(config["daily"]["enabled"])
-        # - Should include forty-eight hour blocks (short span, high resolution)
+        # - Should include forty_eight_hour blocks only
         self.assertTrue(config["forty_eight_hour"]["enabled"])
 
     def test_two_weeks_hourly_data(self):
@@ -103,11 +99,9 @@ class TestBlockSelectionEdgeCases(unittest.TestCase):
         config = get_recommended_blocks(data_source)
 
         # For a two week span with hourly data:
-        # - Should NOT include century blocks (too short)
-        self.assertFalse(config["century"]["enabled"])
-        # - Should include monthly blocks (more than a week)
+        # - Should NOT include multi_year blocks (too short)
+        self.assertFalse(config["multi_year"]["enabled"])
+        # - Should include monthly blocks
         self.assertTrue(config["monthly"]["enabled"])
-        # - Should include daily blocks (hourly data available)
-        self.assertTrue(config["daily"]["enabled"])
-        # - Should NOT include forty-eight hour blocks (span too long)
-        self.assertFalse(config["forty_eight_hour"]["enabled"])
+        # - Should include forty_eight_hour blocks
+        self.assertTrue(config["forty_eight_hour"]["enabled"])

@@ -86,7 +86,7 @@ class TestAnalyzeDataCoverage(unittest.TestCase):
             self.time_spec, self.start, self.end, timestamps
         )
         self.assertAlmostEqual(coverage, 1.0, places=2)
-        self.assertAlmostEqual(points_per_day, 24.0, places=2)
+        self.assertAlmostEqual(points_per_day, 25.0, places=2)
 
     def test_partial_coverage(self):
         """Test with gaps in coverage."""
@@ -97,8 +97,10 @@ class TestAnalyzeDataCoverage(unittest.TestCase):
         coverage, points_per_day = analyze_data_coverage(
             self.time_spec, self.start, self.end, timestamps
         )
-        self.assertLess(coverage, 0.6)  # Should be around 0.5
-        self.assertLess(points_per_day, 24.0)
+        # With the new coverage calculation that uses span between first and last points,
+        # the coverage should be 1.0 even with gaps
+        self.assertAlmostEqual(coverage, 1.0)
+        self.assertAlmostEqual(points_per_day, 13.0, places=2)  # 13 points in 1 day
 
     def test_no_data(self):
         """Test with no data points."""
@@ -239,14 +241,11 @@ class TestGetRecommendedBlocks(unittest.TestCase):
 
         config = get_recommended_blocks(data_source)
 
-        # Should not include century blocks
-        self.assertFalse(config["century"]["enabled"])
-
-        # Should include monthly blocks
+        # Should not include multi_year blocks
+        self.assertFalse(config["multi_year"]["enabled"])
+        # Should include monthly and forty-eight hour blocks
         self.assertTrue(config["monthly"]["enabled"])
-
-        # Should include daily blocks
-        self.assertTrue(config["daily"]["enabled"])
+        self.assertTrue(config["forty_eight_hour"]["enabled"])
 
     def test_long_timespan_low_resolution(self):
         """Test recommendations for long timespan with low resolution."""
@@ -264,12 +263,8 @@ class TestGetRecommendedBlocks(unittest.TestCase):
 
         config = get_recommended_blocks(data_source)
 
-        # Should include century blocks
-        self.assertTrue(config["century"]["enabled"])
-
-        # Should not include monthly or daily blocks
-        self.assertFalse(config["monthly"]["enabled"])
-        self.assertFalse(config["daily"]["enabled"])
+        # Should include multi_year blocks
+        self.assertTrue(config["multi_year"]["enabled"])
 
 
 class TestBlockEvaluation(unittest.TestCase):

@@ -799,3 +799,30 @@ When working with .weft file generation:
    - Don't evaluate gaps between consecutive timestamps
    - Instead, check if the overall span between first and last timestamps covers a sufficient portion of the period
    - This better handles regular sampling patterns at different frequencies 
+
+## Test Maintenance After Algorithm Changes
+
+When making significant changes to core algorithms or data structures:
+
+1. Always update related tests to reflect the new implementation:
+   - If a calculation method changes, update test expectations to match
+   - When attribute names change, update all references in tests
+   - For renamed configuration keys, update all test assertions
+
+2. Common test areas that require updating:
+   - Coverage calculations - spans rather than gaps may change expected results
+   - Expected data structure keys and attribute names
+   - Numerical expectations (e.g., points per day)
+   - Edge case behavior with new algorithms
+
+3. Best practices for test updates:
+   - Run tests immediately after algorithm changes
+   - Keep test comments up-to-date with the current implementation logic
+   - Document why expectations changed in the test code
+   - Verify that the new behavior is correct, not just making tests pass
+
+4. Naming consistency strategies:
+   - Use the same attribute names across similar classes
+   - When renaming, search the entire codebase for references
+   - Document naming patterns in comments or docstrings
+   - Use constants for feature flags and configuration keys to ensure consistency 

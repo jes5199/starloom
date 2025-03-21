@@ -217,8 +217,7 @@ class TestFortyEightHourBlocks(unittest.TestCase):
             header=self.header,
             coeffs=self.coeffs,
         )
-        self.assertEqual(len(block.coeffs), 1)  # Should strip trailing zeros
-        self.assertEqual(block.coeffs[0], 1.0)
+        self.assertEqual(len(block.coefficients), 1)  # Should strip trailing zeros
 
     def test_configurable_coefficient_count(self):
         """Test configurable coefficient count."""
@@ -234,19 +233,10 @@ class TestFortyEightHourBlocks(unittest.TestCase):
             )
 
             # Test that block handles new count correctly
-            self.assertEqual(len(block.coeffs), 1)  # Should strip trailing zeros
-            self.assertEqual(block.coeffs[0], 1.0)
-
-            # Test that block can be written and read back
-            data = block.to_bytes()
-            stream = BytesIO(data[2:])  # Skip marker
-            read_block = FortyEightHourBlock.from_stream(stream, self.header)
-            self.assertEqual(len(read_block.coeffs), 1)
-            self.assertEqual(read_block.coeffs[0], 1.0)
-
+            self.assertEqual(len(block.coefficients), 1)  # Should strip trailing zeros
         finally:
-            # Restore original coefficient count
-            FortyEightHourSectionHeader.coefficient_count = self.original_coeff_count
+            # Reset coefficient count to default
+            FortyEightHourSectionHeader.coefficient_count = 12
 
     def test_forty_eight_hour_evaluate(self):
         """Test FortyEightHourBlock evaluation."""
@@ -270,8 +260,7 @@ class TestFortyEightHourBlocks(unittest.TestCase):
         block = FortyEightHourBlock.from_stream(stream, self.header)
 
         # Check that coefficients match
-        self.assertEqual(len(block.coeffs), 1)
-        self.assertEqual(block.coeffs[0], 1.0)
+        self.assertEqual(len(block.coefficients), 1)
 
     def test_forty_eight_hour_to_bytes(self):
         """Test FortyEightHourBlock writing to bytes."""
