@@ -150,5 +150,8 @@ class MonthlyBlock:
         total_seconds = (next_month - start_of_month).total_seconds()
         seconds_elapsed = (dt - start_of_month).total_seconds()
         x = 2 * (seconds_elapsed / total_seconds) - 1
+        
+        # Clamp x to [-1, 1] to handle floating point precision issues
+        x = max(-1.0, min(1.0, x))
 
         return evaluate_chebyshev(self.coeffs, x)
