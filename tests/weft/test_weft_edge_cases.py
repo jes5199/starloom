@@ -42,8 +42,8 @@ class TestWeftEdgeCases(unittest.TestCase):
             coeffs=[],  # Empty list is valid, will be padded with zeros
         )
         # Should have one coefficient (zero)
-        self.assertEqual(len(block.coeffs), 1)
-        self.assertEqual(block.coeffs[0], 0.0)
+        self.assertEqual(len(block.coefficients), 1)
+        self.assertEqual(block.coefficients[0], 0.0)
 
         # Full coefficients should be padded to header's count
         self.assertEqual(len(block._full_coeffs), header.coefficient_count)

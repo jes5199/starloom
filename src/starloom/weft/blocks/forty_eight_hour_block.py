@@ -42,7 +42,7 @@ class FortyEightHourBlock:
         while len(coeffs) > 1 and coeffs[-1] == 0:
             coeffs = coeffs[:-1]
 
-        self.coeffs = coeffs
+        self.coefficients = coeffs
 
         # Pad to header's count for binary format
         self._full_coeffs = coeffs + [0.0] * (
@@ -117,4 +117,4 @@ class FortyEightHourBlock:
 
         dt = dt.astimezone(timezone.utc)
         x = self.header.datetime_to_hours(dt)
-        return evaluate_chebyshev(self.coeffs, x)
+        return evaluate_chebyshev(self.coefficients, x)

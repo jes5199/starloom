@@ -11,7 +11,6 @@ from zoneinfo import ZoneInfo
 import os
 from numpy.polynomial import chebyshev
 
-from .blocks.utils import unwrap_angles
 from .weft import (
     MultiYearBlock,
     MonthlyBlock,
@@ -103,7 +102,7 @@ class WeftWriter:
         quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
     ) -> Tuple[List[float], List[float]]:
         """
-        Generate sample points for fitting Chebyshev polynomials.
+        Generate sample points for fitting.
 
         Args:
             data_source: The data source to get values from
@@ -113,33 +112,30 @@ class WeftWriter:
             quantity: Optional quantity override
 
         Returns:
-            Tuple of (normalized x values, y values)
+            Tuple of (x_values, values)
         """
-        values = []
-        x_values = []
-
-        # Instead of incrementing by time step, calculate each point's time directly
+        # Generate evenly spaced sample points
         total_seconds = (end_dt - start_dt).total_seconds()
+        step_seconds = total_seconds / (sample_count - 1)
 
+        x_values = []
+        values = []
+
+        # Generate samples
         for i in range(sample_count):
-            # Calculate fraction through the interval [0, 1]
-            fraction = i / (sample_count - 1)
+            # Calculate x value in [-1, 1] range
+            x = -1.0 + 2.0 * i / (sample_count - 1)
+            x_values.append(x)
 
-            # Calculate the exact time for this sample
-            seconds_offset = total_seconds * fraction
-            current_dt = start_dt + timedelta(seconds=seconds_offset)
-
-            # Ensure we don't exceed end_dt due to floating point errors
-            if i == sample_count - 1:
+            # Calculate datetime for this sample
+            current_dt = start_dt + timedelta(seconds=i * step_seconds)
+            # Ensure we don't exceed the data range
+            if current_dt > end_dt:
                 current_dt = end_dt
 
+            # Get value at this time
             value = data_source.get_value_at(current_dt)
             values.append(value)
-            x_values.append(-1.0 + 2.0 * fraction)  # Map [0,1] to [-1,1]
-
-        # Handle wrapping for angular quantities
-        if self.wrapping_behavior == "wrapping":
-            values = unwrap_angles(values)
 
         return x_values, values
 
@@ -293,21 +289,27 @@ class WeftWriter:
             if block_size % 16 != 0:
                 block_size += 16 - (block_size % 16)
 
-        # Create header
-        header = FortyEightHourSectionHeader(
-            start_day=date(start_date.year, start_date.month, start_date.day),
-            end_day=date(end_date.year, end_date.month, end_date.day),
-        )
-
         # Create blocks
         blocks = []
         current_date = start_date
-        while current_date <= end_date:
+        while (
+            current_date < end_date
+        ):  # Changed from <= to < to avoid going past end_date
+            # Calculate block end date
+            block_end = min(current_date + timedelta(days=1), end_date)
+
+            # Create header for this block
+            header = FortyEightHourSectionHeader(
+                start_day=date(current_date.year, current_date.month, current_date.day),
+                end_day=date(block_end.year, block_end.month, block_end.day),
+            )
+            blocks.append(header)
+
             # Generate samples for this 48-hour period
             x_values, values = self._generate_samples(
                 data_source,
                 current_date,
-                current_date + timedelta(days=1),
+                block_end,
                 samples_per_day,
                 quantity,
             )
@@ -330,9 +332,10 @@ class WeftWriter:
                 )
             )
 
-            current_date += timedelta(days=1)
+            current_date = block_end
 
-        return header, blocks
+        # Return the first header (for compatibility) and all blocks
+        return blocks[0], blocks[1:]
 
     def create_multi_precision_file(
         self,
@@ -377,6 +380,11 @@ class WeftWriter:
                             ("2023-01-01", "2023-01-31"),
                             ("2023-06-01", "2023-06-30")
                         ]
+                    },
+                    "forty_eight_hour": {
+                        "enabled": True,
+                        "samples_per_day": 48,
+                        "degree": 5
                     }
                 }
 
@@ -464,35 +472,32 @@ class WeftWriter:
         # Create daily blocks if enabled
         if config.get("daily", {}).get("enabled", False):
             daily_config = config["daily"]
-            date_ranges = daily_config.get("date_ranges", [])
+            # Create daily blocks for the entire span
+            header, daily_blocks = self.create_forty_eight_hour_blocks(
+                data_source=data_source,
+                start_date=start_date,
+                end_date=end_date,
+                samples_per_day=daily_config.get("samples_per_day", 48),
+                degree=daily_config.get("degree", 8),
+                quantity=quantity,
+            )
+            blocks.append(header)
+            blocks.extend(daily_blocks)
 
-            for date_range in date_ranges:
-                start_str, end_str = date_range
-                range_start = datetime.strptime(start_str, "%Y-%m-%d").replace(
-                    tzinfo=ZoneInfo("UTC")
-                )
-                range_end = datetime.strptime(end_str, "%Y-%m-%d").replace(
-                    tzinfo=ZoneInfo("UTC")
-                )
-
-                # Clip to overall start/end dates
-                range_start = max(range_start, start_date)
-                range_end = min(range_end, end_date)
-
-                if range_start > range_end:
-                    continue
-
-                # Create daily blocks for this range
-                header, daily_blocks = self.create_forty_eight_hour_blocks(
-                    data_source=data_source,
-                    start_date=range_start,
-                    end_date=range_end,
-                    samples_per_day=daily_config.get("samples_per_day", 48),
-                    degree=daily_config.get("degree", 8),
-                    quantity=quantity,
-                )
-                blocks.append(header)
-                blocks.extend(daily_blocks)
+        # Create forty-eight hour blocks if enabled
+        if config.get("forty_eight_hour", {}).get("enabled", False):
+            forty_eight_hour_config = config["forty_eight_hour"]
+            # Create forty-eight hour blocks for the entire span
+            header, forty_eight_hour_blocks = self.create_forty_eight_hour_blocks(
+                data_source=data_source,
+                start_date=start_date,
+                end_date=end_date,
+                samples_per_day=forty_eight_hour_config.get("samples_per_day", 48),
+                degree=forty_eight_hour_config.get("degree", 5),
+                quantity=quantity,
+            )
+            blocks.append(header)
+            blocks.extend(forty_eight_hour_blocks)
 
         # Create preamble
         now = datetime.utcnow()
