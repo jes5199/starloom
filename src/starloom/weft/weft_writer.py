@@ -190,6 +190,7 @@ class WeftWriter:
         samples_per_month: int,
         degree: int,
         quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
+        end_date: Optional[datetime] = None,
     ) -> List[MonthlyBlock]:
         """
         Create monthly blocks for the specified months.
@@ -201,6 +202,7 @@ class WeftWriter:
             samples_per_month: Number of sample points per month
             degree: Degree of Chebyshev polynomial to fit
             quantity: Optional quantity override
+            end_date: Optional end date to limit sampling within the last month
 
         Returns:
             List of MonthlyBlock objects
@@ -215,13 +217,19 @@ class WeftWriter:
             else:
                 next_month = datetime(year, month + 1, 1, tzinfo=ZoneInfo("UTC"))
             current_month = datetime(year, month, 1, tzinfo=ZoneInfo("UTC"))
+            
+            # If this is the last month and we have an end date, use it
+            block_end = next_month
+            if end_date and month == end_month and end_date < next_month:
+                block_end = end_date
+            
             day_count = (next_month - current_month).days
 
             # Generate samples
             x_values, values = self._generate_samples(
                 data_source,
                 current_month,
-                next_month - timedelta(microseconds=1),
+                block_end - timedelta(microseconds=1),
                 samples_per_month,
                 quantity,
             )
@@ -449,6 +457,7 @@ class WeftWriter:
                     samples_per_month=monthly_config.get("samples_per_month", 30),
                     degree=monthly_config.get("degree", 10),
                     quantity=quantity,
+                    end_date=end_date if year == end_date.year else None,
                 )
                 blocks.extend(monthly_blocks)
 
