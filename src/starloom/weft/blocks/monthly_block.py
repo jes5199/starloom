@@ -37,9 +37,11 @@ class MonthlyBlock:
         """
         if not 1 <= month <= 12:
             raise ValueError("Month must be between 1 and 12")
+        # Allow any positive day count, but warn if outside normal range
         if not 28 <= day_count <= 31:
-            raise ValueError("Day count must be between 28 and 31")
-
+            import warnings
+            warnings.warn(f"Unusual day count for month: {day_count}. Normal range is 28-31.")
+        
         self.year = year
         self.month = month
         self.day_count = day_count

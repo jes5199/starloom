@@ -669,3 +669,71 @@ Example bug: Cache misses occurred when `2460754.3333333335` (query) didn't matc
    - Extends 24 hours before and after midnight
    - Uses a quintic fit (degree 5 polynomial)
    - Typically uses 48 samples per day 
+
+## WeftWriter and Ephemeris Data Handling
+
+When working with ephemeris data and generating .weft files for planetary positions:
+
+1. Date range handling:
+   - Always check that the requested date range is valid for the data source
+   - Handle partial periods (months, years) gracefully at the start and end of ranges
+   - Be careful with method names, especially singular vs. plural forms (e.g., `create_multi_year_block` vs. `create_multi_year_blocks`)
+
+2. Validation constraints:
+   - Be careful with strict validation rules (like requiring months to have 28-31 days)
+   - Consider using warnings instead of errors for unusual but valid cases
+   - Implement flexible validation that accommodates edge cases like partial periods
+
+3. Polynomial fitting:
+   - Ensure the sample count is appropriate for the polynomial degree (at least degree+1 samples)
+   - For short time spans, adjust the sample count to match the available data
+   - Handle wrapping behaviors for quantities like longitude and right ascension
+
+4. Debugging ephemeris generation:
+   - Add SIGINT (Ctrl+C) handlers to get stack traces during long-running operations
+   - Include local variable information in debug output for better context
+   - Use proper exception handling to provide informative error messages
+
+5. Working with multiple precision levels:
+   - Different block types (multi-year, monthly, 48-hour) have different precision/efficiency tradeoffs
+   - Ensure each block type respects the data source's date range
+   - Configure sample points and polynomial degrees appropriately for each precision level
+   
+6. Date-time handling in astronomical applications:
+   - Always use timezone-aware datetime objects (preferably UTC)
+   - Be consistent with time boundaries (e.g., midnight vs. noon for day boundaries)
+   - Calculate time differences carefully, especially when crossing month or year boundaries 
+
+## Block Selection Criteria for WEFT Files
+
+When generating .weft files with different precision blocks (multi-year, monthly, 48-hour):
+
+1. Coverage requirements:
+   - Each block type has a minimum coverage requirement defined in `block_selection.py`
+   - Monthly blocks require at least 66.6% coverage to be included
+   - Multi-year blocks (century blocks) have similar coverage requirements
+   - Daily blocks also have coverage thresholds
+
+2. Integration between WeftWriter and block selection:
+   - The `weft_writer.py` implementation must respect these coverage criteria
+   - Block generation methods should use the appropriate `should_include_*_block` functions from `block_selection.py`
+   - Return optional values (e.g., `Optional[MonthlyBlock]`) when blocks might not meet coverage criteria
+   - Handle potential `None` returns when assembling the final .weft file
+
+3. Handling partial periods:
+   - When dealing with date ranges that don't align perfectly with month/year boundaries:
+     - For partial months at the beginning or end of the requested range, check if they meet the coverage threshold
+     - For multi-year blocks, similar coverage checks apply
+     - Only include blocks that have sufficient data coverage
+
+4. Best practices:
+   - Integrate block selection criteria directly into block generation methods
+   - Always check coverage before creating and fitting coefficients for a block
+   - Handle edge cases gracefully, particularly at the boundaries of the requested date range
+   - Return `None` for blocks that don't meet coverage criteria rather than raising exceptions
+   - Check for `None` returns when processing lists of blocks
+
+5. Testing considerations:
+   - Test with date ranges that include partial periods at both start and end
+   - Verify that blocks with insufficient coverage are excluded from the final file
+   - Confirm that the .weft file contains the expected number of blocks based on coverage criteria 

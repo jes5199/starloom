@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, select, or_, and_, tuple_
+from sqlalchemy import create_engine, select, and_, tuple_
 from sqlalchemy.orm import Session
 
 from ..ephemeris.quantities import Quantity

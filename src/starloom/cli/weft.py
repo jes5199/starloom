@@ -6,6 +6,9 @@ import click
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import sys
+import signal
+import traceback
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -17,6 +20,26 @@ from ..weft.weft import (
     FortyEightHourBlock,
 )
 
+# Add signal handler for SIGINT (Ctrl+C)
+def sigint_handler(sig, frame):
+    """
+    Signal handler for SIGINT that prints a stack trace and local variables
+    """
+    print("\n\nCaught SIGINT (Ctrl+C). Stack trace:")
+    traceback.print_stack(frame)
+    
+    print("\nLocal variables in current frame:")
+    local_vars = frame.f_locals
+    for var_name, var_value in local_vars.items():
+        try:
+            print(f"  {var_name} = {var_value}")
+        except:
+            print(f"  {var_name} = <unprintable value>")
+    
+    sys.exit(1)
+
+# Register the signal handler
+signal.signal(signal.SIGINT, sigint_handler)
 
 @click.group()
 def weft() -> None:
@@ -124,8 +147,6 @@ def generate(
 
             click.echo(f"Successfully generated .weft file: {file_path}")
         except Exception as e:
-            import traceback
-
             print("Error during generation:")
             print(traceback.format_exc())
             raise click.ClickException(f"Error generating .weft file: {e}")
