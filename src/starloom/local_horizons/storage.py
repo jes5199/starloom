@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, select, or_, and_
+from sqlalchemy import create_engine, select, or_, and_, tuple_
 from sqlalchemy.orm import Session
 
 from ..ephemeris.quantities import Quantity
@@ -72,22 +72,16 @@ class LocalHorizonsStorage:
             get_julian_components(time_point) for time_point in time_points
         ]
 
-        # Create a list of OR conditions for each time point
-        with Session(self.engine) as session:
-            conditions = []
-            for jd, jd_fraction in julian_components:
-                conditions.append(
-                    and_(
-                        HorizonsGlobalEphemerisRow.julian_date == jd,
-                        HorizonsGlobalEphemerisRow.julian_date_fraction
-                        == round(jd_fraction, 9),
-                    )
-                )
+        # Create tuples of (julian_date, julian_date_fraction) for the IN clause
+        date_tuples = [(jd, round(jd_fraction, 9)) for jd, jd_fraction in julian_components]
 
-            # Build the query with all time points
+        with Session(self.engine) as session:
+            # Build the query using IN operator with tuples
             query = select(HorizonsGlobalEphemerisRow).where(
-                HorizonsGlobalEphemerisRow.body == body,
-                or_(*conditions),
+                and_(
+                    HorizonsGlobalEphemerisRow.body == body,
+                    tuple_(HorizonsGlobalEphemerisRow.julian_date, HorizonsGlobalEphemerisRow.julian_date_fraction).in_(date_tuples)
+                )
             )
 
             # Execute query and process results
