@@ -4,6 +4,7 @@ CLI commands for generating and using .weft files.
 
 import click
 import os
+from datetime import datetime, timezone
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -58,9 +59,8 @@ def generate(
     print(f"  Prefetch: {prefetch}")
     print(f"  Step: {step}")
 
-    # Parse dates
+    print("Parsing dates...")
     try:
-        print("Parsing dates...")
         start_dt = parse_date_input(start)
         end_dt = parse_date_input(stop)
 
@@ -76,49 +76,52 @@ def generate(
             print("Converting end date from Julian...")
             end_dt = datetime_from_julian(end_dt)
         print(f"Parsed dates: {start_dt} to {end_dt}")
-    except ValueError as e:
-        raise click.BadParameter(f"Invalid date format: {e}")
 
-    # Get the ephemeris quantity
-    print("Looking up ephemeris quantity...")
-    ephemeris_quantity = None
-    for eq in EphemerisQuantity:
-        if eq.name == quantity:
-            ephemeris_quantity = eq
-            break
+        # Get the ephemeris quantity
+        print("Looking up ephemeris quantity...")
+        ephemeris_quantity = None
+        for eq in EphemerisQuantity:
+            if eq.name == quantity:
+                ephemeris_quantity = eq
+                break
 
-    if ephemeris_quantity is None:
-        raise click.BadParameter(f"Unknown quantity: {quantity}")
-    print(f"Found ephemeris quantity: {ephemeris_quantity}")
+        if ephemeris_quantity is None:
+            raise click.BadParameter(f"Unknown quantity: {quantity}")
+        print(f"Found ephemeris quantity: {ephemeris_quantity}")
 
-    # Ensure output path has extension
-    if not output.endswith(".weft"):
-        output = f"{output}.weft"
-    print(f"Using output path: {output}")
+        # Ensure output path has extension
+        if not output.endswith(".weft"):
+            output = f"{output}.weft"
+        print(f"Using output path: {output}")
 
-    # Ensure output directory exists
-    output_dir = os.path.dirname(os.path.abspath(output))
-    if output_dir and not os.path.exists(output_dir):
-        print(f"Creating output directory: {output_dir}")
-        os.makedirs(output_dir, exist_ok=True)
+        # Ensure output directory exists
+        output_dir = os.path.dirname(os.path.abspath(output))
+        if output_dir and not os.path.exists(output_dir):
+            print(f"Creating output directory: {output_dir}")
+            os.makedirs(output_dir, exist_ok=True)
 
-    try:
         # Generate the file
         print("Generating .weft file...")
-        file_path = generate_weft_file(
-            planet=planet,
-            quantity=ephemeris_quantity,
-            start_date=start_dt,
-            end_date=end_dt,
-            output_path=output,
-            data_dir=data_dir,
-            step_hours=step,
-        )
+        try:
+            file_path = generate_weft_file(
+                planet=planet,
+                quantity=ephemeris_quantity,
+                start_date=start_dt,
+                end_date=end_dt,
+                output_path=output,
+                data_dir=data_dir,
+                step_hours=step,
+            )
 
-        click.echo(f"Successfully generated .weft file: {file_path}")
-    except Exception as e:
-        print(f"Error during generation: {str(e)}")
-        raise click.ClickException(f"Error generating .weft file: {e}")
+            click.echo(f"Successfully generated .weft file: {file_path}")
+        except Exception as e:
+            import traceback
+            print("Error during generation:")
+            print(traceback.format_exc())
+            raise click.ClickException(f"Error generating .weft file: {e}")
+
+    except ValueError as e:
+        raise click.ClickException(str(e))
 
 
 @weft.command()

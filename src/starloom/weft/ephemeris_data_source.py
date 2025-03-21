@@ -12,6 +12,7 @@ import bisect
 from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris.time_spec import TimeSpec
 from ..horizons.quantities import EphemerisQuantity
+from ..space_time.julian import datetime_from_julian
 
 
 class EphemerisDataSource:
@@ -57,7 +58,14 @@ class EphemerisDataSource:
         print(f"Fetching ephemeris data from {start_date} to {end_date}...")
         self.data = ephemeris.get_planet_positions(planet_id, self.time_spec)
 
-        # Sort timestamps for binary search
+        # Convert float timestamps to datetime objects and sort for binary search
+        # Create a new dict with datetime keys
+        datetime_data = {}
+        for timestamp, values in self.data.items():
+            dt = datetime_from_julian(timestamp)
+            datetime_data[dt] = values
+        
+        self.data = datetime_data
         self.timestamps = sorted(self.data.keys())
 
     def get_value_at(self, dt: datetime) -> float:
