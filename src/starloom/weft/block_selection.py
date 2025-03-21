@@ -241,26 +241,34 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
             "enabled": False,
             "sample_count": 48,  # Half-hourly samples
             "polynomial_degree": 5,  # Quintic fit
-        }
+        },
     }
 
     # Enable blocks based on data availability, preferring higher precision
     if points_per_day >= 24.0:  # At least hourly points
-        # Use 48-hour blocks for short time spans (up to 7 days)
         if total_days <= 7:
+            # For very short spans (up to 7 days), use only forty-eight hour blocks
             config["forty_eight_hour"]["enabled"] = True
-            print("Enabling 48-hour blocks for short time span")
-        # Use daily blocks for medium spans (up to 31 days)
-        elif total_days <= 31:
-            config["daily"]["enabled"] = True
+            print("Enabling forty-eight hour blocks for short time span")
+        elif total_days <= 14:
+            # For spans up to 2 weeks, use monthly and daily blocks
             config["monthly"]["enabled"] = True
-            print("Enabling daily and monthly blocks for medium time span")
-        # Use all block types for long spans
+            config["daily"]["enabled"] = True
+            print("Enabling monthly and daily blocks for medium time span")
+        elif total_days <= 31:
+            # For spans up to a month, use all high-precision blocks
+            config["monthly"]["enabled"] = True
+            config["daily"]["enabled"] = True
+            config["forty_eight_hour"]["enabled"] = True
+            print(
+                "Enabling monthly, daily, and forty-eight hour blocks for medium time span"
+            )
         else:
+            # For long spans, use all block types except forty-eight hour
             config["daily"]["enabled"] = True
             config["monthly"]["enabled"] = True
             config["century"]["enabled"] = True
-            print("Enabling all block types for long time span")
+            print("Enabling century, monthly, and daily blocks for long time span")
     elif points_per_day >= 4.0:  # At least 6-hourly points
         # Use monthly blocks for spans of 7 days or more
         if total_days >= 7:
@@ -270,7 +278,7 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         if total_days >= 365:
             config["century"]["enabled"] = True
             print("Enabling century blocks for long time span")
-    elif points_per_day >= 1/7:  # At least weekly points
+    elif points_per_day >= 1 / 7:  # At least weekly points
         # Use century blocks for spans of a year or more
         if total_days >= 365:
             config["century"]["enabled"] = True

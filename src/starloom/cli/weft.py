@@ -4,12 +4,10 @@ CLI commands for generating and using .weft files.
 
 import click
 import os
-from datetime import datetime, timezone
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
 from .horizons import parse_date_input
-from ..weft.blocks import MultiYearBlock, MonthlyBlock, FortyEightHourSectionHeader
 
 
 @click.group()
@@ -144,14 +142,15 @@ def info(file_path: str) -> None:
         click.echo(f"Preamble: {file_info['preamble']}")
 
         # Count block types
-        block_counts = {
-            "multi_year_blocks": 0,
-            "monthly_blocks": 0,
-            "daily_blocks": 0
-        }
-        
-        from ..weft import MultiYearBlock, MonthlyBlock, FortyEightHourBlock, FortyEightHourSectionHeader
-        
+        block_counts = {"multi_year_blocks": 0, "monthly_blocks": 0, "daily_blocks": 0}
+
+        from ..weft import (
+            MultiYearBlock,
+            MonthlyBlock,
+            FortyEightHourBlock,
+            FortyEightHourSectionHeader,
+        )
+
         blocks = file_info.get("blocks", [])
         for block in blocks:
             if isinstance(block, MultiYearBlock):
@@ -176,7 +175,9 @@ def info(file_path: str) -> None:
         click.echo("\nBlock Details:")
         for block in blocks:
             if isinstance(block, MultiYearBlock):
-                click.echo(f"  Multi-year block: {block.start_year} to {block.start_year + block.duration}")
+                click.echo(
+                    f"  Multi-year block: {block.start_year} to {block.start_year + block.duration}"
+                )
             elif isinstance(block, MonthlyBlock):
                 click.echo(f"  Monthly block: {block.year}-{block.month:02d}")
             elif isinstance(block, FortyEightHourSectionHeader):

@@ -10,7 +10,6 @@ from typing import List, Tuple, Optional, Union
 import bisect
 
 from ..ephemeris.ephemeris import Ephemeris
-from ..ephemeris.quantities import Quantity
 from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
 from ..horizons.parsers import OrbitalElementsQuantity
 from ..ephemeris.time_spec import TimeSpec
