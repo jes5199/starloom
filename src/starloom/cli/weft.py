@@ -157,7 +157,7 @@ def info(file_path: str) -> None:
             size_str = f"{file_size_bytes / (1024 * 1024):.1f} MB"
         else:
             size_str = f"{file_size_bytes / (1024 * 1024 * 1024):.1f} GB"
-        print(f"{size_str}", end=". ")
+        print(f"{size_str}", end=": ")
 
         # Display block counts
         multi_year_blocks = [
@@ -169,7 +169,7 @@ def info(file_path: str) -> None:
         ]
 
         print(
-            f"{len(weft_file.blocks)} blocks ({len(multi_year_blocks)} multi-year, {len(monthly_blocks)} monthly, {len(forty_eight_hour_blocks)} days)"
+            f"{len(weft_file.blocks)} blocks ({len(multi_year_blocks)} large, {len(monthly_blocks)} monthly, {len(forty_eight_hour_blocks)} days)"
         )
 
         # Display overall date range
