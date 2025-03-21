@@ -220,24 +220,60 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
     print(f"Time span: {total_days} days")
 
     # Configure blocks based on data availability
+    # Start with all blocks disabled
     config = {
         "century": {
-            "enabled": points_per_day >= 1 / 7
-            and total_days >= 365,  # At least weekly points and a year
+            "enabled": False,
             "sample_count": 12,  # Monthly samples
             "polynomial_degree": 3,  # Cubic fit
         },
         "monthly": {
-            "enabled": points_per_day >= 4.0
-            and total_days >= 7,  # At least 4 points per day and a week
+            "enabled": False,
             "sample_count": 30,  # Daily samples
             "polynomial_degree": 4,  # Quartic fit
         },
         "daily": {
-            "enabled": points_per_day >= 24.0,  # At least hourly points
-            "sample_count": 24,  # Hourly samples
+            "enabled": False,
+            "sample_count": 48,  # Half-hourly samples
             "polynomial_degree": 5,  # Quintic fit
         },
+        "forty_eight_hour": {
+            "enabled": False,
+            "sample_count": 48,  # Half-hourly samples
+            "polynomial_degree": 5,  # Quintic fit
+        }
     }
+
+    # Enable blocks based on data availability, preferring higher precision
+    if points_per_day >= 24.0:  # At least hourly points
+        # Use 48-hour blocks for short time spans (up to 7 days)
+        if total_days <= 7:
+            config["forty_eight_hour"]["enabled"] = True
+            print("Enabling 48-hour blocks for short time span")
+        # Use daily blocks for medium spans (up to 31 days)
+        elif total_days <= 31:
+            config["daily"]["enabled"] = True
+            config["monthly"]["enabled"] = True
+            print("Enabling daily and monthly blocks for medium time span")
+        # Use all block types for long spans
+        else:
+            config["daily"]["enabled"] = True
+            config["monthly"]["enabled"] = True
+            config["century"]["enabled"] = True
+            print("Enabling all block types for long time span")
+    elif points_per_day >= 4.0:  # At least 6-hourly points
+        # Use monthly blocks for spans of 7 days or more
+        if total_days >= 7:
+            config["monthly"]["enabled"] = True
+            print("Enabling monthly blocks for medium time span")
+        # Use century blocks for spans of a year or more
+        if total_days >= 365:
+            config["century"]["enabled"] = True
+            print("Enabling century blocks for long time span")
+    elif points_per_day >= 1/7:  # At least weekly points
+        # Use century blocks for spans of a year or more
+        if total_days >= 365:
+            config["century"]["enabled"] = True
+            print("Enabling century blocks for long time span")
 
     return config

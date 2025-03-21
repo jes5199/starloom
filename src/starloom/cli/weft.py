@@ -36,7 +36,10 @@ def weft() -> None:
 @click.option("--data-dir", help="Data directory for cached horizons", default="./data")
 @click.option("--prefetch/--no-prefetch", help="Prefetch data", default=True)
 @click.option(
-    "--step", help="Step in hours for reading from ephemeris", default=1, type=int
+    "--step",
+    help="Step size for reading from ephemeris (e.g. '1h' for hourly, '30m' for 30 minutes)",
+    default="24h",
+    type=str,
 )
 def generate(
     planet: str,
@@ -46,7 +49,7 @@ def generate(
     output: str,
     data_dir: str,
     prefetch: bool,
-    step: int,
+    step: str,
 ) -> None:
     """Generate a .weft binary ephemeris file."""
     print("Starting generation with parameters:")
@@ -139,52 +142,47 @@ def info(file_path: str) -> None:
         # Display file information
         click.echo(f"File: {file_path}")
         click.echo(f"Preamble: {file_info['preamble']}")
-        click.echo(f"Value behavior: {file_info['value_behavior']['type']}")
-        if file_info["value_behavior"]["range"]:
-            min_val, max_val = file_info["value_behavior"]["range"]
-            click.echo(f"Range: [{min_val}, {max_val}]")
+
+        # Count block types
+        block_counts = {
+            "multi_year_blocks": 0,
+            "monthly_blocks": 0,
+            "daily_blocks": 0
+        }
+        
+        from ..weft import MultiYearBlock, MonthlyBlock, FortyEightHourBlock, FortyEightHourSectionHeader
+        
+        blocks = file_info.get("blocks", [])
+        for block in blocks:
+            if isinstance(block, MultiYearBlock):
+                block_counts["multi_year_blocks"] += 1
+            elif isinstance(block, MonthlyBlock):
+                block_counts["monthly_blocks"] += 1
+            elif isinstance(block, FortyEightHourBlock):
+                block_counts["daily_blocks"] += 1
 
         # Block counts
         click.echo("\nBlock Summary:")
         click.echo(f"Total blocks: {file_info['block_count']}")
-        click.echo(f"Multi-year blocks: {file_info['multi_year_blocks']}")
-        click.echo(f"Monthly blocks: {file_info['monthly_blocks']}")
-        click.echo(f"Forty-eight hour blocks: {file_info['daily_blocks']}")
+        click.echo(f"Multi-year blocks: {block_counts['multi_year_blocks']}")
+        click.echo(f"Monthly blocks: {block_counts['monthly_blocks']}")
+        click.echo(f"Forty-eight hour blocks: {block_counts['daily_blocks']}")
 
-        # Date range
-        start_date = file_info["start_date"]
-        end_date = file_info["end_date"]
+        # Get date range
+        start_date, end_date = reader.get_date_range("file1")
         click.echo(f"\nOverall Date Range: {start_date} to {end_date}")
 
         # Display detailed block information
         click.echo("\nBlock Details:")
-        for i, block in enumerate(file_info["blocks"], 1):
+        for block in blocks:
             if isinstance(block, MultiYearBlock):
-                block_start = datetime(block.start_year, 1, 1, tzinfo=timezone.utc)
-                block_end = datetime(
-                    block.start_year + block.duration, 1, 1, tzinfo=timezone.utc
-                )
-                click.echo(f"\n{i}. Multi-year Block:")
-                click.echo(f"   Start: {block_start}")
-                click.echo(f"   End: {block_end}")
-                click.echo(f"   Duration: {block.duration} years")
-                click.echo(f"   Coefficients: {len(block.coeffs)}")
+                click.echo(f"  Multi-year block: {block.start_year} to {block.start_year + block.duration}")
             elif isinstance(block, MonthlyBlock):
-                block_start = datetime(block.year, block.month, 1, tzinfo=timezone.utc)
-                block_end = datetime(
-                    block.year, block.month + 1, 1, tzinfo=timezone.utc
-                )
-                click.echo(f"\n{i}. Monthly Block:")
-                click.echo(f"   Start: {block_start}")
-                click.echo(f"   End: {block_end}")
-                click.echo(f"   Days: {block.day_count}")
-                click.echo(f"   Coefficients: {len(block.coeffs)}")
+                click.echo(f"  Monthly block: {block.year}-{block.month:02d}")
             elif isinstance(block, FortyEightHourSectionHeader):
-                click.echo(f"\n{i}. Forty-eight Hour Section Header:")
-                click.echo(f"   Start: {block.start_day}")
-                click.echo(f"   End: {block.end_day}")
-                click.echo(f"   Block Size: {block.block_size} bytes")
-                click.echo(f"   Block Count: {block.block_count}")
+                click.echo(f"  48-hour section: {block.start_day} to {block.end_day}")
+            elif isinstance(block, FortyEightHourBlock):
+                click.echo(f"  48-hour block: {len(block.coefficients)} coefficients")
 
     except Exception as e:
         raise click.ClickException(f"Error reading .weft file: {e}")

@@ -6,12 +6,14 @@ data fetching and filtering for different Weft block types.
 """
 
 from datetime import datetime, timedelta
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 import bisect
 
-from ..ephemeris import Ephemeris
-from ..ephemeris.time_spec import TimeSpec
+from ..ephemeris.ephemeris import Ephemeris
+from ..ephemeris.quantities import Quantity
 from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
+from ..horizons.parsers import OrbitalElementsQuantity
+from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import datetime_from_julian
 
 
@@ -27,10 +29,10 @@ class EphemerisDataSource:
         self,
         ephemeris: Ephemeris,
         planet_id: str,
-        quantity: EphemerisQuantity,
+        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
         start_date: datetime,
         end_date: datetime,
-        step_hours: float,
+        step_hours: Union[int, str] = "24h",
     ):
         """
         Initialize the data source.
@@ -41,21 +43,26 @@ class EphemerisDataSource:
             quantity: The quantity to get data for
             start_date: Start date for data
             end_date: End date for data
-            step_hours: Step size in hours for sampling data
+            step_hours: Step size for sampling data. Can be a string like '1h', '30m' or an integer for hours.
         """
         self.ephemeris = ephemeris
         self.planet_id = planet_id
         self.quantity = quantity
         self.start_date = start_date
         self.end_date = end_date
-        self.step_hours = step_hours
+
+        # Convert step_hours to string format if it's an integer
+        if isinstance(step_hours, int):
+            step_hours = f"{step_hours}h"
 
         # Convert EphemerisQuantity to Quantity for data access
         self.standard_quantity = EphemerisQuantityToQuantity[quantity]
 
         # Create TimeSpec for data fetching
         self.time_spec = TimeSpec.from_range(
-            start=start_date, stop=end_date, step=f"{step_hours}h"
+            start=start_date,
+            stop=end_date,
+            step=step_hours,
         )
 
         print(f"Fetching ephemeris data from {start_date} to {end_date}...")

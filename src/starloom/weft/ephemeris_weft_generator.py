@@ -29,7 +29,7 @@ def generate_weft_file(
     ephemeris: Optional[Ephemeris] = None,
     data_dir: str = "./data",
     config: Optional[Dict[str, Any]] = None,
-    step_hours: int = 24,
+    step_hours: Union[int, str] = "24h",
 ) -> str:
     """
     Generate a .weft file for a planet and quantity using an ephemeris source.
@@ -43,7 +43,7 @@ def generate_weft_file(
         ephemeris: Optional ephemeris source to use. If None, CachedHorizonsEphemeris will be used
         data_dir: Directory for data storage (only used if ephemeris is None)
         config: Configuration for the WEFT generator (if None, will be auto-configured)
-        step_hours: Step size in hours for sampling ephemeris data
+        step_hours: Step size for sampling ephemeris data. Can be a string like '1h', '30m' or an integer for hours.
 
     Returns:
         The path to the generated .weft file
@@ -51,6 +51,10 @@ def generate_weft_file(
     Raises:
         ValueError: If the planet or quantity is invalid
     """
+    # Convert step_hours to string format if it's an integer
+    if isinstance(step_hours, int):
+        step_hours = f"{step_hours}h"
+
     # Convert string planet to Planet enum if needed
     if isinstance(planet, str):
         try:
