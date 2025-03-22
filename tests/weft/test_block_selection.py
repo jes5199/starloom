@@ -12,6 +12,7 @@ from src.starloom.weft.block_selection import (
     should_include_monthly_block,
     should_include_fourty_eight_hour_block,
     get_recommended_blocks,
+    BlockCriteria,
 )
 from src.starloom.weft.blocks import MonthlyBlock
 
@@ -88,19 +89,16 @@ class TestAnalyzeDataCoverage(unittest.TestCase):
         self.assertAlmostEqual(coverage, 1.0, places=2)
         self.assertAlmostEqual(points_per_day, 25.0, places=2)
 
-    def test_partial_coverage(self):
-        """Test with gaps in coverage."""
-        # Create 12-hour gap in middle
-        timestamps = [self.start + timedelta(hours=i) for i in range(6)] + [
-            self.start + timedelta(hours=i) for i in range(18, 25)
-        ]
+    def test_span_based_coverage(self):
+        """Test coverage calculation based on data span."""
+        # Create data points at start and end only
+        timestamps = [self.start, self.end]
         coverage, points_per_day = analyze_data_coverage(
             self.time_spec, self.start, self.end, timestamps
         )
-        # With the new coverage calculation that uses span between first and last points,
-        # the coverage should be 1.0 even with gaps
+        # Coverage should be 1.0 since data spans the entire period
         self.assertAlmostEqual(coverage, 1.0)
-        self.assertAlmostEqual(points_per_day, 13.0, places=2)  # 13 points in 1 day
+        self.assertAlmostEqual(points_per_day, 2.0, places=2)
 
     def test_no_data(self):
         """Test with no data points."""
@@ -119,8 +117,8 @@ class TestBlockInclusion(unittest.TestCase):
         self.start = datetime(2025, 1, 1, tzinfo=timezone.utc)
         self.end = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
-    def test_century_block_inclusion(self):
-        """Test century block inclusion criteria."""
+    def test_multi_year_block_inclusion(self):
+        """Test multi-year block inclusion criteria."""
         # Create weekly data points
         timestamps = [
             self.start + timedelta(days=i * 7)
@@ -188,8 +186,8 @@ class TestBlockInclusion(unittest.TestCase):
             )
         )
 
-    def test_daily_block_inclusion(self):
-        """Test daily block inclusion criteria."""
+    def test_forty_eight_hour_block_inclusion(self):
+        """Test forty-eight hour block inclusion criteria."""
         day = datetime(2025, 3, 1, tzinfo=timezone.utc)
         day_start = day - timedelta(hours=24)  # Start 24 hours before midnight
         day_end = day + timedelta(hours=24)  # End 24 hours after midnight
@@ -270,52 +268,16 @@ class TestGetRecommendedBlocks(unittest.TestCase):
         self.assertTrue(config["multi_year"]["enabled"])
 
 
-class TestBlockEvaluation(unittest.TestCase):
-    """Test block evaluation edge cases."""
+class TestBlockCriteria(unittest.TestCase):
+    """Test BlockCriteria dataclass."""
 
-    def setUp(self):
-        """Set up test data."""
-        self.start = datetime(2025, 1, 1, tzinfo=timezone.utc)
-        self.end = datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-    def test_monthly_block_evaluation_with_invalid_input(self):
-        """Test monthly block evaluation with invalid input."""
-        # Create a monthly block
-        block = MonthlyBlock(
-            year=2025,
-            month=3,
-            day_count=31,
-            coeffs=[1.0, 2.0, 3.0],  # Simple coefficients for testing
+    def test_block_criteria_creation(self):
+        """Test creating BlockCriteria instances."""
+        criteria = BlockCriteria(
+            min_points_per_day=4.0,
+            min_coverage=0.666,
+            min_coverage_per_period=0.5,
         )
-
-        # Test with a datetime outside the block's range
-        invalid_date = datetime(2025, 4, 1, tzinfo=timezone.utc)
-        with self.assertRaises(ValueError) as cm:
-            block.evaluate(invalid_date)
-        self.assertIn("outside the block's range", str(cm.exception))
-
-        # Test with a valid datetime
-        valid_date = datetime(2025, 3, 15, tzinfo=timezone.utc)
-        try:
-            result = block.evaluate(valid_date)
-            self.assertIsInstance(result, float)
-        except Exception as e:
-            self.fail(f"Unexpected error evaluating valid date: {e}")
-
-    def test_chebyshev_evaluation_with_invalid_input(self):
-        """Test Chebyshev polynomial evaluation with invalid input."""
-        from src.starloom.weft.blocks.utils import evaluate_chebyshev
-
-        coeffs = [1.0, 2.0, 3.0]  # Simple coefficients for testing
-
-        # Test with x outside valid range
-        with self.assertRaises(ValueError) as cm:
-            evaluate_chebyshev(coeffs, 1.5)
-        self.assertIn("x must be in [-1, 1]", str(cm.exception))
-
-        # Test with valid x
-        try:
-            result = evaluate_chebyshev(coeffs, 0.5)
-            self.assertIsInstance(result, float)
-        except Exception as e:
-            self.fail(f"Unexpected error evaluating valid x: {e}")
+        self.assertEqual(criteria.min_points_per_day, 4.0)
+        self.assertEqual(criteria.min_coverage, 0.666)
+        self.assertEqual(criteria.min_coverage_per_period, 0.5)

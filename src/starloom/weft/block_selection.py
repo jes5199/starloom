@@ -256,8 +256,8 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         },
     }
 
-    # Enable multi-year blocks if we have at least weekly points and span is at least a year
-    if points_per_day >= 1 / 7 and total_days >= 365:
+    # Enable multi-year blocks if span is at least two thirds of a year
+    if total_days >= 365 * 2 / 3:
         config["multi_year"]["enabled"] = True
         logger.debug("Enabling multi-year blocks for long time span")
 
