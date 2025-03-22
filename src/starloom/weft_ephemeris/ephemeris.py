@@ -25,14 +25,18 @@ class WeftEphemeris(Ephemeris):
     extracting them to disk, and provides ephemeris data from them.
     """
     
-    def __init__(self, data_dir: str = "./data") -> None:
+    def __init__(self, data_dir: str = "./data", data: str = None) -> None:
         """
         Initialize a WeftEphemeris instance.
         
         Args:
             data_dir: Path to the weftball file or directory containing weftball files
+                     (maintained for backward compatibility)
+            data: Path to the weftball file or directory containing weftball files
+                  (newer parameter name that takes precedence when provided)
         """
-        self.data_dir = data_dir
+        # data parameter takes precedence if provided
+        self.data_dir = data if data is not None else data_dir
         self.readers: Dict[str, Dict[str, WeftReader]] = {}
     
     def get_planet_position(

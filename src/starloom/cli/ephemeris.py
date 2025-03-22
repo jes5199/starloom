@@ -90,9 +90,9 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
     help=f"Ephemeris data source to use. Defaults to {DEFAULT_SOURCE}.",
 )
 @click.option(
-    "--data-dir",
+    "--data",
     default="./data",
-    help="Directory for local data (used with sqlite and cached_horizons sources), or direct path to weftball file (for weft source).",
+    help="Data source path: directory for local data (sqlite/cached_horizons) or direct path to weftball file (weft).",
 )
 def ephemeris(
     planet: str,
@@ -101,7 +101,7 @@ def ephemeris(
     stop: Optional[str] = None,
     step: Optional[str] = None,
     source: str = DEFAULT_SOURCE,
-    data_dir: str = "./data",
+    data: str = "./data",
 ) -> None:
     """Get planetary position data.
 
@@ -117,10 +117,10 @@ def ephemeris(
        starloom ephemeris venus --start 2025-03-19T20:00:00 --stop 2025-03-19T22:00:00 --step 1h
 
     Using a specific data source:
-       starloom ephemeris venus --source sqlite --data-dir ./data
+       starloom ephemeris venus --source sqlite --data ./data
        
     Using a weftball file:
-       starloom ephemeris mercury --source weft --data-dir mercury_weftball.tar.gz
+       starloom ephemeris mercury --source weft --data mercury_weftball.tar.gz
     """
     # Convert planet name to enum
     try:
@@ -165,7 +165,7 @@ def ephemeris(
 
     # Create instance based on class type
     if source in ("sqlite", "cached_horizons", "weft"):
-        ephemeris_instance = ephemeris_class(data_dir=data_dir)  # type: ignore
+        ephemeris_instance = ephemeris_class(data_dir=data)  # type: ignore
     else:
         ephemeris_instance = ephemeris_class()
 
