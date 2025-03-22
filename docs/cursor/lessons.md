@@ -1074,3 +1074,46 @@ cmd = [
    - Add robust error handling for subprocess calls
    - Use debug logging to show the exact commands being executed
    - Consider implementing special cases (e.g., combining more than two files iteratively)
+
+## CLI Command Usage in Scripts
+
+### Issue with Subprocess Command Structure in make_weftball.py
+The `make_weftball.py` script initially used Python module imports (`python -m src.starloom.cli.weft`) to access CLI functionality, but in typical usage, users interact with the package through the installed command-line interface (`starloom weft`).
+
+### Solution
+Update all subprocess calls to use the installed CLI command instead of direct module imports:
+
+```python
+# Before (using Python module imports)
+cmd = [
+    "python", "-m", "src.starloom.cli.weft",
+    "generate",
+    # parameters...
+]
+
+# After (using installed CLI command)
+cmd = [
+    "starloom",
+    "weft",
+    "generate",
+    # parameters...
+]
+```
+
+### Lesson Learned
+1. When developing scripts that interact with CLI tools:
+   - Prefer using the installed command-line interface that users typically interact with
+   - This creates a more consistent user experience and simplifies commands
+   - Using installed commands makes scripts less dependent on internal module structures
+   - Scripts become more robust to internal refactoring if they use the public interface
+
+2. Benefits of using installed commands:
+   - Better alignment with typical user workflows
+   - More resilience to internal package changes
+   - Shorter, more readable commands
+   - Using the same code path that users interact with directly, ensuring consistent behavior
+
+3. When to use direct module imports:
+   - During development before the CLI is fully established
+   - When needing access to functionality not exposed in the CLI
+   - In test scripts that need to bypass the CLI layer

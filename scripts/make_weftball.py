@@ -192,10 +192,10 @@ def combine_weft_files(planet, temp_dir, generated_files):
             # Now combine any additional files
             for additional_file in decade_files[2:]:
                 temp_combined = combined_file + ".temp"
-                
+
                 # Move the current combined file to a temp location
                 shutil.move(combined_file, temp_combined)
-                
+
                 # Build the command to combine with the next file
                 cmd = [
                     "starloom",
@@ -207,10 +207,10 @@ def combine_weft_files(planet, temp_dir, generated_files):
                     "--timespan",
                     "1900-2100",  # Use a wide timespan for combined file
                 ]
-                
+
                 logger.debug(f"Running additional combine: {' '.join(cmd)}")
                 subprocess.run(cmd, check=True)
-                
+
                 # Remove the temporary file
                 os.remove(temp_combined)
 
@@ -278,11 +278,13 @@ def main():
     args = parser.parse_args()
 
     # Configure logging based on command line arguments
-    configure_logging({
-        'quiet': args.quiet if hasattr(args, 'quiet') else False,
-        'debug': args.debug if hasattr(args, 'debug') else False,
-        'verbose': args.verbose if hasattr(args, 'verbose') else 0
-    })
+    configure_logging(
+        {
+            "quiet": args.quiet if hasattr(args, "quiet") else False,
+            "debug": args.debug if hasattr(args, "debug") else False,
+            "verbose": args.verbose if hasattr(args, "verbose") else 0,
+        }
+    )
 
     # Main script logic
     planet = args.planet.lower()

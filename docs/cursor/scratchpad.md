@@ -705,46 +705,39 @@ After checking the available CLI modules, I discovered:
 4. It also has a `combine` command to combine multiple weft files
 
 ### Changes made:
-1. Updated the generate command:
+1. Updated the generate command to use the starloom CLI:
    ```python
    # Before:
-   cmd = [
-       "python", "-m", "src.starloom.cli.generate_weft",
-       "--planet", planet,
-       "--output", decade_file,
-       "--quantity", quantity,
-       "--start", f"{decade_start}",
-       "--end", f"{decade_end}",
-   ]
-
-   # After:
    cmd = [
        "python", "-m", "src.starloom.cli.weft",
        "generate",
-       planet,
-       quantity,
-       "--start", f"{decade_start}",
-       "--stop", f"{decade_end}",  # Note: --end changed to --stop
-       "--output", decade_file,
-   ]
-   ```
-
-2. Updated the combine command:
-   ```python
-   # Before:
-   cmd = [
-       "python", "-m", "src.starloom.cli.combine_wefts",
-       "--output", combined_file,
-       *decade_files,
+       # ...parameters...
    ]
 
    # After:
    cmd = [
+       "starloom",
+       "weft",
+       "generate",
+       # ...parameters...
+   ]
+   ```
+
+2. Updated the combine command similarly:
+   ```python
+   # Before:
+   cmd = [
        "python", "-m", "src.starloom.cli.weft",
        "combine",
-       decade_files[0], decade_files[1],  # It only combines two files at a time
-       combined_file,
-       "--timespan", "1900-2100",
+       # ...parameters...
+   ]
+
+   # After:
+   cmd = [
+       "starloom",
+       "weft",
+       "combine",
+       # ...parameters...
    ]
    ```
 
@@ -761,3 +754,89 @@ Run the script again to see if the module error is fixed:
 ```
 python -m scripts.make_weftball mercury --debug
 ```
+
+## Update to Use Installed Starloom Command
+
+After testing the fixes for the module naming, we realized that it's more appropriate to use the installed `starloom` command rather than calling Python modules directly. This aligns with typical user workflows.
+
+### Changes Made
+1. Updated the generate command to use the starloom CLI:
+   ```python
+   # Before:
+   cmd = [
+       "python", "-m", "src.starloom.cli.weft",
+       "generate",
+       # ...parameters...
+   ]
+
+   # After:
+   cmd = [
+       "starloom",
+       "weft",
+       "generate",
+       # ...parameters...
+   ]
+   ```
+
+2. Updated the combine command similarly:
+   ```python
+   # Before:
+   cmd = [
+       "python", "-m", "src.starloom.cli.weft",
+       "combine",
+       # ...parameters...
+   ]
+
+   # After:
+   cmd = [
+       "starloom",
+       "weft",
+       "combine",
+       # ...parameters...
+   ]
+   ```
+
+### Benefits
+1. More aligned with how users typically use starloom
+2. More robust as it doesn't depend on the Python module structure
+3. Will use the same installed version that the user interacts with directly
+4. Simpler commands (shorter and more readable)
+
+### Testing Plan
+Test the script again with the updated commands:
+```
+python -m scripts.make_weftball mercury --debug
+```
+
+This should execute using the installed starloom command.
+
+## Test Results
+The script now runs successfully with all the fixes implemented:
+
+1. Fixed AttributeError by updating the `configure_logging` function to handle dictionary input
+2. Fixed the function mismatch in `get_decade_range` 
+3. Updated the script to use the installed `starloom` command instead of direct Python module imports
+
+The script successfully:
+- Generated individual decade .weft files for all three quantities (longitude, latitude, distance)
+- Combined these files for each quantity
+- Created a tarball containing the combined files
+
+```
+python -m scripts.make_weftball mercury --debug
+```
+
+This approach is more consistent with typical user workflows, making the script more maintainable and less dependent on internal package structure.
+
+## Final Implementation Summary
+The `make_weftball.py` script now provides a simple way to generate a comprehensive "weftball" (tarball of .weft files) for a planet, containing:
+- Ecliptic longitude data
+- Ecliptic latitude data 
+- Distance data
+
+The script handles all the complexity of:
+1. Generating decade-by-decade weft files (1900s-2090s)
+2. Combining them into one file per quantity
+3. Creating a tar.gz archive for distribution
+
+All of these operations use the standard `starloom` CLI commands, ensuring that the script behavior matches what users would experience when running commands manually.

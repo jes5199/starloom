@@ -88,3 +88,18 @@
   - Add better error messages for common errors
   - Add suggestions for fixing common issues
   - Add verbose logging options
+
+# Starloom Project TODOs
+
+## Current Tasks
+
+[X] Fix the make_weftball.py script
+  - [X] Resolve AttributeError in configure_logging
+  - [X] Fix module import issues
+  - [X] Update to use the starloom CLI commands
+
+## Future Tasks
+
+[ ] Review other scripts for similar issues
+[ ] Improve error handling in automation scripts
+[ ] Add more comprehensive testing for CLI tools
