@@ -6,10 +6,11 @@ data fetching and filtering for different Weft block types.
 """
 
 from datetime import datetime, timedelta
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Optional, Union, Dict, Any, cast
 import bisect
 
 from ..ephemeris.ephemeris import Ephemeris
+from ..ephemeris import Quantity
 from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
 from ..horizons.parsers import OrbitalElementsQuantity
 from ..ephemeris.time_spec import TimeSpec
@@ -52,37 +53,66 @@ class EphemerisDataSource:
 
         # Convert step_hours to string format if it's an integer
         if isinstance(step_hours, int):
-            step_hours = f"{step_hours}h"
+            self.step_hours_str = f"{step_hours}h"
+        else:
+            self.step_hours_str = step_hours  # Original format
+
+        # Convert to float hours
+        if isinstance(step_hours, str):
+            # Parse string like "1h", "30m", etc.
+            if "h" in step_hours:
+                self.step_hours = float(step_hours.replace("h", ""))
+            elif "m" in step_hours:
+                self.step_hours = float(step_hours.replace("m", "")) / 60.0
+            else:
+                # Default to hours if no unit specified
+                self.step_hours = float(step_hours)
+        else:
+            self.step_hours = float(step_hours)
 
         # Convert EphemerisQuantity to Quantity for data access
-        self.standard_quantity = EphemerisQuantityToQuantity[quantity]
+        if isinstance(quantity, EphemerisQuantity):
+            self.standard_quantity = EphemerisQuantityToQuantity[quantity]
+        else:
+            # For OrbitalElementsQuantity, we need to handle differently
+            # This would need proper implementation depending on how orbital elements are mapped
+            # For now just use the original quantity
+            self.standard_quantity = cast(Quantity, quantity)
 
         # Create TimeSpec for data fetching
         self.time_spec = TimeSpec.from_range(
             start=start_date,
             stop=end_date,
-            step=step_hours,
+            step=self.step_hours_str,
         )
 
         print(f"Fetching ephemeris data from {start_date} to {end_date}...")
-        self.data = ephemeris.get_planet_positions(planet_id, self.time_spec)
+
+        # Get the raw data with float timestamps
+        raw_data = ephemeris.get_planet_positions(planet_id, self.time_spec)
 
         # Debug: print first data point to see structure
-        first_timestamp = next(iter(self.data))
-        print("Debug: First data point structure:")
-        print(f"Timestamp: {first_timestamp}")
-        print(f"Data: {self.data[first_timestamp]}")
-        print(f"Available keys: {list(self.data[first_timestamp].keys())}")
-        print(f"Looking for quantity: {self.quantity} (value: {self.quantity.value})")
+        if raw_data:
+            first_timestamp = next(iter(raw_data))
+            print("Debug: First data point structure:")
+            print(f"Timestamp: {first_timestamp}")
+            print(f"Data: {raw_data[first_timestamp]}")
+            print(f"Available keys: {list(raw_data[first_timestamp].keys())}")
+            print(
+                f"Looking for quantity: {self.quantity} (value: {self.quantity.value if hasattr(self.quantity, 'value') else self.quantity})"
+            )
 
-        # Convert float timestamps to datetime objects and sort for binary search
-        # Create a new dict with datetime keys
-        datetime_data = {}
-        for timestamp, values in self.data.items():
-            dt = datetime_from_julian(timestamp)
-            datetime_data[dt] = values
+        # Convert float timestamps to datetime objects and store in self.data
+        self.data: Dict[datetime, Dict[Quantity, Any]] = {}
+        for timestamp, values in raw_data.items():
+            dt = (
+                datetime_from_julian(timestamp)
+                if isinstance(timestamp, float)
+                else timestamp
+            )
+            self.data[dt] = values
 
-        self.data = datetime_data
+        # Create sorted list of timestamps for binary search
         self.timestamps = sorted(self.data.keys())
 
     def get_value_at(self, dt: datetime) -> float:
@@ -112,7 +142,7 @@ class EphemerisDataSource:
                 # Debug: print what we have when the error occurs
                 print("Debug: KeyError in get_value_at")
                 print(
-                    f"Looking for quantity: {self.quantity} (value: {self.quantity.value})"
+                    f"Looking for quantity: {self.quantity} (value: {self.quantity.value if hasattr(self.quantity, 'value') else self.quantity})"
                 )
                 print(f"Available data at {t1}: {self.data[t1]}")
                 print(f"Available keys: {list(self.data[t1].keys())}")

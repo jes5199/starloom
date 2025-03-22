@@ -88,7 +88,7 @@ class WeftWriter:
                 type="bounded",
                 range=(0.0, 180.0),
             )
-        elif quantity == EphemerisQuantity.ILLUMINATED_FRACTION:
+        elif quantity == EphemerisQuantity.ILLUMINATION:
             # Illumination is bounded [0, 1]
             self.value_behavior = RangedBehavior(
                 type="bounded",
@@ -505,7 +505,7 @@ class WeftWriter:
             if block_size % 16 != 0:
                 block_size += 16 - (block_size % 16)
 
-        blocks = []
+        blocks: List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]] = []
         current_date = start_date
         day_count = 0
         included_count = 0
@@ -606,7 +606,7 @@ class WeftWriter:
         Returns:
             A WeftFile instance
         """
-        blocks = []
+        blocks: List[BlockType] = []
 
         # Add blocks in order of decreasing precision (least precise first)
         if config["multi_year"]["enabled"]:
@@ -726,8 +726,11 @@ class WeftWriter:
 
         # Add value behavior range to preamble if applicable
         behavior_str = self.wrapping_behavior
-        if self.value_behavior["type"] in ("wrapping", "bounded"):
-            min_val, max_val = self.value_behavior["range"]
+        behavior_type = self.value_behavior["type"]
+        if behavior_type in ("wrapping", "bounded"):
+            # Only access range for RangedBehavior types (not for UnboundedBehavior)
+            ranged_behavior = cast(RangedBehavior, self.value_behavior)
+            min_val, max_val = ranged_behavior["range"]
             behavior_str = f"{behavior_str}[{min_val},{max_val}]"
 
         preamble = (

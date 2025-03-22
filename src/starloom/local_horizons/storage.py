@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 
-from sqlalchemy import create_engine, select, and_, tuple_, inspect
+from sqlalchemy import create_engine, select, and_, tuple_, inspect, text
 from sqlalchemy.orm import Session
 
 from ..ephemeris.quantities import Quantity
@@ -60,18 +60,24 @@ class LocalHorizonsStorage:
 
     def ensure_indexes(self) -> None:
         """
-        Ensure all necessary indexes exist in the database.
-        This method checks for the existence of indexes and creates them if missing.
+        Ensure that necessary indexes exist on the ephemeris table.
         """
+        # Get existing indexes
         inspector = inspect(self.engine)
         table_name = HorizonsGlobalEphemerisRow.__tablename__
-        existing_indexes = {idx["name"] for idx in inspector.get_indexes(table_name)}
+        existing_indexes = [idx["name"] for idx in inspector.get_indexes(table_name)]
 
+        # Define indexes we want to ensure exist
         indexes_to_check = {
-            "idx_body_julian_components": [
-                "body",
-                "julian_date",
-                "julian_date_fraction",
+            "idx_body_lookup": ["body"],
+            "idx_datetime_lookup": [
+                "year",
+                "month",
+                "day",
+                "hour",
+                "minute",
+                "second",
+                "microsecond",
             ],
             "idx_julian_lookup": ["julian_date", "julian_date_fraction"],
         }
@@ -82,7 +88,7 @@ class LocalHorizonsStorage:
                     # Create the missing index
                     columns_str = ", ".join([f'"{col}"' for col in columns])
                     sql = f'CREATE INDEX IF NOT EXISTS "{idx_name}" ON "{table_name}" ({columns_str})'
-                    session.execute(sql)
+                    session.execute(text(sql))
                     session.commit()
                     print(f"Created missing index: {idx_name}")
 

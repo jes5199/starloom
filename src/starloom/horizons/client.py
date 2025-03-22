@@ -1,7 +1,7 @@
 """Horizons client implementation."""
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from .quantities import EphemerisQuantity
 from .time_spec import TimeSpec
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class HorizonsClient:
     """Horizons client implementation."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the client."""
         self.geocentric_location = "@399"  # Special Horizons syntax for center of Earth
 
@@ -44,11 +44,14 @@ class HorizonsClient:
                 EphemerisQuantity.ECLIPTIC_LATITUDE,
             ]
 
+        # Convert List[EphemerisQuantity] to List[int] for HorizonsRequest
+        quantity_values = [q.value for q in quantities if hasattr(q, "value")]
+
         # Create request with Horizons-specific time parameter formatting
         request = HorizonsRequest(
             planet=planet,
             location=self.geocentric_location,
-            quantities=quantities,
+            quantities=cast(List[int], quantity_values),
             time_spec=time_spec,
             time_spec_param=HorizonsTimeSpecParam(time_spec),
             ephem_type=EphemType.OBSERVER,

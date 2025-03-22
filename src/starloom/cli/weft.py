@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 import sys
 import signal
 import traceback
+from typing import Any
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -23,7 +24,7 @@ from ..weft.weft import (
 
 
 # Add signal handler for SIGINT (Ctrl+C)
-def sigint_handler(sig, frame):
+def sigint_handler(sig: int, frame: Any) -> None:
     """
     Signal handler for SIGINT that prints a stack trace and local variables
     """
@@ -31,12 +32,13 @@ def sigint_handler(sig, frame):
     traceback.print_stack(frame)
 
     print("\nLocal variables in current frame:")
-    local_vars = frame.f_locals
-    for var_name, var_value in local_vars.items():
-        try:
-            print(f"  {var_name} = {var_value}")
-        except Exception:
-            print(f"  {var_name} = <unprintable value>")
+    if frame is not None and hasattr(frame, "f_locals"):
+        local_vars = frame.f_locals
+        for var_name, var_value in local_vars.items():
+            try:
+                print(f"  {var_name} = {var_value}")
+            except Exception:
+                print(f"  {var_name} = <unprintable value>")
 
     sys.exit(1)
 
