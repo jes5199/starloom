@@ -343,3 +343,46 @@ Optimize database queries in `LocalHorizonsStorage` to ensure efficient lookups,
 ## Next Steps
 [ ] Consider adding query logging/monitoring to verify index usage
 [ ] Add performance tests to measure query speed improvements
+
+# Current Task: Add Combine Command for .weft Files
+
+## Requirements
+1. Add new CLI command to combine two .weft files
+2. Files must have matching preambles (except timespan and generation timestamp)
+3. Timespan should be specified on command line for both generation and combination
+4. Need to handle block merging and ordering
+
+## Implementation Plan
+[X] Add new combine command to weft.py CLI
+  - Add command with required arguments for input files and output file
+  - Add optional arguments for timespan specification
+  - Add validation for matching preambles
+
+[X] Create WeftFile.combine method
+  - Compare preambles (ignoring timespan and generation timestamp)
+  - Merge blocks from both files
+  - Sort blocks by date
+  - Create new preamble with specified timespan
+  - Return new WeftFile instance
+
+[X] Add validation and error handling
+  - Check for matching planet, quantity, and value behavior
+  - Validate date ranges don't overlap
+  - Handle edge cases with block boundaries
+
+[X] Add tests
+  - Test successful combination of files
+  - Test incompatible file combinations
+  - Test overlapping date ranges
+
+## Progress
+- Added combine command to weft.py CLI
+- Implemented WeftFile.combine method with validation
+- Added comprehensive test cases
+- All tests passing
+
+## Lessons Learned
+1. When combining files, it's important to validate both the preambles and date ranges
+2. Block sorting needs to handle all block types consistently
+3. Preamble comparison should ignore timespan and generation timestamp
+4. Error messages should be clear about why files can't be combined

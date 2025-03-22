@@ -277,3 +277,85 @@ class WeftFile:
         """
         with open(filepath, "wb") as f:
             f.write(self.to_bytes())
+
+    @classmethod
+    def combine(
+        cls,
+        file1: "WeftFile",
+        file2: "WeftFile",
+        timespan: str,
+    ) -> "WeftFile":
+        """Combine two .weft files into a single file.
+
+        Args:
+            file1: First .weft file
+            file2: Second .weft file
+            timespan: Descriptive timespan string (e.g. '2024s' or '2024-2025')
+
+        Returns:
+            A new WeftFile containing the combined data
+
+        Raises:
+            ValueError: If the files have incompatible preambles
+        """
+        # Compare preambles (ignoring timespan and generation timestamp)
+        preamble1 = file1.preamble.strip()
+        preamble2 = file2.preamble.strip()
+
+        # Split preambles into components
+        parts1 = preamble1.split()
+        parts2 = preamble2.split()
+
+        # Compare relevant parts (version, planet, source, precision, quantity, behavior)
+        if parts1[0:2] != parts2[0:2]:  # version
+            raise ValueError("Files have different versions")
+        if parts1[2] != parts2[2]:  # planet
+            raise ValueError("Files are for different planets")
+        if parts1[3] != parts2[3]:  # source
+            raise ValueError("Files use different data sources")
+        if parts1[4] != parts2[4]:  # precision
+            raise ValueError("Files have different precision")
+        if parts1[5] != parts2[5]:  # quantity
+            raise ValueError("Files contain different quantities")
+        if parts1[6] != parts2[6]:  # behavior
+            raise ValueError("Files have different value behaviors")
+
+        # Merge blocks
+        all_blocks = file1.blocks + file2.blocks
+
+        # Sort blocks in the same order as WeftWriter:
+        # 1. Multi-year blocks (decades first, then years)
+        # 2. Monthly blocks
+        # 3. Forty-eight hour section header followed by its blocks
+        def get_block_sort_key(block: BlockType) -> Tuple[int, datetime]:
+            if isinstance(block, MultiYearBlock):
+                # Decades come before years
+                is_decade = block.duration >= 10
+                return (0, datetime(block.start_year, 1, 1, tzinfo=timezone.utc))
+            elif isinstance(block, MonthlyBlock):
+                return (1, datetime(block.year, block.month, 1, tzinfo=timezone.utc))
+            elif isinstance(block, FortyEightHourSectionHeader):
+                return (2, datetime.combine(block.start_day, time(0), tzinfo=timezone.utc))
+            elif isinstance(block, FortyEightHourBlock):
+                # Keep 48-hour blocks with their headers
+                return (2, datetime.combine(block.header.start_day, time(0), tzinfo=timezone.utc))
+            else:
+                return (3, datetime.min.replace(tzinfo=timezone.utc))
+
+        # Sort blocks
+        all_blocks.sort(key=get_block_sort_key)
+
+        # Create new preamble
+        now = datetime.utcnow()
+        new_preamble = (
+            f"#weft! v0.02 {parts1[2]} {parts1[3]} {timespan} "
+            f"{parts1[4]} {parts1[5]} {parts1[6]} chebychevs "
+            f"generated@{now.isoformat()}\n\n"
+        )
+
+        # Create new file
+        return cls(
+            preamble=new_preamble,
+            blocks=all_blocks,
+            value_behavior=file1.value_behavior,
+        )

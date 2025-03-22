@@ -4,11 +4,12 @@ CLI commands for generating and using .weft files.
 
 import click
 import os
-from datetime import datetime
+from datetime import datetime, timezone, time
 from zoneinfo import ZoneInfo
 import sys
 import signal
 import traceback
+from typing import List, Tuple
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -18,6 +19,8 @@ from ..weft.weft import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourBlock,
+    WeftFile,
+    BlockType,
 )
 
 
@@ -292,3 +295,42 @@ def lookup(file_path: str, date: str) -> None:
 
     except Exception as e:
         raise click.ClickException(f"Error looking up value: {e}")
+
+
+@weft.command()
+@click.argument("file1", type=click.Path(exists=True))
+@click.argument("file2", type=click.Path(exists=True))
+@click.argument("output", type=click.Path())
+@click.option(
+    "--timespan", "-t", help="Descriptive timespan (e.g. '2024s' or '2024-2025')", required=True
+)
+def combine(file1: str, file2: str, output: str, timespan: str) -> None:
+    """Combine two .weft files into a single file.
+    
+    The input files must have matching preambles (except for timespan and generation timestamp).
+    The output file will have a new timespan specified by --timespan.
+    """
+    try:
+        # Read both files
+        reader = WeftReader()
+        weft1 = reader.load_file(file1, "file1")
+        weft2 = reader.load_file(file2, "file2")
+
+        # Combine the files
+        combined = WeftFile.combine(weft1, weft2, timespan)
+
+        # Ensure output path has extension
+        if not output.endswith(".weft"):
+            output = f"{output}.weft"
+
+        # Ensure output directory exists
+        output_dir = os.path.dirname(os.path.abspath(output))
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+
+        # Save the combined file
+        combined.write_to_file(output)
+        click.echo(f"Successfully combined files into: {output}")
+
+    except Exception as e:
+        raise click.ClickException(f"Error combining .weft files: {e}")

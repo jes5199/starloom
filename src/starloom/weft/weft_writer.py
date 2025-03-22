@@ -722,7 +722,7 @@ class WeftWriter:
             The preamble string
         """
         now = datetime.utcnow()
-        timespan = f"{start_date.year}-{end_date.year}"
+        timespan = f"{start_date.isoformat()}-{end_date.isoformat()}"
 
         # Add value behavior range to preamble if applicable
         behavior_str = self.wrapping_behavior
