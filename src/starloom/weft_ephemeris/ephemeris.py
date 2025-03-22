@@ -87,7 +87,7 @@ class WeftEphemeris(Ephemeris):
         self._ensure_planet_readers(planet_lower)
         
         # Generate all required Julian dates
-        julian_dates = time_spec.get_julian_dates()
+        julian_dates = self._get_julian_dates(time_spec)
         
         result: Dict[float, Dict[Quantity, Any]] = {}
         
@@ -130,6 +130,36 @@ class WeftEphemeris(Ephemeris):
             result[jd] = position_data
         
         return result
+
+    def _get_julian_dates(self, time_spec: TimeSpec) -> List[float]:
+        """
+        Get Julian dates from a TimeSpec.
+        
+        This handles both range-based and date-based TimeSpec objects.
+        
+        Args:
+            time_spec: The TimeSpec to convert to Julian dates
+            
+        Returns:
+            List of Julian dates
+        """
+        # If it's a range-based TimeSpec
+        if time_spec.start_time is not None and time_spec.stop_time is not None and time_spec.step_size is not None:
+            return time_spec.to_julian_days()
+        
+        # If it's a date-based TimeSpec
+        elif time_spec.dates is not None:
+            # Convert any datetime objects to Julian dates
+            julian_dates: List[float] = []
+            for date in time_spec.dates:
+                if isinstance(date, datetime):
+                    julian_dates.append(datetime_to_julian(date))
+                else:
+                    julian_dates.append(date)
+            return julian_dates
+        
+        # If it's neither (shouldn't happen if TimeSpec is validated)
+        raise ValueError("TimeSpec must contain either dates or start/stop/step values")
     
     def _ensure_planet_readers(self, planet: str) -> None:
         """
