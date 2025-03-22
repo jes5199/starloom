@@ -387,25 +387,58 @@ class TestWeftFile(unittest.TestCase):
         self.assertEqual(len(combined.blocks), len(self.blocks) + len(blocks2))
 
         # Check block order
-        for i in range(len(combined.blocks) - 1):
-            block1 = combined.blocks[i]
-            block2 = combined.blocks[i + 1]
+        current_type = -1
+        current_duration = 0
+        for i in range(len(combined.blocks)):
+            block = combined.blocks[i]
+            
+            # Determine block type
+            if isinstance(block, MultiYearBlock):
+                block_type = 0
+                duration = -block.duration  # Negative duration for sorting
+            elif isinstance(block, MonthlyBlock):
+                block_type = 1
+                duration = 0
+            elif isinstance(block, FortyEightHourSectionHeader):
+                block_type = 2
+                duration = 0
+            elif isinstance(block, FortyEightHourBlock):
+                block_type = 2  # Same as header to keep them together
+                duration = 0
+            else:
+                block_type = 3
+                duration = 0
 
-            def get_block_date(block: BlockType) -> datetime:
+            # Check type ordering
+            self.assertGreaterEqual(block_type, current_type)
+            if block_type == current_type:
+                # Check duration ordering within same block type
+                self.assertGreaterEqual(duration, current_duration)
+            current_type = block_type
+            current_duration = duration
+
+            # Check chronological order within same type and duration
+            if i > 0 and block_type == current_type and duration == current_duration:
+                prev_block = combined.blocks[i - 1]
                 if isinstance(block, MultiYearBlock):
-                    return datetime(block.start_year, 1, 1, tzinfo=timezone.utc)
+                    self.assertGreaterEqual(block.start_year, prev_block.start_year)
                 elif isinstance(block, MonthlyBlock):
-                    return datetime(block.year, block.month, 1, tzinfo=timezone.utc)
+                    if block.year == prev_block.year:
+                        self.assertGreaterEqual(block.month, prev_block.month)
+                    else:
+                        self.assertGreater(block.year, prev_block.year)
                 elif isinstance(block, FortyEightHourBlock):
-                    return datetime.combine(
-                        block.header.start_day, time(0), tzinfo=timezone.utc
-                    )
-                else:
-                    return datetime.min.replace(tzinfo=timezone.utc)
+                    self.assertGreaterEqual(block.header.start_day, prev_block.header.start_day)
+                elif isinstance(block, FortyEightHourSectionHeader):
+                    self.assertGreaterEqual(block.start_day, prev_block.start_day)
 
-            date1 = get_block_date(block1)
-            date2 = get_block_date(block2)
-            self.assertLessEqual(date1, date2)
+        # Verify 48-hour blocks stay with their headers
+        for i in range(len(combined.blocks)):
+            if isinstance(combined.blocks[i], FortyEightHourSectionHeader):
+                # Next block should be a 48-hour block
+                self.assertIsInstance(combined.blocks[i + 1], FortyEightHourBlock)
+                # And it should have the same header
+                self.assertEqual(combined.blocks[i + 1].header, combined.blocks[i])
 
     def test_combine_incompatible(self):
         """Test combining incompatible .weft files."""

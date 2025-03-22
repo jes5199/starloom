@@ -326,24 +326,38 @@ class WeftFile:
         # Sort blocks in the same order as WeftWriter:
         # 1. Multi-year blocks (decades first, then years)
         # 2. Monthly blocks
-        # 3. Forty-eight hour section header followed by its blocks
-        def get_block_sort_key(block: BlockType) -> Tuple[int, datetime]:
+        # 3. Forty-eight hour section headers
+        def get_block_sort_key(block: BlockType) -> Tuple[int, int, datetime]:
             if isinstance(block, MultiYearBlock):
-                # Decades come before years
-                is_decade = block.duration >= 10
-                return (0, datetime(block.start_year, 1, 1, tzinfo=timezone.utc))
+                # Use negative duration to sort longer periods first
+                return (0, -block.duration, datetime(block.start_year, 1, 1, tzinfo=timezone.utc))
             elif isinstance(block, MonthlyBlock):
-                return (1, datetime(block.year, block.month, 1, tzinfo=timezone.utc))
+                return (1, 0, datetime(block.year, block.month, 1, tzinfo=timezone.utc))
             elif isinstance(block, FortyEightHourSectionHeader):
-                return (2, datetime.combine(block.start_day, time(0), tzinfo=timezone.utc))
-            elif isinstance(block, FortyEightHourBlock):
-                # Keep 48-hour blocks with their headers
-                return (2, datetime.combine(block.header.start_day, time(0), tzinfo=timezone.utc))
+                return (2, 0, datetime.combine(block.start_day, time(0), tzinfo=timezone.utc))
             else:
-                return (3, datetime.min.replace(tzinfo=timezone.utc))
+                return (3, 0, datetime.min.replace(tzinfo=timezone.utc))
 
-        # Sort blocks
-        all_blocks.sort(key=get_block_sort_key)
+        # Separate 48-hour blocks from their headers
+        header_to_block = {}
+        non_48h_blocks = []
+        for block in all_blocks:
+            if isinstance(block, FortyEightHourBlock):
+                header_to_block[block.header] = block
+            else:
+                non_48h_blocks.append(block)
+
+        # Sort non-48h blocks
+        non_48h_blocks.sort(key=get_block_sort_key)
+
+        # Build final list by inserting 48-hour blocks after their headers
+        final_blocks = []
+        for block in non_48h_blocks:
+            final_blocks.append(block)
+            if isinstance(block, FortyEightHourSectionHeader):
+                if block not in header_to_block:
+                    raise ValueError(f"No 48-hour block found for header {block}")
+                final_blocks.append(header_to_block[block])
 
         # Create new preamble
         now = datetime.utcnow()
@@ -356,6 +370,6 @@ class WeftFile:
         # Create new file
         return cls(
             preamble=new_preamble,
-            blocks=all_blocks,
+            blocks=final_blocks,
             value_behavior=file1.value_behavior,
         )
