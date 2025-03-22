@@ -341,23 +341,31 @@ class WeftFile:
         # Separate 48-hour blocks from their headers
         header_to_block = {}
         non_48h_blocks = []
+        headers = []
         for block in all_blocks:
             if isinstance(block, FortyEightHourBlock):
                 header_to_block[block.header] = block
+            elif isinstance(block, FortyEightHourSectionHeader):
+                headers.append(block)
             else:
                 non_48h_blocks.append(block)
 
-        # Sort non-48h blocks
+        # Sort non-48h blocks and headers
         non_48h_blocks.sort(key=get_block_sort_key)
+        headers.sort(key=lambda h: datetime.combine(h.start_day, time(0), tzinfo=timezone.utc))
 
-        # Build final list by inserting 48-hour blocks after their headers
+        # Build final list by adding blocks with headers inserted in order
         final_blocks = []
+        # First add non-48h blocks (multi-year, monthly)
         for block in non_48h_blocks:
             final_blocks.append(block)
-            if isinstance(block, FortyEightHourSectionHeader):
-                if block not in header_to_block:
-                    raise ValueError(f"No 48-hour block found for header {block}")
-                final_blocks.append(header_to_block[block])
+
+        # Then add headers and their blocks in chronological order
+        for header in headers:
+            if header not in header_to_block:
+                raise ValueError(f"No 48-hour block found for header {header}")
+            final_blocks.append(header)
+            final_blocks.append(header_to_block[header])
 
         # Create new preamble
         now = datetime.utcnow()
