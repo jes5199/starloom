@@ -163,7 +163,10 @@ class EphemerisDataSource:
             fraction = elapsed_seconds / total_seconds
 
             # Handle angle interpolation if needed
-            if self.quantity == EphemerisQuantity.ECLIPTIC_LONGITUDE or self.quantity == EphemerisQuantity.RIGHT_ASCENSION:
+            if (
+                self.quantity == EphemerisQuantity.ECLIPTIC_LONGITUDE
+                or self.quantity == EphemerisQuantity.RIGHT_ASCENSION
+            ):
                 # Ensure we interpolate along the shortest arc
                 if abs(v2 - v1) > 180.0:
                     # Adjust one value to ensure shortest path

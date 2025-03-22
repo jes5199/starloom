@@ -634,7 +634,9 @@ class WeftWriter:
                 )
                 if decade_block:
                     blocks.append(decade_block)
-                    logger.debug(f"Added decade block for {decade_start}-{decade_start + 9}")
+                    logger.debug(
+                        f"Added decade block for {decade_start}-{decade_start + 9}"
+                    )
 
             # Create blocks for each year in the range
             for year in range(start_year, end_year + 1):

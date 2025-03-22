@@ -22,7 +22,6 @@ import sys
 import shutil
 import subprocess
 import tarfile
-import argparse
 
 from src.starloom.weft.logging import get_logger
 from src.starloom.cli.common import setup_arg_parser, configure_logging
@@ -61,6 +60,7 @@ DECADES = [
 # Set up logger
 logger = get_logger(__name__)
 
+
 def get_decade_range(start_date):
     """Extract the decade from a date string like '1899-12-31' to return '1900s'"""
     year = int(start_date.split("-")[0])
@@ -92,13 +92,13 @@ def generate_weft_files(planet, temp_dir):
 
     for quantity, file_name in QUANTITIES.items():
         logger.info(f"Generating {quantity} data for {planet}")
-        
+
         current_decade_files = []
         for decade_start, decade_end in get_decade_range("1700-01-01 00:00"):
             decade_file = os.path.join(
                 temp_dir, f"{planet}_{file_name}_{decade_start[:4]}.weft"
             )
-            
+
             # Skip if file already exists
             if os.path.exists(decade_file):
                 logger.info(f"Using existing file: {decade_file}")
@@ -121,10 +121,10 @@ def generate_weft_files(planet, temp_dir):
                 "--end",
                 f"{decade_end}",
             ]
-            
+
             # Log the command at debug level
             logger.debug(f"Running: {' '.join(cmd)}")
-            
+
             # Run the command
             try:
                 subprocess.run(cmd, check=True)
@@ -172,10 +172,10 @@ def combine_weft_files(planet, temp_dir, generated_files):
             combined_file,
             *decade_files,
         ]
-        
+
         # Log the command at debug level
         logger.debug(f"Running: {' '.join(cmd)}")
-        
+
         # Run the command
         try:
             subprocess.run(cmd, check=True)
@@ -204,7 +204,7 @@ def create_tarball(planet, combined_files):
 
     # Create the tarball filename
     tarball_name = f"{planet}_weftball.tar.gz"
-    
+
     logger.info(f"Creating tarball: {tarball_name}")
     logger.debug(f"Including files: {', '.join(files_to_include)}")
 
@@ -230,36 +230,40 @@ def main():
     """Main entry point for the script."""
     # Set up argument parser using common parser from weft.cli
     parser = setup_arg_parser()
-    
+
     # Add script-specific arguments
     parser.add_argument("planet", help="Planet name to generate data for")
-    parser.add_argument("--no-cleanup", action="store_true", help="Don't remove temporary files after completion")
-    
+    parser.add_argument(
+        "--no-cleanup",
+        action="store_true",
+        help="Don't remove temporary files after completion",
+    )
+
     # Parse arguments
     args = parser.parse_args()
-    
+
     # Configure logging based on command line arguments
     configure_logging(vars(args))
-    
+
     # Main script logic
     planet = args.planet.lower()
-    
+
     logger.info(f"Generating weftball for {planet}")
-    
+
     # Create a temporary directory
     temp_dir = create_temp_dir(planet)
     logger.info(f"Using temporary directory: {temp_dir}")
-    
+
     try:
         # Generate the weft files
         generated_files = generate_weft_files(planet, temp_dir)
-        
+
         # Combine the files
         combined_files = combine_weft_files(planet, temp_dir, generated_files)
-        
+
         # Create a tarball
         tarball = create_tarball(planet, combined_files)
-        
+
         if tarball:
             logger.info(f"Successfully created {tarball}")
         else:
@@ -271,7 +275,7 @@ def main():
             cleanup(temp_dir)
         else:
             logger.info(f"Temporary files kept at {temp_dir}")
-    
+
     return 0
 
 

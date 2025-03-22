@@ -5,7 +5,7 @@ import click
 from .horizons import horizons
 from .ephemeris import ephemeris
 from .weft import weft
-from . import common
+from . import common as common
 
 
 @click.group()
