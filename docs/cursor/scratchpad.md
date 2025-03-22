@@ -384,48 +384,82 @@ Optimize database queries in `LocalHorizonsStorage` to ensure efficient lookups,
 [ ] Consider adding query logging/monitoring to verify index usage
 [ ] Add performance tests to measure query speed improvements
 
-# Current Task: Add Combine Command for .weft Files
+# Current Task: Add Custom Timespan Option to Weft Generate Command
 
 ## Requirements
-1. Add new CLI command to combine two .weft files
-2. Files must have matching preambles (except timespan and generation timestamp)
-3. Timespan should be specified on command line for both generation and combination
-4. Need to handle block merging and ordering
+1. Add a `--timespan` option to the `weft generate` command to allow users to specify a custom timespan descriptor in the preamble
+2. Ensure the option is correctly propagated through the relevant functions
+3. The custom timespan should override the automatically generated one (e.g., "2000s" or "1900-1910")
 
 ## Implementation Plan
-[X] Add new combine command to weft.py CLI
-  - Add command with required arguments for input files and output file
-  - Add optional arguments for timespan specification
-  - Add validation for matching preambles
+[X] Add `--timespan` option to the `generate` command in `weft.py`
+  - Add the option with a short form `-t`
+  - Add clear help text describing expected format
+  - Update the function signature to include the parameter
 
-[X] Create WeftFile.combine method
-  - Compare preambles (ignoring timespan and generation timestamp)
-  - Merge blocks from both files
-  - Sort blocks by date
-  - Create new preamble with specified timespan
-  - Return new WeftFile instance
+[X] Modify `generate_weft_file` in `ephemeris_weft_generator.py`
+  - Add `custom_timespan` parameter
+  - Pass the parameter to the `create_multi_precision_file` method
 
-[X] Add validation and error handling
-  - Check for matching planet, quantity, and value behavior
-  - Validate date ranges don't overlap
-  - Handle edge cases with block boundaries
+[X] Update `create_multi_precision_file` in `weft_writer.py`
+  - Add `custom_timespan` parameter
+  - Pass the parameter to the `_create_preamble` method
 
-[X] Add tests
-  - Test successful combination of files
-  - Test incompatible file combinations
-  - Test overlapping date ranges
+[X] Update `_create_preamble` in `weft_writer.py`
+  - Add `custom_timespan` parameter
+  - Prioritize the custom_timespan over automatic generation
+  - Use the automatic format as a fallback
 
-## Progress
-- Added combine command to weft.py CLI
-- Implemented WeftFile.combine method with validation
-- Added comprehensive test cases
-- All tests passing
+## Changes Made
+1. Added `--timespan` option to the `generate` command with a `help` description
+2. Modified `generate_weft_file` function to accept a `custom_timespan` parameter
+3. Updated `create_multi_precision_file` to pass the `custom_timespan` parameter
+4. Updated `_create_preamble` to use the custom timespan when provided
 
-## Lessons Learned
-1. When combining files, it's important to validate both the preambles and date ranges
-2. Block sorting needs to handle all block types consistently
-3. Preamble comparison should ignore timespan and generation timestamp
-4. Error messages should be clear about why files can't be combined
+## Results
+- Users can now specify a custom timespan using `--timespan "2000-2100"` or similar
+- If no timespan is provided, the automatic format is used (decade or year range)
+- This provides flexibility for users to create more descriptive or standardized timespans
+
+# Current Task: Fix WeftFile.combine Error for .weft Files
+
+## Issue
+Error message: "Error combining .weft files: Files have different precision: 1899-12-31T00:00:00+00:00-1910-01-02T00:00:00+00:00 vs 1909-12-31T00:00:00+00:00-1920-01-02T00:00:00+00:00"
+
+## Problem Analysis
+1. The error message is mentioning date ranges, not precision fields from the preamble
+2. According to `weft_format2.txt`, the precision field should be something like "32bit", not date ranges
+3. The parsing in `WeftFile.combine` was incorrectly comparing date ranges as "precision"
+
+## Investigation Plan
+[X] Check `WeftFile.combine` method's preamble parsing
+  - Found it was splitting preamble by space character
+  - The comparison was off by one index due to timespan format
+  - It was comparing parts[4] as "precision" when that was actually timespan
+
+[X] Verify what's in the actual preamble for the files
+  - Found preamble used ISO timestamps for timespan e.g., "1899-12-31T00:00:00+00:00-1910-01-02T00:00:00+00:00"
+  - Compared to format spec which uses simple format like "2000s"
+
+[X] Fix the preamble parsing and creation
+  - Updated `_create_preamble` to create simpler timespan format (either decade like "2000s" or range like "1900-1910")
+  - Fixed `WeftFile.combine` to correctly identify and compare preamble parts
+  - Updated preamble creation in `WeftFile.combine` to match expected format
+
+## Changes Made
+1. In `src/starloom/weft/weft_writer.py`:
+   - Changed the timespan format to use decade or year range instead of ISO timestamps
+
+2. In `src/starloom/weft/weft.py`:
+   - Fixed the preamble comparison in `WeftFile.combine` to match expected format
+   - Added validation for minimum preamble length
+   - Updated the error messages to reflect the correct fields being compared
+   - Modified the new preamble creation to use the correct indexes
+
+## Expected Result
+- The combine operation should now correctly compare compatible files
+- The error messages should accurately reflect which fields are incompatible
+- The generated preamble should follow the expected format from the specification
 
 # Weftball Generation Script Task - 2025-03-22
 

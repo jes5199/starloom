@@ -862,3 +862,10 @@ When making significant changes to core algorithms or data structures:
    - Be specific about which field caused the incompatibility
    - Include the actual values being compared in the error message
    - Use descriptive variable names that match the field meanings 
+
+6. Timespan customization:
+   - When generating .weft files, offer customization options via CLI parameters
+   - For timespans, provide a `--timespan` option to allow human-readable descriptors
+   - Always propagate these custom options through all the relevant function calls
+   - Ensure custom values have higher priority than automatically generated ones
+   - Document the expected format clearly in help text 

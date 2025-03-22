@@ -592,6 +592,7 @@ class WeftWriter:
         start_date: datetime,
         end_date: datetime,
         config: Dict[str, Any],
+        custom_timespan: Optional[str] = None,
     ) -> WeftFile:
         """
         Create a .weft file with multiple precision levels.
@@ -602,6 +603,7 @@ class WeftWriter:
             start_date: Start date
             end_date: End date (inclusive)
             config: Configuration for each block type
+            custom_timespan: Optional custom timespan for the file preamble
 
         Returns:
             A WeftFile instance
@@ -682,6 +684,7 @@ class WeftWriter:
             start_date=start_date,
             end_date=end_date,
             config=config,
+            custom_timespan=custom_timespan,
         )
 
         return WeftFile(preamble=preamble, blocks=blocks)
@@ -700,6 +703,56 @@ class WeftWriter:
         # Save the file
         weft_file.write_to_file(output_path)
 
+    def _descriptive_timespan(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        custom_timespan: Optional[str] = None,
+    ) -> str:
+        """
+        Compute a human-readable timespan string based on the date range.
+
+        Args:
+            start_date: Start date
+            end_date: End date (inclusive)
+            custom_timespan: Optional custom timespan to use instead of computing one
+
+        Returns:
+            A string representing the timespan (e.g., "2000s" or "1900-1910")
+        """
+        if custom_timespan:
+            return custom_timespan
+
+        # Get the adjusted dates to account for dates near year boundaries
+        buffer_days = 10  # Number of days to consider for rounding
+
+        adjusted_start_year = start_date.year
+        adjusted_end_year = end_date.year
+
+        # Adjust start year if within buffer days of year beginning
+        if start_date.month == 1 and start_date.day <= buffer_days:
+            adjusted_start_date = start_date + timedelta(days=buffer_days)
+            adjusted_start_year = adjusted_start_date.year
+
+        # Adjust end year if within buffer days of year end
+        if end_date.month == 12 and end_date.day >= (31 - buffer_days):
+            adjusted_end_date = end_date - timedelta(days=buffer_days)
+            adjusted_end_year = adjusted_end_date.year
+
+        # Check if we're dealing with the same decade
+        if adjusted_start_year // 10 == adjusted_end_year // 10:
+            # Same decade
+            if adjusted_start_year == adjusted_end_year:
+                # Same year, just use that year
+                return f"{adjusted_start_year}"
+            else:
+                # Same decade, use decade format like "2000s"
+                decade = (adjusted_start_year // 10) * 10
+                return f"{decade}s"
+        else:
+            # Different decades, use year range
+            return f"{adjusted_start_year}-{adjusted_end_year}"
+
     def _create_preamble(
         self,
         data_source: EphemerisDataSource,
@@ -707,6 +760,7 @@ class WeftWriter:
         start_date: datetime,
         end_date: datetime,
         config: Dict[str, Any],
+        custom_timespan: Optional[str] = None,
     ) -> str:
         """
         Create the preamble for a .weft file.
@@ -717,20 +771,15 @@ class WeftWriter:
             start_date: Start date
             end_date: End date (inclusive)
             config: Configuration for each block type
+            custom_timespan: Optional custom timespan for the file preamble
 
         Returns:
             The preamble string
         """
         now = datetime.utcnow()
 
-        # Create a simpler timespan format (e.g., "1900-1910" or "2000s")
-        if start_date.year // 10 == end_date.year // 10:
-            # Same decade, use decade format like "2000s"
-            decade = (start_date.year // 10) * 10
-            timespan = f"{decade}s"
-        else:
-            # Different decades, use year range like "1900-1910"
-            timespan = f"{start_date.year}-{end_date.year}"
+        # Get a human-readable timespan string
+        timespan = self._descriptive_timespan(start_date, end_date, custom_timespan)
 
         # Add value behavior range to preamble if applicable
         behavior_str = self.wrapping_behavior

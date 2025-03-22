@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import sys
 import signal
 import traceback
-from typing import Any
+from typing import Any, Optional
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -76,6 +76,12 @@ def weft() -> None:
     default="24h",
     type=str,
 )
+@click.option(
+    "--timespan",
+    "-t",
+    help="Custom timespan descriptor for the preamble (e.g. '2000s' or '2020-2030')",
+    type=str,
+)
 def generate(
     planet: str,
     quantity: str,
@@ -85,6 +91,7 @@ def generate(
     data_dir: str,
     prefetch: bool,
     step: str,
+    timespan: Optional[str],
 ) -> None:
     """Generate a .weft binary ephemeris file."""
     print("Starting generation with parameters:")
@@ -96,6 +103,8 @@ def generate(
     print(f"  Data dir: {data_dir}")
     print(f"  Prefetch: {prefetch}")
     print(f"  Step: {step}")
+    if timespan:
+        print(f"  Timespan: {timespan}")
 
     print("Parsing dates...")
     try:
@@ -149,6 +158,7 @@ def generate(
                 output_path=output,
                 data_dir=data_dir,
                 step_hours=step,
+                custom_timespan=timespan,
             )
 
             click.echo(f"Successfully generated .weft file: {file_path}")

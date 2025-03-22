@@ -31,6 +31,7 @@ def generate_weft_file(
     data_dir: str = "./data",
     config: Optional[Dict[str, Any]] = None,
     step_hours: Union[int, str] = "24h",
+    custom_timespan: Optional[str] = None,
 ) -> str:
     """
     Generate a .weft file for a planet and quantity using an ephemeris source.
@@ -45,6 +46,7 @@ def generate_weft_file(
         data_dir: Directory for data storage (only used if ephemeris is None)
         config: Configuration for the WEFT generator (if None, will be auto-configured)
         step_hours: Step size for sampling ephemeris data. Can be a string like '1h', '30m' or an integer for hours.
+        custom_timespan: Optional custom timespan for the file preamble (e.g., "2000s" or "1950-2050")
 
     Returns:
         The path to the generated .weft file
@@ -122,6 +124,7 @@ def generate_weft_file(
         start_date=start_date,
         end_date=end_date,
         config=config,
+        custom_timespan=custom_timespan,
     )
 
     # Ensure the output directory exists
