@@ -386,3 +386,44 @@ Optimize database queries in `LocalHorizonsStorage` to ensure efficient lookups,
 2. Block sorting needs to handle all block types consistently
 3. Preamble comparison should ignore timespan and generation timestamp
 4. Error messages should be clear about why files can't be combined
+
+# Weftball Generation Script Task - 2025-03-22
+
+## Task Overview
+Create a script that generates a "weftball" for a planet by:
+1. Generating decade-by-decade weft files for multiple quantities
+2. Combining them into one big file for each quantity
+3. Creating a tar.gz archive with all the combined files
+
+## Implementation Plan
+[X] Create basic script structure (scripts/make_weftball.py)
+[X] Define decades to cover the 20th and 21st centuries
+[X] Set up command-line processing (python -m scripts.make_weftball <planet>)
+[X] Implement weft file generation for each decade and quantity
+[X] Implement file combining logic
+[X] Add tarball creation
+[X] Implement cleanup to remove temporary files
+[X] Update to use installed starloom command instead of python -m
+
+## Script Details
+- Generates weft files for:
+  - Ecliptic Longitude
+  - Ecliptic Latitude
+  - Distance (delta)
+- Covers 1900-2100 in decade increments
+- Creates one day of overlap between decades
+- Final output: planet.weft.tar.gz containing three files:
+  - planet.longitude.weft
+  - planet.latitude.weft
+  - planet.distance.weft
+  
+## Usage
+```
+python -m scripts.make_weftball mars
+```
+
+## Notes
+- Temporary files are stored in data/temp_<planet>_weft/
+- Final combined files and tarball are stored in the data/ directory
+- Calls starloom CLI with: starloom weft generate|combine
+- Assumes starloom is installed via pip and available in PATH

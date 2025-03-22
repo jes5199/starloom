@@ -16,6 +16,14 @@
   - Add implementation for binary ephemeris files
   - Add implementation for local stored ephemeris data
 
+## Weft Binary Files
+
+- [X] Create weftball generation script
+  - Script to generate decade-by-decade weft files for a planet
+  - Combines files into one per quantity type
+  - Creates a tar.gz archive containing the combined files
+  - Example planets: Mars, Venus, Jupiter
+
 ## Enum Naming and Documentation
 
 - [ ] Rename `EphemerisQuantity` to `HorizonsQuantity` to better reflect its purpose
