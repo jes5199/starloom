@@ -53,9 +53,13 @@ DECADES = [
 
 
 def get_decade_range(start_date):
-    """Extract the decade from a date string like '1990-12-31'"""
-    decade = start_date.split("-")[0][:3] + "0s"
-    return decade
+    """Extract the decade from a date string like '1899-12-31' to return '1900s'"""
+    year = int(start_date.split("-")[0])
+    # For dates like 1899-12-31 that represent the 1900s decade
+    if year % 10 == 9:
+        year += 1
+    decade = (year // 10) * 10
+    return f"{decade}s"
 
 
 def create_temp_dir(planet):
@@ -93,7 +97,7 @@ def generate_weft_files(planet, temp_dir):
                 "--data-dir",
                 "data",
                 "--step",
-                "24h",  # Daily steps
+                "1h",  # Hourly steps
             ]
 
             subprocess.run(cmd, check=True)
@@ -178,12 +182,14 @@ def main():
         tarball = create_tarball(planet, combined_files)
 
         print(f"Successfully created weftball for {planet}: {tarball}")
+        print(f"Temporary files preserved in: {temp_dir}")
     except Exception as e:
         print(f"Error generating weftball: {e}")
         sys.exit(1)
-    finally:
-        # Clean up
-        cleanup(temp_dir)
+    # Cleanup removed to preserve temporary files
+    # finally:
+    #     # Clean up
+    #     cleanup(temp_dir)
 
 
 if __name__ == "__main__":
