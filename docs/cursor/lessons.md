@@ -836,22 +836,29 @@ When making significant changes to core algorithms or data structures:
   - Use `Index()` in SQLAlchemy model `__table_args__` to define indexes
   - Use `inspect()` to programmatically verify index existence and create them if missing
   
-```python
-from sqlalchemy import Index, inspect
+## .weft File Format
 
-# In model definition:
-__table_args__ = (
-    PrimaryKeyConstraint("body", "julian_date", "julian_date_fraction"),
-    Index("idx_julian_lookup", "julian_date", "julian_date_fraction"),
-)
+1. The .weft file preamble is critical and follows a specific format:
+   ```
+   #weft! v0.02 planet data_source timespan precision quantity value_behavior chebychevs generated@timestamp
+   ```
 
-# Utility to ensure indexes exist:
-def ensure_indexes(self):
-    inspector = inspect(self.engine)
-    existing_indexes = {idx['name'] for idx in inspector.get_indexes(table_name)}
-    
-    # Create missing indexes if needed
-    if "idx_name" not in existing_indexes:
-        sql = 'CREATE INDEX IF NOT EXISTS idx_name ON table (col1, col2)'
-        session.execute(sql)
-``` 
+2. When combining .weft files:
+   - The preamble parts must be compared correctly, matching corresponding fields 
+   - Essential fields (planet, data source, precision, quantity, behavior) must match
+   - Timespan and generation timestamp can differ since they're updated for the combined file
+
+3. Date format for timespan:
+   - Use simple formats like "2000s" (for a decade) or "1900-1910" (for year ranges)
+   - Avoid using full ISO timestamps which create parsing difficulties
+   - Keep the timespan short and human-readable
+
+4. When parsing preambles:
+   - Always verify you have the minimum required parts
+   - Compare parts by index only after confirming their meaning
+   - Use comments to document the index-to-meaning mapping for clarity
+
+5. When reporting errors:
+   - Be specific about which field caused the incompatibility
+   - Include the actual values being compared in the error message
+   - Use descriptive variable names that match the field meanings 

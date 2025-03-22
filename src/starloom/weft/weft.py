@@ -305,8 +305,19 @@ class WeftFile:
         parts1 = file1.preamble.strip().split(" ")
         parts2 = file2.preamble.strip().split(" ")
 
-        # Compare all parts except timespan and generation timestamp
-        if parts1[:3] != parts2[:3] or parts1[4:7] != parts2[4:7]:
+        # Extract the fields we want to compare (skip timespan and generation timestamp)
+        # Expected preamble format:
+        # #weft! v0.02 planet data_source timespan precision quantity behavior chebychevs generated@timestamp
+        if len(parts1) < 8 or len(parts2) < 8:
+            raise ValueError("Invalid preamble format: too few parts")
+            
+        # Compare essential fields: format version, planet, data source, precision, quantity, behavior
+        if (parts1[0:3] != parts2[0:3] or  # #weft!, version, planet
+            parts1[3] != parts2[3] or      # data_source
+            parts1[5] != parts2[5] or      # precision
+            parts1[6] != parts2[6] or      # quantity
+            parts1[7] != parts2[7]):       # behavior
+            
             # Provide more specific error message
             if parts1[2] != parts2[2]:
                 raise ValueError(
@@ -316,17 +327,17 @@ class WeftFile:
                 raise ValueError(
                     f"Files use different data sources: {parts1[3]} vs {parts2[3]}"
                 )
-            elif parts1[4] != parts2[4]:
-                raise ValueError(
-                    f"Files have different precision: {parts1[4]} vs {parts2[4]}"
-                )
             elif parts1[5] != parts2[5]:
                 raise ValueError(
-                    f"Files contain different quantities: {parts1[5]} vs {parts2[5]}"
+                    f"Files have different precision specifications: {parts1[5]} vs {parts2[5]}"
                 )
             elif parts1[6] != parts2[6]:
                 raise ValueError(
-                    f"Files have different value behaviors: {parts1[6]} vs {parts2[6]}"
+                    f"Files contain different quantities: {parts1[6]} vs {parts2[6]}"
+                )
+            elif parts1[7] != parts2[7]:
+                raise ValueError(
+                    f"Files have different value behaviors: {parts1[7]} vs {parts2[7]}"
                 )
             else:
                 raise ValueError(
@@ -386,8 +397,8 @@ class WeftFile:
         # Create new preamble
         now = datetime.now(timezone.utc)
         new_preamble = (
-            f"#weft! v0.02 {parts1[2]} {parts1[3]} {timespan} "
-            f"{parts1[4]} {parts1[5]} {parts1[6]} chebychevs "
+            f"{parts1[0]} {parts1[1]} {parts1[2]} {parts1[3]} {timespan} "
+            f"{parts1[5]} {parts1[6]} {parts1[7]} chebychevs "
             f"generated@{now.isoformat()}\n\n"
         )
 

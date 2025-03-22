@@ -722,7 +722,15 @@ class WeftWriter:
             The preamble string
         """
         now = datetime.utcnow()
-        timespan = f"{start_date.isoformat()}-{end_date.isoformat()}"
+        
+        # Create a simpler timespan format (e.g., "1900-1910" or "2000s")
+        if start_date.year // 10 == end_date.year // 10:
+            # Same decade, use decade format like "2000s"
+            decade = (start_date.year // 10) * 10
+            timespan = f"{decade}s"
+        else:
+            # Different decades, use year range like "1900-1910"
+            timespan = f"{start_date.year}-{end_date.year}"
 
         # Add value behavior range to preamble if applicable
         behavior_str = self.wrapping_behavior
