@@ -32,6 +32,10 @@ from .block_selection import (
     should_include_fourty_eight_hour_block,
 )
 from ..ephemeris.time_spec import TimeSpec
+from .logging import get_logger
+
+# Create a logger for this module
+logger = get_logger(__name__)
 
 T = TypeVar("T", bound=BlockType)
 
@@ -208,8 +212,8 @@ class WeftWriter:
         if not should_include_multi_year_block(
             time_spec, data_source, start_year, duration
         ):
-            print(
-                f"DEBUG: Multi-year block not included for {start_year}-{start_year + duration - 1}"
+            logger.debug(
+                f"Multi-year block not included for {start_year}-{start_year + duration - 1}"
             )
             return None
 
@@ -488,11 +492,11 @@ class WeftWriter:
             end_date.year, end_date.month, end_date.day, tzinfo=ZoneInfo("UTC")
         )
 
-        print(f"DEBUG: Creating 48-hour blocks from {start_date} to {end_date}")
-        print(
-            f"DEBUG: Data source range: {data_source.start_date} to {data_source.end_date}"
+        logger.debug(f"Creating 48-hour blocks from {start_date} to {end_date}")
+        logger.debug(
+            f"Data source range: {data_source.start_date} to {data_source.end_date}"
         )
-        print(f"DEBUG: Data source has {len(data_source.timestamps)} timestamps")
+        logger.debug(f"Data source has {len(data_source.timestamps)} timestamps")
 
         # If block_size not specified, compute it based on coefficient count
         if block_size is None:
@@ -523,8 +527,8 @@ class WeftWriter:
             include_block = should_include_fourty_eight_hour_block(
                 time_spec, data_source, current_date
             )
-            print(
-                f"DEBUG: Day {current_date.date()}: should_include_daily_block = {include_block}"
+            logger.debug(
+                f"Day {current_date.date()}: should_include_daily_block = {include_block}"
             )
 
             if not include_block:
@@ -581,7 +585,7 @@ class WeftWriter:
 
             current_date += timedelta(days=1)
 
-        print(f"DEBUG: Checked {day_count} days, included {included_count} blocks")
+        logger.debug(f"Checked {day_count} days, included {included_count} blocks")
 
         return blocks
 
@@ -630,7 +634,7 @@ class WeftWriter:
                 )
                 if decade_block:
                     blocks.append(decade_block)
-                    print(f"Added decade block for {decade_start}-{decade_start + 9}")
+                    logger.debug(f"Added decade block for {decade_start}-{decade_start + 9}")
 
             # Create blocks for each year in the range
             for year in range(start_year, end_year + 1):
@@ -644,7 +648,7 @@ class WeftWriter:
                 )
                 if year_block:
                     blocks.append(year_block)
-                    print(f"Added year block for {year}")
+                    logger.debug(f"Added year block for {year}")
 
         if config["monthly"]["enabled"]:
             monthly_config = config["monthly"]

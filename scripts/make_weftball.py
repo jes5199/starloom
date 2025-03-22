@@ -8,10 +8,13 @@ This script:
 3. Creates a tar.gz archive containing the three files
 
 Usage:
-    python -m scripts.make_weftball <planet>
+    python -m scripts.make_weftball <planet> [options]
 
 Example:
     python -m scripts.make_weftball mars
+    python -m scripts.make_weftball jupiter --debug  # Enable debug logging
+    python -m scripts.make_weftball saturn -v        # Enable verbose (info) logging
+    python -m scripts.make_weftball mercury --quiet  # Suppress all but error logs
 """
 
 import os
@@ -19,6 +22,10 @@ import sys
 import shutil
 import subprocess
 import tarfile
+import argparse
+
+from src.starloom.weft.logging import get_logger
+from src.starloom.weft.cli import setup_arg_parser, configure_logging
 
 # Define the quantities we want to generate
 QUANTITIES = {
@@ -51,6 +58,8 @@ DECADES = [
     ("2089-12-31", "2100-01-02"),
 ]
 
+# Set up logger
+logger = get_logger(__name__)
 
 def get_decade_range(start_date):
     """Extract the decade from a date string like '1899-12-31' to return '1900s'"""
@@ -70,127 +79,201 @@ def create_temp_dir(planet):
 
 
 def generate_weft_files(planet, temp_dir):
-    """Generate weft files for each decade and quantity"""
+    """Generate weft files for all quantities for the planet.
+
+    Args:
+        planet: Planet name
+        temp_dir: Temporary directory for output
+
+    Returns:
+        Dict mapping quantity to generated file paths
+    """
     generated_files = {}
 
-    for quantity_name, quantity_label in QUANTITIES.items():
-        generated_files[quantity_label] = []
+    for quantity, file_name in QUANTITIES.items():
+        logger.info(f"Generating {quantity} data for {planet}")
+        
+        current_decade_files = []
+        for decade_start, decade_end in get_decade_range("1700-01-01 00:00"):
+            decade_file = os.path.join(
+                temp_dir, f"{planet}_{file_name}_{decade_start[:4]}.weft"
+            )
+            
+            # Skip if file already exists
+            if os.path.exists(decade_file):
+                logger.info(f"Using existing file: {decade_file}")
+                current_decade_files.append(decade_file)
+                continue
 
-        for start_date, end_date in DECADES:
-            decade = get_decade_range(start_date)
-            output_file = f"{temp_dir}/{planet}.{quantity_label}.{decade}.weft"
-
-            print(f"Generating {quantity_label} for {planet} ({decade})...")
-
+            # Build command
             cmd = [
-                "starloom",
-                "weft",
-                "generate",
+                "python",
+                "-m",
+                "src.starloom.cli.generate_weft",
+                "--planet",
                 planet,
-                quantity_name,
-                "--start",
-                start_date,
-                "--stop",
-                end_date,
                 "--output",
-                output_file,
-                "--data-dir",
-                "data",
-                "--step",
-                "1h",  # Hourly steps
+                decade_file,
+                "--quantity",
+                quantity,
+                "--start",
+                f"{decade_start}",
+                "--end",
+                f"{decade_end}",
             ]
+            
+            # Log the command at debug level
+            logger.debug(f"Running: {' '.join(cmd)}")
+            
+            # Run the command
+            try:
+                subprocess.run(cmd, check=True)
+                current_decade_files.append(decade_file)
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Error generating {quantity} for {decade_start}: {e}")
+                continue
 
-            subprocess.run(cmd, check=True)
-            generated_files[quantity_label].append(output_file)
+        # Store the list of files for this quantity
+        generated_files[quantity] = current_decade_files
 
     return generated_files
 
 
 def combine_weft_files(planet, temp_dir, generated_files):
-    """Combine decade files into one file per quantity"""
+    """Combine the decade files into one file per quantity.
+
+    Args:
+        planet: Planet name
+        temp_dir: Temporary directory
+        generated_files: Dict of quantity -> file paths
+
+    Returns:
+        Dict mapping quantity to combined file paths
+    """
     combined_files = {}
 
-    for quantity_label, files in generated_files.items():
-        # Start with the first file
-        combined_file = f"data/{planet}.{quantity_label}.weft"
-        shutil.copy(files[0], combined_file)
+    for quantity, file_name in QUANTITIES.items():
+        decade_files = generated_files.get(quantity, [])
+        if not decade_files:
+            logger.warning(f"No files found for {quantity}, skipping")
+            continue
 
-        # Combine with the rest of the files
-        for i in range(1, len(files)):
-            timespan = "1900-2100"
-            temp_output = f"{temp_dir}/{planet}.{quantity_label}.combined.tmp.weft"
+        logger.info(f"Combining {len(decade_files)} files for {quantity}")
 
-            cmd = [
-                "starloom",
-                "weft",
-                "combine",
-                combined_file,
-                files[i],
-                temp_output,
-                "--timespan",
-                timespan,
-            ]
+        # Create the combined file name
+        combined_file = os.path.join(temp_dir, f"{planet}_{file_name}.weft")
 
+        # Build the command
+        cmd = [
+            "python",
+            "-m",
+            "src.starloom.cli.combine_wefts",
+            "--output",
+            combined_file,
+            *decade_files,
+        ]
+        
+        # Log the command at debug level
+        logger.debug(f"Running: {' '.join(cmd)}")
+        
+        # Run the command
+        try:
             subprocess.run(cmd, check=True)
-
-            # Replace the combined file with the new one
-            shutil.move(temp_output, combined_file)
-
-        combined_files[quantity_label] = combined_file
-        print(f"Created combined file: {combined_file}")
+            combined_files[quantity] = combined_file
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error combining files for {quantity}: {e}")
 
     return combined_files
 
 
 def create_tarball(planet, combined_files):
-    """Create a tar.gz archive of the combined files"""
-    tarball_name = f"data/{planet}.weft.tar.gz"
+    """Create a tarball of the combined files.
 
+    Args:
+        planet: Planet name
+        combined_files: Dict of quantity -> file paths
+
+    Returns:
+        Path to the created tarball
+    """
+    # Get a list of files to include
+    files_to_include = list(combined_files.values())
+    if not files_to_include:
+        logger.error("No files to include in tarball")
+        return None
+
+    # Create the tarball filename
+    tarball_name = f"{planet}_weftball.tar.gz"
+    
+    logger.info(f"Creating tarball: {tarball_name}")
+    logger.debug(f"Including files: {', '.join(files_to_include)}")
+
+    # Create the tarball
     with tarfile.open(tarball_name, "w:gz") as tar:
-        for _, file_path in combined_files.items():
+        for file_path in files_to_include:
             tar.add(file_path, arcname=os.path.basename(file_path))
 
-    print(f"Created tarball: {tarball_name}")
     return tarball_name
 
 
 def cleanup(temp_dir):
-    """Clean up temporary files"""
+    """Clean up the temporary directory.
+
+    Args:
+        temp_dir: Temporary directory to remove
+    """
+    logger.info(f"Cleaning up temporary directory: {temp_dir}")
     shutil.rmtree(temp_dir)
-    print(f"Cleaned up temporary directory: {temp_dir}")
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python -m scripts.make_weftball <planet>")
-        sys.exit(1)
-
-    planet = sys.argv[1].lower()
-    print(f"Generating weftball for {planet}...")
-
-    # Create temporary directory
+    """Main entry point for the script."""
+    # Set up argument parser using common parser from weft.cli
+    parser = setup_arg_parser()
+    
+    # Add script-specific arguments
+    parser.add_argument("planet", help="Planet name to generate data for")
+    parser.add_argument("--no-cleanup", action="store_true", help="Don't remove temporary files after completion")
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # Configure logging based on command line arguments
+    configure_logging(vars(args))
+    
+    # Main script logic
+    planet = args.planet.lower()
+    
+    logger.info(f"Generating weftball for {planet}")
+    
+    # Create a temporary directory
     temp_dir = create_temp_dir(planet)
-
+    logger.info(f"Using temporary directory: {temp_dir}")
+    
     try:
-        # Generate weft files
+        # Generate the weft files
         generated_files = generate_weft_files(planet, temp_dir)
-
-        # Combine files
+        
+        # Combine the files
         combined_files = combine_weft_files(planet, temp_dir, generated_files)
-
-        # Create tarball
+        
+        # Create a tarball
         tarball = create_tarball(planet, combined_files)
-
-        print(f"Successfully created weftball for {planet}: {tarball}")
-        print(f"Temporary files preserved in: {temp_dir}")
-    except Exception as e:
-        print(f"Error generating weftball: {e}")
-        sys.exit(1)
-    # Cleanup removed to preserve temporary files
-    # finally:
-    #     # Clean up
-    #     cleanup(temp_dir)
+        
+        if tarball:
+            logger.info(f"Successfully created {tarball}")
+        else:
+            logger.error("Failed to create tarball")
+            return 1
+    finally:
+        # Clean up
+        if not args.no_cleanup:
+            cleanup(temp_dir)
+        else:
+            logger.info(f"Temporary files kept at {temp_dir}")
+    
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

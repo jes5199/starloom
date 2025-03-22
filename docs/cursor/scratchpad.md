@@ -421,46 +421,6 @@ Optimize database queries in `LocalHorizonsStorage` to ensure efficient lookups,
 - If no timespan is provided, the automatic format is used (decade or year range)
 - This provides flexibility for users to create more descriptive or standardized timespans
 
-# Current Task: Fix WeftFile.combine Error for .weft Files
-
-## Issue
-Error message: "Error combining .weft files: Files have different precision: 1899-12-31T00:00:00+00:00-1910-01-02T00:00:00+00:00 vs 1909-12-31T00:00:00+00:00-1920-01-02T00:00:00+00:00"
-
-## Problem Analysis
-1. The error message is mentioning date ranges, not precision fields from the preamble
-2. According to `weft_format2.txt`, the precision field should be something like "32bit", not date ranges
-3. The parsing in `WeftFile.combine` was incorrectly comparing date ranges as "precision"
-
-## Investigation Plan
-[X] Check `WeftFile.combine` method's preamble parsing
-  - Found it was splitting preamble by space character
-  - The comparison was off by one index due to timespan format
-  - It was comparing parts[4] as "precision" when that was actually timespan
-
-[X] Verify what's in the actual preamble for the files
-  - Found preamble used ISO timestamps for timespan e.g., "1899-12-31T00:00:00+00:00-1910-01-02T00:00:00+00:00"
-  - Compared to format spec which uses simple format like "2000s"
-
-[X] Fix the preamble parsing and creation
-  - Updated `_create_preamble` to create simpler timespan format (either decade like "2000s" or range like "1900-1910")
-  - Fixed `WeftFile.combine` to correctly identify and compare preamble parts
-  - Updated preamble creation in `WeftFile.combine` to match expected format
-
-## Changes Made
-1. In `src/starloom/weft/weft_writer.py`:
-   - Changed the timespan format to use decade or year range instead of ISO timestamps
-
-2. In `src/starloom/weft/weft.py`:
-   - Fixed the preamble comparison in `WeftFile.combine` to match expected format
-   - Added validation for minimum preamble length
-   - Updated the error messages to reflect the correct fields being compared
-   - Modified the new preamble creation to use the correct indexes
-
-## Expected Result
-- The combine operation should now correctly compare compatible files
-- The error messages should accurately reflect which fields are incompatible
-- The generated preamble should follow the expected format from the specification
-
 # Weftball Generation Script Task - 2025-03-22
 
 ## Task Overview
@@ -501,3 +461,35 @@ python -m scripts.make_weftball mars
 - Final combined files and tarball are stored in the data/ directory
 - Calls starloom CLI with: starloom weft generate|combine
 - Assumes starloom is installed via pip and available in PATH
+
+# Task: Make DEBUG prints silent by default
+
+## Problem Analysis
+Debug prints in the weft package are currently always visible, cluttering the output with diagnostic information that isn't needed during normal operation.
+
+## Implemented Solution
+Created a proper logging system to make debug output silent by default while allowing users to enable it when needed.
+
+## Tasks
+[X] Create a centralized logging module (`src/starloom/weft/logging.py`)
+[X] Create a CLI helper module for common arguments (`src/starloom/weft/cli.py`)
+[X] Update `weft_writer.py` to use proper logging
+[X] Update `block_selection.py` to use proper logging
+[X] Update `ephemeris_data_source.py` to use proper logging
+[X] Update `make_weftball.py` script to use logging system
+[X] Add documentation (`docs/weft/logging.md`)
+[X] Update lessons learned document
+
+## Implementation Details
+- Created a standardized logging system with sensible defaults (WARNING level)
+- Added environment variable control (`STARLOOM_LOG_LEVEL`)
+- Added command-line arguments for verbosity (`-v`, `--debug`, `--quiet`)
+- Maintained all existing debug information, just made it conditionally visible
+- Ensured consistent formatting of log messages
+
+## Testing Recommendations
+To verify the changes:
+1. Run standard commands and confirm debug output is no longer visible
+2. Run with `-v` flag and verify INFO level messages appear
+3. Run with `--debug` flag and verify full DEBUG output appears
+4. Set the `STARLOOM_LOG_LEVEL=DEBUG` environment variable and verify it works

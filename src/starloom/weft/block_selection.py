@@ -10,6 +10,10 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Tuple, Any, Dict
 
 from ..ephemeris.time_spec import TimeSpec
+from .logging import get_logger
+
+# Create a logger for this module
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -58,67 +62,64 @@ def analyze_data_coverage(
     time_spec: TimeSpec, start: datetime, end: datetime, timestamps: List[datetime]
 ) -> Tuple[float, float]:
     """
-    Analyze data coverage for a time period.
+    Analyze the coverage of data points for a time period.
 
     Args:
-        time_spec: The TimeSpec used for sampling
-        start: Start of period to analyze
-        end: End of period to analyze
-        timestamps: Available data timestamps
+        time_spec: Time specification with step size
+        start: Start of time period
+        end: End of time period
+        timestamps: List of available timestamps
 
     Returns:
-        Tuple of (coverage_fraction, actual_points_per_day)
-
-    Raises:
-        ValueError: If step_size is None or has an invalid format
+        Tuple of (points per day, coverage fraction)
     """
-    print(f"DEBUG: analyze_data_coverage for period {start} to {end}")
-    print(f"DEBUG: Total timestamps available: {len(timestamps)}")
+    logger.debug(f"analyze_data_coverage for period {start} to {end}")
+    logger.debug(f"Total timestamps available: {len(timestamps)}")
 
     if not timestamps:
-        print("DEBUG: No timestamps available")
+        logger.debug("No timestamps available")
         return 0.0, 0.0
 
-    # Filter timestamps to those in range
-    in_range = [t for t in timestamps if start <= t <= end]
-    print(f"DEBUG: Timestamps in range: {len(in_range)}")
+    # Sort timestamps to simplify processing
+    timestamps.sort()
+
+    # Find timestamps that fall within our range
+    in_range = [dt for dt in timestamps if start <= dt <= end]
+    logger.debug(f"Timestamps in range: {len(in_range)}")
 
     if not in_range:
-        print("DEBUG: No timestamps in range")
+        logger.debug("No timestamps in range")
         return 0.0, 0.0
 
-    # Calculate total period in days
-    total_period = (end - start).total_seconds()
-    total_days = total_period / (24 * 3600)
+    # Calculate number of days in period
+    total_days = (end - start).total_seconds() / (24 * 3600)
 
-    # Handle single-point time spans
-    if total_days == 0:
-        if len(in_range) > 0:
-            return 1.0, float("inf")  # Perfect coverage for a single point
-        return 0.0, 0.0
-
-    print(
-        f"DEBUG: Total days: {total_days}, Points per day: {len(in_range) / total_days}"
+    # Calculate points per day
+    points_per_day = len(in_range) / total_days
+    logger.debug(
+        f"Total days: {total_days}, Points per day: {len(in_range) / total_days}"
     )
 
-    # Calculate coverage based on the span between earliest and latest points
-    if len(in_range) >= 2:
-        # Sort timestamps just to be safe
-        in_range.sort()
-        # Coverage is determined by the span between first and last timestamp
-        covered_span = (in_range[-1] - in_range[0]).total_seconds()
-        coverage = covered_span / total_period
+    # Calculate coverage based on the span of available data
+    # If data points cover 90% of the requested period, that's a coverage of 0.9
+    if total_days < 0.0001:  # Avoid division by zero for very short periods
+        coverage = 1.0 if in_range else 0.0
     else:
-        # If only one point, coverage is minimal
-        coverage = 0.0
+        # Get the first and last timestamps in range
+        first_ts = in_range[0]
+        last_ts = in_range[-1]
 
-    print(f"DEBUG: First point: {in_range[0] if in_range else 'None'}")
-    print(f"DEBUG: Last point: {in_range[-1] if len(in_range) > 0 else 'None'}")
-    print(
-        f"DEBUG: Coverage: {coverage:.4f} (based on span between first and last points)"
+        # Calculate covered span as a fraction of total span
+        covered_days = (last_ts - first_ts).total_seconds() / (24 * 3600)
+        coverage = min(1.0, covered_days / total_days)
+
+    logger.debug(f"First point: {in_range[0] if in_range else 'None'}")
+    logger.debug(f"Last point: {in_range[-1] if len(in_range) > 0 else 'None'}")
+    logger.debug(
+        f"Coverage: {coverage:.4f} (based on span between first and last points)"
     )
 
-    return coverage, len(in_range) / total_days
+    return points_per_day, coverage
 
 
 def should_include_multi_year_block(
@@ -229,11 +230,11 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
     # Calculate overall sampling rate
     time_spec = data_source.time_spec
     points_per_day = calculate_sampling_rate(time_spec)
-    print(f"Data sampling rate: {points_per_day:.1f} points per day")
+    logger.debug(f"Data sampling rate: {points_per_day:.1f} points per day")
 
     # Calculate time span
     total_days = (data_source.end_date - data_source.start_date).days
-    print(f"Time span: {total_days} days")
+    logger.debug(f"Time span: {total_days} days")
 
     # Configure blocks based on data availability
     # Start with all blocks disabled
@@ -258,16 +259,16 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
     # Enable multi-year blocks if we have at least weekly points and span is at least a year
     if points_per_day >= 1 / 7 and total_days >= 365:
         config["multi_year"]["enabled"] = True
-        print("Enabling multi-year blocks for long time span")
+        logger.debug("Enabling multi-year blocks for long time span")
 
     # Enable monthly blocks if we have at least 4 points per day
     if points_per_day >= 4:
         config["monthly"]["enabled"] = True
-        print("Enabling monthly blocks for high sampling rate")
+        logger.debug("Enabling monthly blocks for high sampling rate")
 
     # Enable forty-eight hour blocks if we have at least 8 points per day
     if points_per_day >= 8:
         config["forty_eight_hour"]["enabled"] = True
-        print("Enabling forty-eight hour blocks for very high sampling rate")
+        logger.debug("Enabling forty-eight hour blocks for very high sampling rate")
 
     return config

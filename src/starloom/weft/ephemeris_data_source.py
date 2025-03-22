@@ -15,6 +15,10 @@ from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
 from ..horizons.parsers import OrbitalElementsQuantity
 from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import datetime_from_julian
+from .logging import get_logger
+
+# Create a logger for this module
+logger = get_logger(__name__)
 
 
 class EphemerisDataSource:
@@ -86,7 +90,7 @@ class EphemerisDataSource:
             step=self.step_hours_str,
         )
 
-        print(f"Fetching ephemeris data from {start_date} to {end_date}...")
+        logger.info(f"Fetching ephemeris data from {start_date} to {end_date}...")
 
         # Get the raw data with float timestamps
         raw_data = ephemeris.get_planet_positions(planet_id, self.time_spec)
@@ -94,11 +98,11 @@ class EphemerisDataSource:
         # Debug: print first data point to see structure
         if raw_data:
             first_timestamp = next(iter(raw_data))
-            print("Debug: First data point structure:")
-            print(f"Timestamp: {first_timestamp}")
-            print(f"Data: {raw_data[first_timestamp]}")
-            print(f"Available keys: {list(raw_data[first_timestamp].keys())}")
-            print(
+            logger.debug("First data point structure:")
+            logger.debug(f"Timestamp: {first_timestamp}")
+            logger.debug(f"Data: {raw_data[first_timestamp]}")
+            logger.debug(f"Available keys: {list(raw_data[first_timestamp].keys())}")
+            logger.debug(
                 f"Looking for quantity: {self.quantity} (value: {self.quantity.value if hasattr(self.quantity, 'value') else self.quantity})"
             )
 
@@ -116,56 +120,77 @@ class EphemerisDataSource:
         self.timestamps = sorted(self.data.keys())
 
     def get_value_at(self, dt: datetime) -> float:
-        """Get the value of the quantity at the given datetime.
+        """
+        Get the value at a specific datetime by interpolating between data points.
 
         Args:
-            dt: The datetime to get the value for.
+            dt: The datetime to get a value for
 
         Returns:
-            The value of the quantity at the given datetime.
+            The interpolated value
         """
-        if dt < self.start_date or dt > self.end_date:
-            raise ValueError(
-                f"Datetime {dt} is outside the range of this data source "
-                f"({self.start_date} to {self.end_date})"
-            )
+        # Check exact match first
+        try:
+            return float(self.data[dt][self.standard_quantity])
+        except KeyError:
+            pass
 
-        # Find nearest timestamps
-        idx = bisect.bisect_left(self.timestamps, dt)
+        # Find nearest timestamps for interpolation
+        try:
+            idx = bisect.bisect_left(self.timestamps, dt)
 
-        if idx == 0:
-            # Use first value if before first timestamp
-            t1 = self.timestamps[0]
-            try:
+            # Handle edge cases
+            if idx == 0:
+                # Before first timestamp, use the first value
+                t1 = self.timestamps[0]
                 return float(self.data[t1][self.standard_quantity])
-            except KeyError:
-                # Debug: print what we have when the error occurs
-                print("Debug: KeyError in get_value_at")
-                print(
-                    f"Looking for quantity: {self.quantity} (value: {self.quantity.value if hasattr(self.quantity, 'value') else self.quantity})"
-                )
-                print(f"Available data at {t1}: {self.data[t1]}")
-                print(f"Available keys: {list(self.data[t1].keys())}")
-                raise
+            elif idx == len(self.timestamps):
+                # After last timestamp, use the last value
+                t1 = self.timestamps[-1]
+                return float(self.data[t1][self.standard_quantity])
 
-        if idx == len(self.timestamps):
-            # Use last value if after last timestamp
-            t1 = self.timestamps[-1]
-            return float(self.data[t1][self.standard_quantity])
+            # Get the timestamps before and after dt
+            t1 = self.timestamps[idx - 1]
+            t2 = self.timestamps[idx]
 
-        # Interpolate between surrounding timestamps
-        t1 = self.timestamps[idx - 1]
-        t2 = self.timestamps[idx]
+            # Interpolate between these two points
+            v1 = float(self.data[t1][self.standard_quantity])
+            v2 = float(self.data[t2][self.standard_quantity])
 
-        v1 = float(self.data[t1][self.standard_quantity])
-        v2 = float(self.data[t2][self.standard_quantity])
+            # Calculate interpolation factor
+            total_seconds = (t2 - t1).total_seconds()
+            elapsed_seconds = (dt - t1).total_seconds()
+            fraction = elapsed_seconds / total_seconds
 
-        # Linear interpolation
-        total_seconds = (t2 - t1).total_seconds()
-        elapsed_seconds = (dt - t1).total_seconds()
-        fraction = elapsed_seconds / total_seconds
+            # Handle angle interpolation if needed
+            if self.quantity == EphemerisQuantity.ECLIPTIC_LONGITUDE or self.quantity == EphemerisQuantity.RIGHT_ASCENSION:
+                # Ensure we interpolate along the shortest arc
+                if abs(v2 - v1) > 180.0:
+                    # Adjust one value to ensure shortest path
+                    if v2 > v1:
+                        v1 += 360.0
+                    else:
+                        v2 += 360.0
 
-        return v1 + (v2 - v1) * fraction
+            # Linear interpolation
+            value = v1 + fraction * (v2 - v1)
+
+            # For angle quantities, normalize to [0, 360) or [0, 24)
+            if self.quantity == EphemerisQuantity.ECLIPTIC_LONGITUDE:
+                value %= 360.0
+            elif self.quantity == EphemerisQuantity.RIGHT_ASCENSION:
+                value %= 24.0
+
+            return value
+        except (IndexError, KeyError) as e:
+            # Debug: print what we have when the error occurs
+            logger.debug("KeyError in get_value_at")
+            logger.debug(f"  Requested time: {dt}")
+            logger.debug(f"  Available timestamps: {len(self.timestamps)}")
+            if self.timestamps:
+                logger.debug(f"  First: {self.timestamps[0]}")
+                logger.debug(f"  Last: {self.timestamps[-1]}")
+            raise e
 
     def get_values_in_range(
         self, start: datetime, end: datetime, step_hours: Optional[float] = None

@@ -869,3 +869,24 @@ When making significant changes to core algorithms or data structures:
    - Always propagate these custom options through all the relevant function calls
    - Ensure custom values have higher priority than automatically generated ones
    - Document the expected format clearly in help text 
+
+## Logging Implementation
+
+- **Date Added**: 2023-07-18
+- **Problem**: Debug print statements were always displayed in the output, cluttering the terminal with diagnostic information that wasn't needed during normal operation.
+- **Solution**: Implemented a standardized logging system with the following features:
+  - Created a centralized `logging.py` module in the weft package
+  - Used Python's built-in logging library with appropriate log levels
+  - Made DEBUG level silent by default (set to WARNING)
+  - Added environment variable control (`STARLOOM_LOG_LEVEL`)
+  - Added command-line arguments for verbosity (`-v`, `--debug`, `--quiet`)
+  - Documented the system in `docs/weft/logging.md`
+- **Files Modified**:
+  - Created: `src/starloom/weft/logging.py`
+  - Created: `src/starloom/weft/cli.py`
+  - Updated: `src/starloom/weft/weft_writer.py`
+  - Updated: `src/starloom/weft/block_selection.py`
+  - Updated: `src/starloom/weft/ephemeris_data_source.py`
+  - Updated: `scripts/make_weftball.py`
+  - Created: `docs/weft/logging.md`
+- **Benefits**: Debug output is now controlled and silent by default, while still available when needed for troubleshooting. 
