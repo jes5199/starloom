@@ -7,7 +7,7 @@ Implement a new ephemeris source that reads data from weftball archives (tar.gz)
 Enable running: `starloom ephemeris mercury --date now --source weft --data mercury_weftball.tar.gz`
 
 ## TODOs
-[X] Create new module structure for weft_horizons
+[X] Create new module structure for weft_ephemeris
 [X] Create WeftEphemeris class implementing the ephemeris interface
 [X] Add ability to read .tar.gz files without extraction
 [X] Implement weft file parsing to extract positional data

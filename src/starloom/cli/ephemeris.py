@@ -10,7 +10,7 @@ from ..ephemeris.quantities import Quantity
 from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance
 from ..local_horizons.ephemeris import LocalHorizonsEphemeris
 from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
-from ..weft_horizons.ephemeris import WeftEphemeris
+from ..weft_ephemeris.ephemeris import WeftEphemeris
 from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import julian_to_datetime
 
