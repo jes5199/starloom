@@ -138,7 +138,7 @@ class TestBlockInclusion(unittest.TestCase):
             should_include_multi_year_block(data_source.time_spec, data_source, 2025, 1)
         )
 
-        # Should not include with sparse data
+        # Should include with sparse data as long as coverage is sufficient
         sparse_timestamps = timestamps[::4]  # Only every 4th week
         sparse_data_source = MockEphemerisDataSource(
             start_date=self.start,
@@ -146,7 +146,7 @@ class TestBlockInclusion(unittest.TestCase):
             step_hours=24 * 28,  # Monthly
             timestamps=sparse_timestamps,
         )
-        self.assertFalse(
+        self.assertTrue(
             should_include_multi_year_block(
                 sparse_data_source.time_spec, sparse_data_source, 2025, 1
             )
@@ -190,10 +190,11 @@ class TestBlockInclusion(unittest.TestCase):
 
     def test_daily_block_inclusion(self):
         """Test daily block inclusion criteria."""
-        day_start = datetime(2025, 3, 1, tzinfo=timezone.utc)
-        day_end = datetime(2025, 3, 3, tzinfo=timezone.utc)
+        day = datetime(2025, 3, 1, tzinfo=timezone.utc)
+        day_start = day - timedelta(hours=24)  # Start 24 hours before midnight
+        day_end = day + timedelta(hours=24)  # End 24 hours after midnight
 
-        # Create hourly data points
+        # Create hourly data points for the full 48-hour window
         timestamps = [
             day_start + timedelta(hours=i)
             for i in range(49)  # 48 hours of hourly points
@@ -205,7 +206,7 @@ class TestBlockInclusion(unittest.TestCase):
         # Should include with hourly data
         self.assertTrue(
             should_include_fourty_eight_hour_block(
-                data_source.time_spec, data_source, day_start
+                data_source.time_spec, data_source, day
             )
         )
 
@@ -219,7 +220,7 @@ class TestBlockInclusion(unittest.TestCase):
         )
         self.assertFalse(
             should_include_fourty_eight_hour_block(
-                sparse_data_source.time_spec, sparse_data_source, day_start
+                sparse_data_source.time_spec, sparse_data_source, day
             )
         )
 

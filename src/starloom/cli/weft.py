@@ -4,12 +4,11 @@ CLI commands for generating and using .weft files.
 
 import click
 import os
-from datetime import datetime, timezone, time
+from datetime import datetime
 from zoneinfo import ZoneInfo
 import sys
 import signal
 import traceback
-from typing import List, Tuple
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -20,7 +19,6 @@ from ..weft.weft import (
     MonthlyBlock,
     FortyEightHourBlock,
     WeftFile,
-    BlockType,
 )
 
 
@@ -302,11 +300,14 @@ def lookup(file_path: str, date: str) -> None:
 @click.argument("file2", type=click.Path(exists=True))
 @click.argument("output", type=click.Path())
 @click.option(
-    "--timespan", "-t", help="Descriptive timespan (e.g. '2024s' or '2024-2025')", required=True
+    "--timespan",
+    "-t",
+    help="Descriptive timespan (e.g. '2024s' or '2024-2025')",
+    required=True,
 )
 def combine(file1: str, file2: str, output: str, timespan: str) -> None:
     """Combine two .weft files into a single file.
-    
+
     The input files must have matching preambles (except for timespan and generation timestamp).
     The output file will have a new timespan specified by --timespan.
     """

@@ -1,6 +1,6 @@
 import unittest
 import struct
-from datetime import datetime, timezone, date, time
+from datetime import datetime, timezone, date
 from io import BytesIO
 
 # Import from starloom package
@@ -391,7 +391,7 @@ class TestWeftFile(unittest.TestCase):
         current_duration = 0
         for i in range(len(combined.blocks)):
             block = combined.blocks[i]
-            
+
             # Determine block type
             if isinstance(block, MultiYearBlock):
                 block_type = 0
@@ -420,16 +420,26 @@ class TestWeftFile(unittest.TestCase):
             # Check chronological order within same type and duration
             if i > 0 and block_type == current_type and duration == current_duration:
                 prev_block = combined.blocks[i - 1]
-                if isinstance(block, MultiYearBlock) and isinstance(prev_block, MultiYearBlock):
+                if isinstance(block, MultiYearBlock) and isinstance(
+                    prev_block, MultiYearBlock
+                ):
                     self.assertGreaterEqual(block.start_year, prev_block.start_year)
-                elif isinstance(block, MonthlyBlock) and isinstance(prev_block, MonthlyBlock):
+                elif isinstance(block, MonthlyBlock) and isinstance(
+                    prev_block, MonthlyBlock
+                ):
                     if block.year == prev_block.year:
                         self.assertGreaterEqual(block.month, prev_block.month)
                     else:
                         self.assertGreater(block.year, prev_block.year)
-                elif isinstance(block, FortyEightHourBlock) and isinstance(prev_block, FortyEightHourBlock):
-                    self.assertGreaterEqual(block.header.start_day, prev_block.header.start_day)
-                elif isinstance(block, FortyEightHourSectionHeader) and isinstance(prev_block, FortyEightHourSectionHeader):
+                elif isinstance(block, FortyEightHourBlock) and isinstance(
+                    prev_block, FortyEightHourBlock
+                ):
+                    self.assertGreaterEqual(
+                        block.header.start_day, prev_block.header.start_day
+                    )
+                elif isinstance(block, FortyEightHourSectionHeader) and isinstance(
+                    prev_block, FortyEightHourSectionHeader
+                ):
                     self.assertGreaterEqual(block.start_day, prev_block.start_day)
 
         # Verify 48-hour blocks stay with their headers

@@ -330,11 +330,19 @@ class WeftFile:
         def get_block_sort_key(block: BlockType) -> Tuple[int, int, datetime]:
             if isinstance(block, MultiYearBlock):
                 # Use negative duration to sort longer periods first
-                return (0, -block.duration, datetime(block.start_year, 1, 1, tzinfo=timezone.utc))
+                return (
+                    0,
+                    -block.duration,
+                    datetime(block.start_year, 1, 1, tzinfo=timezone.utc),
+                )
             elif isinstance(block, MonthlyBlock):
                 return (1, 0, datetime(block.year, block.month, 1, tzinfo=timezone.utc))
             elif isinstance(block, FortyEightHourSectionHeader):
-                return (2, 0, datetime.combine(block.start_day, time(0), tzinfo=timezone.utc))
+                return (
+                    2,
+                    0,
+                    datetime.combine(block.start_day, time(0), tzinfo=timezone.utc),
+                )
             else:
                 return (3, 0, datetime.min.replace(tzinfo=timezone.utc))
 
@@ -352,7 +360,9 @@ class WeftFile:
 
         # Sort non-48h blocks and headers
         non_48h_blocks.sort(key=get_block_sort_key)
-        headers.sort(key=lambda h: datetime.combine(h.start_day, time(0), tzinfo=timezone.utc))
+        headers.sort(
+            key=lambda h: datetime.combine(h.start_day, time(0), tzinfo=timezone.utc)
+        )
 
         # Build final list by adding blocks with headers inserted in order
         final_blocks = []
