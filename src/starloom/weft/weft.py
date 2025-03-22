@@ -9,8 +9,9 @@ to store astronomical values efficiently. It supports multiple levels of precisi
 """
 
 from datetime import datetime, timezone, time
-from typing import Union, Tuple, Literal, TypedDict, Sequence, List
+from typing import Union, Tuple, Literal, TypedDict, Sequence, List, Dict
 from io import BytesIO
+from typing import cast
 
 from .blocks import (
     MultiYearBlock,
@@ -53,7 +54,9 @@ ValueBehavior = Union[RangedBehavior, UnboundedBehavior]
 
 
 class WeftFile:
-    """A .weft file containing multiple blocks of data."""
+    """
+    A .weft file containing ephemeris data.
+    """
 
     def __init__(
         self,
@@ -61,15 +64,13 @@ class WeftFile:
         blocks: Sequence[BlockType],
         value_behavior: ValueBehavior = UnboundedBehavior(type="unbounded"),
     ):
-        """Initialize a .weft file.
+        """
+        Initialize a WeftFile.
 
         Args:
-            preamble: File format preamble
-            blocks: List of blocks in the file
-            value_behavior: How to handle values during interpolation
-
-        Raises:
-            ValueError: If preamble is invalid
+            preamble: The file preamble
+            blocks: List of data blocks
+            value_behavior: The value behavior (wrapping, bounded, or unbounded)
         """
         if not preamble.startswith("#weft!"):
             raise ValueError("Invalid preamble: must start with #weft!")
@@ -79,7 +80,7 @@ class WeftFile:
             preamble = preamble.rstrip("\n") + "\n\n"
 
         self.preamble = preamble
-        self.blocks = list(blocks)  # Convert to list for internal storage
+        self.blocks = list(blocks)
         self.value_behavior = value_behavior
 
     def get_info(self) -> dict[str, Union[str, list[BlockType], int]]:
@@ -245,7 +246,8 @@ class WeftFile:
         return weighted_sum / total_weight
 
     def apply_value_behavior(self, value: float) -> float:
-        """Apply value behavior rules to a value.
+        """
+        Apply value behavior to a value.
 
         Args:
             value: The value to process
@@ -255,7 +257,7 @@ class WeftFile:
         """
         behavior_type = self.value_behavior["type"]
         if behavior_type == "wrapping":
-            min_val, max_val = self.value_behavior["range"]
+            min_val, max_val = cast(RangedBehavior, self.value_behavior)["range"]
             range_size = max_val - min_val
             while value < min_val:
                 value += range_size
@@ -263,7 +265,7 @@ class WeftFile:
                 value -= range_size
             return value
         elif behavior_type == "bounded":
-            min_val, max_val = self.value_behavior["range"]
+            min_val, max_val = cast(RangedBehavior, self.value_behavior)["range"]
             return max(min_val, min(max_val, value))
         else:  # unbounded
             return value
@@ -285,49 +287,61 @@ class WeftFile:
         file2: "WeftFile",
         timespan: str,
     ) -> "WeftFile":
-        """Combine two .weft files into a single file.
+        """
+        Combine two .weft files into a single file.
 
         Args:
-            file1: First .weft file
-            file2: Second .weft file
-            timespan: Descriptive timespan string (e.g. '2024s' or '2024-2025')
+            file1: The first .weft file
+            file2: The second .weft file
+            timespan: Descriptive timespan for the combined file
 
         Returns:
-            A new WeftFile containing the combined data
+            A new WeftFile containing blocks from both files
 
         Raises:
-            ValueError: If the files have incompatible preambles
+            ValueError: If the files have incompatible preambles or block types
         """
-        # Compare preambles (ignoring timespan and generation timestamp)
-        preamble1 = file1.preamble.strip()
-        preamble2 = file2.preamble.strip()
+        # Check that the preambles match (except for timespan and generated@)
+        parts1 = file1.preamble.strip().split(" ")
+        parts2 = file2.preamble.strip().split(" ")
 
-        # Split preambles into components
-        parts1 = preamble1.split()
-        parts2 = preamble2.split()
+        # Compare all parts except timespan and generation timestamp
+        if parts1[:3] != parts2[:3] or parts1[4:7] != parts2[4:7]:
+            # Provide more specific error message
+            if parts1[2] != parts2[2]:
+                raise ValueError(
+                    f"Files are for different planets: {parts1[2]} vs {parts2[2]}"
+                )
+            elif parts1[3] != parts2[3]:
+                raise ValueError(
+                    f"Files use different data sources: {parts1[3]} vs {parts2[3]}"
+                )
+            elif parts1[4] != parts2[4]:
+                raise ValueError(
+                    f"Files have different precision: {parts1[4]} vs {parts2[4]}"
+                )
+            elif parts1[5] != parts2[5]:
+                raise ValueError(
+                    f"Files contain different quantities: {parts1[5]} vs {parts2[5]}"
+                )
+            elif parts1[6] != parts2[6]:
+                raise ValueError(
+                    f"Files have different value behaviors: {parts1[6]} vs {parts2[6]}"
+                )
+            else:
+                raise ValueError(
+                    "Files have incompatible preambles and cannot be combined"
+                )
 
-        # Compare relevant parts (version, planet, source, precision, quantity, behavior)
-        if parts1[0:2] != parts2[0:2]:  # version
-            raise ValueError("Files have different versions")
-        if parts1[2] != parts2[2]:  # planet
-            raise ValueError("Files are for different planets")
-        if parts1[3] != parts2[3]:  # source
-            raise ValueError("Files use different data sources")
-        if parts1[4] != parts2[4]:  # precision
-            raise ValueError("Files have different precision")
-        if parts1[5] != parts2[5]:  # quantity
-            raise ValueError("Files contain different quantities")
-        if parts1[6] != parts2[6]:  # behavior
-            raise ValueError("Files have different value behaviors")
+        # Separate forty-eight hour blocks and their headers
+        headers: List[FortyEightHourSectionHeader] = []
+        header_to_block: Dict[FortyEightHourSectionHeader, FortyEightHourBlock] = {}
+        non_48h_blocks: List[Union[MultiYearBlock, MonthlyBlock]] = []
 
-        # Merge blocks
-        all_blocks = file1.blocks + file2.blocks
-
-        # Sort blocks in the same order as WeftWriter:
-        # 1. Multi-year blocks (decades first, then years)
-        # 2. Monthly blocks
-        # 3. Forty-eight hour section headers
-        def get_block_sort_key(block: BlockType) -> Tuple[int, int, datetime]:
+        # Define block sorting function
+        def get_block_sort_key(
+            block: Union[MultiYearBlock, MonthlyBlock],
+        ) -> Tuple[int, int, datetime]:
             if isinstance(block, MultiYearBlock):
                 # Use negative duration to sort longer periods first
                 return (
@@ -335,38 +349,29 @@ class WeftFile:
                     -block.duration,
                     datetime(block.start_year, 1, 1, tzinfo=timezone.utc),
                 )
-            elif isinstance(block, MonthlyBlock):
+            else:  # Must be MonthlyBlock based on the type hint
                 return (1, 0, datetime(block.year, block.month, 1, tzinfo=timezone.utc))
-            elif isinstance(block, FortyEightHourSectionHeader):
-                return (
-                    2,
-                    0,
-                    datetime.combine(block.start_day, time(0), tzinfo=timezone.utc),
-                )
-            else:
-                return (3, 0, datetime.min.replace(tzinfo=timezone.utc))
 
-        # Separate 48-hour blocks from their headers
-        header_to_block = {}
-        non_48h_blocks = []
-        headers = []
-        for block in all_blocks:
-            if isinstance(block, FortyEightHourBlock):
-                header_to_block[block.header] = block
-            elif isinstance(block, FortyEightHourSectionHeader):
+        for block in file1.blocks + file2.blocks:
+            if isinstance(block, FortyEightHourSectionHeader):
                 headers.append(block)
-            else:
+            elif isinstance(block, FortyEightHourBlock):
+                header = block.header
+                if header not in header_to_block:
+                    header_to_block[header] = block
+            elif isinstance(block, (MultiYearBlock, MonthlyBlock)):
                 non_48h_blocks.append(block)
 
-        # Sort non-48h blocks and headers
-        non_48h_blocks.sort(key=get_block_sort_key)
-        headers.sort(
-            key=lambda h: datetime.combine(h.start_day, time(0), tzinfo=timezone.utc)
-        )
+        # Sort headers by date
+        headers.sort(key=lambda h: h.start_day)
 
-        # Build final list by adding blocks with headers inserted in order
-        final_blocks = []
-        # First add non-48h blocks (multi-year, monthly)
+        # Sort non-48h blocks by date
+        non_48h_blocks.sort(key=get_block_sort_key)
+
+        # Create the final block list
+        final_blocks: List[BlockType] = []
+
+        # First add all non-48h blocks
         for block in non_48h_blocks:
             final_blocks.append(block)
 
@@ -374,11 +379,12 @@ class WeftFile:
         for header in headers:
             if header not in header_to_block:
                 raise ValueError(f"No 48-hour block found for header {header}")
+            # Add both header and its corresponding block
             final_blocks.append(header)
             final_blocks.append(header_to_block[header])
 
         # Create new preamble
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         new_preamble = (
             f"#weft! v0.02 {parts1[2]} {parts1[3]} {timespan} "
             f"{parts1[4]} {parts1[5]} {parts1[6]} chebychevs "
