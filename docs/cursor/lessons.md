@@ -17,6 +17,23 @@
    - Run the type checker: `python -m mypy src/`
    - Run tests: `python -m pytest tests/`
 
+## WeftEphemeris Implementation
+
+1. When implementing a new data source class following an interface pattern:
+   - Study the existing implementations to understand the interface contract
+   - Implement all required methods with the same parameter signatures
+   - Handle error cases gracefully, providing useful error messages
+
+2. When working with archives (.tar.gz):
+   - The `tarfile` module allows reading files directly without extracting to disk
+   - Use `extractfile()` to get a file-like object for reading binary data
+   - The WeftReader currently requires reading from a file, which required a temporary solution
+
+3. Potential improvements for the WeftEphemeris class:
+   - Find a way to initialize WeftReader directly from bytes without temporary files
+   - Handle naming conventions more flexibly rather than assuming exact filenames
+   - Normalize angle values (longitude) to ensure consistent ranges
+
 # Lessons Learned
 
 ## Project Structure

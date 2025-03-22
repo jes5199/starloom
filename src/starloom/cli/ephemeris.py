@@ -10,17 +10,19 @@ from ..ephemeris.quantities import Quantity
 from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance
 from ..local_horizons.ephemeris import LocalHorizonsEphemeris
 from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
+from ..weft_horizons.ephemeris import WeftEphemeris
 from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import julian_to_datetime
 
 
 # Define available ephemeris sources
 EPHEMERIS_SOURCES: Dict[
-    str, Type[Union[HorizonsEphemeris, LocalHorizonsEphemeris, CachedHorizonsEphemeris]]
+    str, Type[Union[HorizonsEphemeris, LocalHorizonsEphemeris, CachedHorizonsEphemeris, WeftEphemeris]]
 ] = {
     "horizons": HorizonsEphemeris,
     "sqlite": LocalHorizonsEphemeris,
     "cached_horizons": CachedHorizonsEphemeris,
+    "weft": WeftEphemeris,
 }
 
 # Default ephemeris source
@@ -90,7 +92,7 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
 @click.option(
     "--data-dir",
     default="./data",
-    help="Directory for local data (used with sqlite and cached_horizons sources).",
+    help="Directory for local data (used with sqlite and cached_horizons sources), or direct path to weftball file (for weft source).",
 )
 def ephemeris(
     planet: str,
@@ -116,6 +118,9 @@ def ephemeris(
 
     Using a specific data source:
        starloom ephemeris venus --source sqlite --data-dir ./data
+       
+    Using a weftball file:
+       starloom ephemeris mercury --source weft --data-dir mercury_weftball.tar.gz
     """
     # Convert planet name to enum
     try:
@@ -159,7 +164,7 @@ def ephemeris(
         raise click.BadParameter(f"Invalid source: {source}")
 
     # Create instance based on class type
-    if source in ("sqlite", "cached_horizons"):
+    if source in ("sqlite", "cached_horizons", "weft"):
         ephemeris_instance = ephemeris_class(data_dir=data_dir)  # type: ignore
     else:
         ephemeris_instance = ephemeris_class()
