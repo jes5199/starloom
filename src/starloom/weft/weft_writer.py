@@ -169,6 +169,38 @@ class WeftWriter:
 
         return x_values, values
 
+    def _generate_chebyshev_coefficients(
+        self,
+        data_source: EphemerisDataSource,
+        start_dt: datetime,
+        end_dt: datetime,
+        sample_count: int,
+        degree: int,
+        quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
+    ) -> List[float]:
+        """
+        Generate Chebyshev coefficients for a given time range.
+        
+        Args:
+            data_source: The data source to get values from
+            start_dt: Start datetime
+            end_dt: End datetime
+            sample_count: Number of sample points to generate
+            degree: Degree of Chebyshev polynomial to fit
+            quantity: Optional quantity override
+            
+        Returns:
+            List of Chebyshev coefficients
+        """
+        # Generate samples
+        x_values, values = self._generate_samples(
+            data_source, start_dt, end_dt, sample_count, quantity
+        )
+        
+        # Fit Chebyshev coefficients
+        coeffs = chebyshev.chebfit(x_values, values, deg=degree)
+        return cast(List[float], coeffs.tolist())
+
     def create_multi_year_block(
         self,
         data_source: EphemerisDataSource,
@@ -228,14 +260,10 @@ class WeftWriter:
         # Adjust sample count based on actual duration
         sample_count = max(degree + 1, int(samples_per_year * actual_duration))
 
-        # Generate samples
-        x_values, values = self._generate_samples(
-            data_source, start_dt, end_dt, sample_count, quantity
+        # Generate samples and fit coefficients
+        coeffs_list = self._generate_chebyshev_coefficients(
+            data_source, start_dt, end_dt, sample_count, degree, quantity
         )
-
-        # Fit Chebyshev coefficients
-        coeffs = chebyshev.chebfit(x_values, values, deg=degree)
-        coeffs_list = cast(List[float], coeffs.tolist())
 
         return MultiYearBlock(
             start_year=start_year, duration=duration, coeffs=coeffs_list
@@ -281,17 +309,10 @@ class WeftWriter:
                 start_date.year,
                 start_date.month,
             ):
-                x_values, values = self._generate_samples(
-                    data_source,
-                    start_date,
-                    end_date,
-                    samples_per_day * day_count,
-                    quantity,
+                # Generate samples and fit coefficients
+                coeffs_list = self._generate_chebyshev_coefficients(
+                    data_source, start_date, end_date, samples_per_day * day_count, degree, quantity
                 )
-
-                # Fit Chebyshev coefficients
-                coeffs = chebyshev.chebfit(x_values, values, deg=degree)
-                coeffs_list = cast(List[float], coeffs.tolist())
 
                 blocks.append(
                     MonthlyBlock(
@@ -333,18 +354,10 @@ class WeftWriter:
                 current_date.year,
                 current_date.month,
             ):
-                # Generate samples for this partial month
-                x_values, values = self._generate_samples(
-                    data_source,
-                    current_date,
-                    month_end,
-                    samples_per_day * day_count,
-                    quantity,
+                # Generate samples and fit coefficients
+                coeffs_list = self._generate_chebyshev_coefficients(
+                    data_source, current_date, month_end, samples_per_day * day_count, degree, quantity
                 )
-
-                # Fit Chebyshev coefficients
-                coeffs = chebyshev.chebfit(x_values, values, deg=degree)
-                coeffs_list = cast(List[float], coeffs.tolist())
 
                 blocks.append(
                     MonthlyBlock(
@@ -396,18 +409,10 @@ class WeftWriter:
                     current_date.year,
                     current_date.month,
                 ):
-                    # Generate samples for this partial month
-                    x_values, values = self._generate_samples(
-                        data_source,
-                        current_date,
-                        end_date,
-                        samples_per_day * day_count,
-                        quantity,
+                    # Generate samples and fit coefficients
+                    coeffs_list = self._generate_chebyshev_coefficients(
+                        data_source, current_date, end_date, samples_per_day * day_count, degree, quantity
                     )
-
-                    # Fit Chebyshev coefficients
-                    coeffs = chebyshev.chebfit(x_values, values, deg=degree)
-                    coeffs_list = cast(List[float], coeffs.tolist())
 
                     blocks.append(
                         MonthlyBlock(
@@ -433,18 +438,10 @@ class WeftWriter:
                 current_date.year,
                 current_date.month,
             ):
-                # Generate samples for this month
-                x_values, values = self._generate_samples(
-                    data_source,
-                    current_date,
-                    next_month - timedelta(microseconds=1),
-                    samples_per_day * day_count,
-                    quantity,
+                # Generate samples and fit coefficients
+                coeffs_list = self._generate_chebyshev_coefficients(
+                    data_source, current_date, next_month - timedelta(microseconds=1), samples_per_day * day_count, degree, quantity
                 )
-
-                # Fit Chebyshev coefficients
-                coeffs = chebyshev.chebfit(x_values, values, deg=degree)
-                coeffs_list = cast(List[float], coeffs.tolist())
 
                 blocks.append(
                     MonthlyBlock(
@@ -556,18 +553,10 @@ class WeftWriter:
             if block_end > end_date:
                 block_end = end_date
 
-            # Generate samples for this 48-hour period
-            x_values, values = self._generate_samples(
-                data_source,
-                block_start,
-                block_end,
-                samples_per_day,
-                quantity,
+            # Generate samples and fit coefficients
+            coeffs_list = self._generate_chebyshev_coefficients(
+                data_source, block_start, block_end, samples_per_day, degree, quantity
             )
-
-            # Fit Chebyshev coefficients
-            coeffs = chebyshev.chebfit(x_values, values, deg=degree)
-            coeffs_list = cast(List[float], coeffs.tolist())
 
             # Pad coefficients to fixed size if needed
             if block_size is not None:
@@ -578,7 +567,7 @@ class WeftWriter:
 
             blocks.append(
                 FortyEightHourBlock(
-                    header=header,  # Use this block's header
+                    header=header,
                     coeffs=coeffs_list,
                 )
             )

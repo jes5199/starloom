@@ -1,6 +1,8 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+import math
+from typing import List, Dict, Any
 
 # Import from starloom package
 from src.starloom.weft.weft_writer import WeftWriter
@@ -93,6 +95,102 @@ class TestWeftWriter(unittest.TestCase):
         end_date = datetime(2000, 1, 1, 23, 59, tzinfo=ZoneInfo("UTC"))
         timespan = self.writer._descriptive_timespan(start_date, end_date)
         self.assertEqual(timespan, "2000")
+
+
+class MockDataSource:
+    """A mock data source that returns values from a known function."""
+    
+    def __init__(self, func):
+        """Initialize with a function that takes a datetime and returns a value."""
+        self.func = func
+        self.timestamps = []  # Will be populated in get_value_at
+        
+    def get_value_at(self, dt: datetime) -> float:
+        """Get the value at the given datetime using our known function."""
+        self.timestamps.append(dt)
+        return self.func(dt)
+
+def test_chebyshev_coefficient_generation():
+    """Test that Chebyshev coefficients correctly approximate a known function."""
+    # Create a known function: sin(x) + cos(2x)
+    def known_function(dt: datetime) -> float:
+        # Convert datetime to x in [-1, 1] range
+        total_seconds = 24 * 3600  # One day
+        elapsed_seconds = (dt - dt.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
+        x = 2 * (elapsed_seconds / total_seconds) - 1
+        return math.sin(x) + math.cos(2 * x)
+    
+    # Create mock data source
+    data_source = MockDataSource(known_function)
+    
+    # Create WeftWriter
+    writer = WeftWriter(EphemerisQuantity.ECLIPTIC_LONGITUDE)
+    
+    # Generate coefficients for one day
+    start_dt = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    end_dt = datetime(2025, 1, 2, tzinfo=timezone.utc)
+    
+    # Generate coefficients with higher degree
+    coeffs = writer._generate_chebyshev_coefficients(
+        data_source=data_source,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        sample_count=48,  # Two samples per hour for better accuracy
+        degree=15,  # Use 15th degree polynomial for better approximation
+    )
+    
+    print("\nChebyshev coefficients:")
+    for i, coeff in enumerate(coeffs):
+        print(f"T_{i}(x) * {coeff}")
+    
+    # Evaluate the Chebyshev series at several points
+    def evaluate_chebyshev(x: float, coeffs: List[float]) -> float:
+        result = 0.0
+        for n, coeff in enumerate(coeffs):
+            term = coeff * math.cos(n * math.acos(x))
+            result += term
+        return result
+    
+    # Test points throughout the day
+    test_points = [
+        (0, "start of day"),
+        (3, "3 hours in"),
+        (6, "6 hours in"),
+        (9, "9 hours in"),
+        (12, "middle of day"),
+        (15, "15 hours in"),
+        (18, "18 hours in"),
+        (21, "21 hours in"),
+        (24, "end of day")
+    ]
+    
+    print("\nTest results:")
+    max_error = 0.0
+    for hours, description in test_points:
+        # Convert hours to x in [-1, 1] range
+        x = 2 * (hours / 24) - 1
+        
+        # Get expected value from known function
+        dt = start_dt.replace(hour=hours)
+        expected = known_function(dt)
+        
+        # Get value from Chebyshev series
+        actual = evaluate_chebyshev(x, coeffs)
+        
+        # Calculate error
+        error = abs(expected - actual)
+        max_error = max(max_error, error)
+        
+        print(f"\n{description}:")
+        print(f"  x value: {x}")
+        print(f"  Expected: {expected}")
+        print(f"  Actual:   {actual}")
+        print(f"  Error:    {error}")
+        
+        # Check that they match within reasonable tolerance
+        assert error < 0.01, f"At {description}, expected {expected} but got {actual}"
+    
+    print(f"\nMaximum error: {max_error}")
 
 
 if __name__ == "__main__":
