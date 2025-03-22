@@ -935,3 +935,76 @@ The problem was that the algorithm wasn't flexible enough to recognize approxima
 
 ### Lesson Learned
 When dealing with date range formatting, consider edge cases at boundaries like decade transitions and year transitions. A combination of specific case handling and general algorithms may be necessary for robust behavior. Always use unit tests to verify edge cases work as expected, especially with date ranges that could be interpreted in multiple ways (e.g., 1999-2001 could be either a multi-year range or a single year with buffer days).
+
+## CLI Argument Handling
+
+### Issue with configure_logging() and Dictionary Conversion
+The `make_weftball.py` script failed with an `AttributeError: 'dict' object has no attribute 'quiet'` when trying to configure logging because it was improperly calling `configure_logging(vars(args))`. 
+
+The `configure_logging` function in `src/starloom/cli/common.py` expects a dictionary with specific keys ('quiet', 'debug', 'verbose'), but the dictionary created by `vars(args)` didn't guarantee these keys would exist.
+
+### Initial Solution Attempt
+Explicitly provide the expected dictionary keys with defaults when calling `configure_logging`:
+
+```python
+configure_logging({
+    'quiet': args.quiet if hasattr(args, 'quiet') else False,
+    'debug': args.debug if hasattr(args, 'debug') else False,
+    'verbose': args.verbose if hasattr(args, 'verbose') else 0
+})
+```
+
+### Complete Solution
+Upon testing, the issue was more fundamental - the `configure_logging` function itself was not designed to handle dictionary input at all. It needed modification to accept both argparse.Namespace objects and dictionaries:
+
+```python
+def configure_logging(args: Dict[str, Any]) -> None:
+    # Check if args is a dictionary or an object
+    if isinstance(args, dict):
+        quiet = args.get('quiet', False)
+        debug = args.get('debug', False)
+        verbosity = args.get('verbose', 0)
+    else:
+        # Handle as argparse.Namespace for backward compatibility
+        quiet = args.quiet if hasattr(args, 'quiet') else False
+        debug = args.debug if hasattr(args, 'debug') else False
+        verbosity = args.verbose if hasattr(args, 'verbose') else 0
+        
+    # Rest of the function remains the same
+    # ...
+```
+
+### Lesson Learned
+When designing utility functions that handle command-line arguments:
+1. Be explicit about what type of input the function expects (argparse.Namespace, dict, etc.)
+2. Consider adding type checking and flexible input handling for greater robustness
+3. Document clearly what format the function expects and provide examples
+4. Use defensive programming techniques like dict.get() with defaults or hasattr() checks
+5. When modifying shared utility functions, ensure backward compatibility with existing callers
+
+## Function Implementation vs. Usage Pattern
+
+### Issue with get_decade_range Function Not Matching Its Use
+In the `make_weftball.py` script, the `get_decade_range` function was defined to return a single string (e.g., "1900s") based on a date. However, the code was trying to use it as if it returned an iterable of date pairs:
+
+```python
+for decade_start, decade_end in get_decade_range("1700-01-01 00:00"):
+    # ...
+```
+
+This resulted in a `ValueError: not enough values to unpack (expected 2, got 1)` error because the function was returning a single string value, not a sequence of tuples.
+
+### Solution
+Align the implementation and usage by using the predefined `DECADES` constant for iteration, and using the `get_decade_range` function only to format date strings:
+
+```python
+for decade_start, decade_end in DECADES:
+    decade_range = get_decade_range(decade_start)
+    # Use decade_range in formatting
+```
+
+### Lesson Learned
+1. Ensure function implementations match their usage patterns throughout the codebase
+2. Pay careful attention to return value types, especially when refactoring code
+3. When a function's name suggests it returns multiple values (e.g., "range"), but actually returns a single value, consider renaming it for clarity (e.g., "format_decade")
+4. Always trace through the code execution path to ensure consistent expectations between callers and implementations

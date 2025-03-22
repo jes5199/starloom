@@ -243,7 +243,11 @@ def main():
     args = parser.parse_args()
 
     # Configure logging based on command line arguments
-    configure_logging(vars(args))
+    configure_logging({
+        'quiet': args.quiet if hasattr(args, 'quiet') else False,
+        'debug': args.debug if hasattr(args, 'debug') else False,
+        'verbose': args.verbose if hasattr(args, 'verbose') else 0
+    })
 
     # Main script logic
     planet = args.planet.lower()

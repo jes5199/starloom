@@ -421,6 +421,35 @@ Optimize database queries in `LocalHorizonsStorage` to ensure efficient lookups,
 - If no timespan is provided, the automatic format is used (decade or year range)
 - This provides flexibility for users to create more descriptive or standardized timespans
 
+# Current Task: Fix make_weftball.py script error
+
+## Issue Identified
+The script is failing with an AttributeError when trying to configure logging:
+```
+AttributeError: 'dict' object has no attribute 'quiet'
+```
+
+## Problem Analysis
+1. The `configure_logging` function in `src/starloom/cli/common.py` expects a dictionary with 'quiet', 'debug', and 'verbose' keys
+2. The script is calling `configure_logging(vars(args))` but the converted dictionary doesn't contain all the expected keys
+3. This results in an AttributeError when trying to access `args.quiet`
+
+## Fix Implemented
+1. Updated the `configure_logging` call to explicitly provide the expected dictionary keys
+2. Added hasattr checks to handle cases where args might not have the attributes
+3. Provided default values to ensure the function works correctly:
+   - 'quiet': False (default)
+   - 'debug': False (default)
+   - 'verbose': 0 (default)
+
+## Testing Plan
+Run the script with the updated code:
+```
+python -m scripts.make_weftball mercury
+```
+
+This should allow the script to proceed without the AttributeError.
+
 # Weftball Generation Script Task - 2025-03-22
 
 ## Task Overview
@@ -569,3 +598,100 @@ To verify the changes:
 2. Unit testing is essential for date/time formatting logic, especially for edge cases
 3. Sometimes specific case handling is necessary in addition to general algorithmic solutions
 4. When handling date ranges that span multiple years but really represent a single year (with buffer days), special logic is needed to produce intuitive results
+
+## Additional Fix Required
+After initial testing, discovered that the problem wasn't just in the `make_weftball.py` script, but also in the `configure_logging` function itself:
+
+1. The function was written to expect an argparse.Namespace object, not a dictionary
+2. It was trying to access attributes (args.quiet) instead of dictionary keys (args['quiet'])
+3. Made the function more robust by:
+   - Adding type checking with `isinstance(args, dict)`
+   - Using dict.get() with defaults for dictionary access
+   - Keeping backward compatibility for argparse.Namespace objects
+   - Updated the docstring to clarify it can accept either type
+
+Final implementation:
+```python
+def configure_logging(args: Dict[str, Any]) -> None:
+    """
+    Configure logging based on command line arguments.
+
+    Args:
+        args: Parsed command line arguments (as a dictionary or argparse.Namespace)
+    """
+    # Determine log level based on verbosity flags
+    if isinstance(args, dict):
+        quiet = args.get('quiet', False)
+        debug = args.get('debug', False)
+        verbosity = args.get('verbose', 0)
+    else:
+        # Handle as argparse.Namespace for backward compatibility
+        quiet = args.quiet if hasattr(args, 'quiet') else False
+        debug = args.debug if hasattr(args, 'debug') else False
+        verbosity = args.verbose if hasattr(args, 'verbose') else 0
+
+    # ... rest of the function ...
+```
+
+This approach is more robust because it handles both dictionary and object access patterns correctly.
+
+## Testing Plan
+Run the script again with the updated code to verify both fixes work together:
+```
+python -m scripts.make_weftball mercury
+```
+
+## Additional Fix for get_decade_range Function
+
+After the first fix, testing revealed another issue:
+
+```
+ValueError: not enough values to unpack (expected 2, got 1)
+```
+
+This error occurred in the `generate_weft_files` function when it tried to iterate over the result of `get_decade_range("1700-01-01 00:00")` as if it returned a sequence of tuples, but the function actually returns a string.
+
+### Analysis:
+1. The function `get_decade_range` returns a string like "1900s" from a date
+2. But the code was trying to use it like `for decade_start, decade_end in get_decade_range(...)`
+3. This suggests a mismatch between the function implementation and its usage
+
+### Fix:
+1. Changed the code to use the predefined `DECADES` constant which contains the tuple pairs
+2. Called `get_decade_range` separately to get the decade string for the filename
+3. Updated the filename format to use the decade string instead of just the year
+
+```python
+# Before:
+for decade_start, decade_end in get_decade_range("1700-01-01 00:00"):
+    decade_file = os.path.join(
+        temp_dir, f"{planet}_{file_name}_{decade_start[:4]}.weft"
+    )
+
+# After:
+for decade_start, decade_end in DECADES:
+    decade_range = get_decade_range(decade_start)
+    decade_file = os.path.join(
+        temp_dir, f"{planet}_{file_name}_{decade_range}.weft"
+    )
+```
+
+## Final Testing
+Run the script again to verify all fixes work:
+```
+python -m scripts.make_weftball mercury --debug
+```
+
+## New Issue Discovered
+Testing with the fixes for the original AttributeError reveals a new issue:
+
+```
+No module named src.starloom.cli.generate_weft
+```
+
+This suggests that the script is trying to use a module (`src.starloom.cli.generate_weft`) that doesn't exist in the codebase.
+
+### Next Steps
+1. Check what CLI modules actually exist in the src/starloom/cli directory
+2. Determine the correct module name for generating weft files
+3. Update the script to use the correct module
