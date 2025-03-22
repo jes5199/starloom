@@ -310,14 +310,15 @@ class WeftFile:
         # #weft! v0.02 planet data_source timespan precision quantity behavior chebychevs generated@timestamp
         if len(parts1) < 8 or len(parts2) < 8:
             raise ValueError("Invalid preamble format: too few parts")
-            
+
         # Compare essential fields: format version, planet, data source, precision, quantity, behavior
-        if (parts1[0:3] != parts2[0:3] or  # #weft!, version, planet
-            parts1[3] != parts2[3] or      # data_source
-            parts1[5] != parts2[5] or      # precision
-            parts1[6] != parts2[6] or      # quantity
-            parts1[7] != parts2[7]):       # behavior
-            
+        if (
+            parts1[0:3] != parts2[0:3]  # #weft!, version, planet
+            or parts1[3] != parts2[3]  # data_source
+            or parts1[5] != parts2[5]  # precision
+            or parts1[6] != parts2[6]  # quantity
+            or parts1[7] != parts2[7]
+        ):  # behavior
             # Provide more specific error message
             if parts1[2] != parts2[2]:
                 raise ValueError(

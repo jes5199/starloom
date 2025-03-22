@@ -722,7 +722,7 @@ class WeftWriter:
             The preamble string
         """
         now = datetime.utcnow()
-        
+
         # Create a simpler timespan format (e.g., "1900-1910" or "2000s")
         if start_date.year // 10 == end_date.year // 10:
             # Same decade, use decade format like "2000s"
