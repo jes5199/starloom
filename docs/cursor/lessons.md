@@ -912,3 +912,26 @@ When making significant changes to core algorithms or data structures:
    - Use the same verbosity flags across all commands (-v, --debug, --quiet)
    - The `configure_logging` function in `cli.common` provides standardized level setting 
    - Parser setup should be reusable across different commands and submodules
+
+## Date Span Formatting
+
+### Issue with _descriptive_timespan for Decade Spans and Single Year Cases
+When formatting date spans in the `WeftWriter._descriptive_timespan` method, there were issues with:
+1. Date ranges crossing decade boundaries like 1899-12-31 to 1910-01-02 not being correctly identified as "1900s"
+2. Date ranges that span 3 years but really represent a single year (e.g., 1999-12-31 to 2001-01-02) returning "1999-2001" instead of just "2000"
+
+The problem was that the algorithm wasn't flexible enough to recognize approximate spans, especially when the dates were close to but not exactly at year or decade boundaries.
+
+### Solution
+- Implemented special case handling for date ranges like 1899-1910 to map to "1900s"
+- Added special handling for single-year spans with buffer days:
+  - When a range spans from the end of one year to the beginning of another (e.g., 1999-12-31 to 2001-01-02)
+  - Identified the single middle year (2000) and returned it instead of the range "1999-2001"
+- Added more flexible detection of approximate decade spans:
+  - Check if a start date is within 1 year of a decade start and end date is within 1 year of the decade end
+  - Consider both the current and next decade as potential matches
+- Kept the buffer day adjustment for dates near month boundaries
+- Created comprehensive unit tests for various date span patterns, including edge cases
+
+### Lesson Learned
+When dealing with date range formatting, consider edge cases at boundaries like decade transitions and year transitions. A combination of specific case handling and general algorithms may be necessary for robust behavior. Always use unit tests to verify edge cases work as expected, especially with date ranges that could be interpreted in multiple ways (e.g., 1999-2001 could be either a multi-year range or a single year with buffer days).
