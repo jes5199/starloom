@@ -127,3 +127,47 @@ class TestTimeSpec(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             time_spec.get_time_points()
+
+    def test_to_julian_days(self):
+        """Test converting TimeSpec to a list of Julian days."""
+        # Test with datetime objects
+        start = datetime(2025, 3, 19, 20, 0, tzinfo=timezone.utc)
+        stop = datetime(2025, 3, 19, 22, 0, tzinfo=timezone.utc)
+        time_spec = TimeSpec.from_range(start, stop, "1h")
+        result = time_spec.to_julian_days()
+
+        self.assertEqual(len(result), 3)
+        self.assertIsInstance(result[0], float)
+
+        # The expected Julian dates for these times
+        # 2025-03-19 20:00:00 UTC is approximately JD 2460754.33333
+        # 2025-03-19 21:00:00 UTC is approximately JD 2460754.37500
+        # 2025-03-19 22:00:00 UTC is approximately JD 2460754.41667
+        self.assertAlmostEqual(result[0], 2460754.33333, delta=0.001)
+        self.assertAlmostEqual(result[1], 2460754.37500, delta=0.001)
+        self.assertAlmostEqual(result[2], 2460754.41667, delta=0.001)
+
+        # Test with Julian date inputs
+        start_jd = 2460754.0  # 2025-03-19 12:00:00 UTC
+        stop_jd = 2460756.0  # 2025-03-21 12:00:00 UTC
+        time_spec = TimeSpec.from_range(start_jd, stop_jd, "1d")
+        result = time_spec.to_julian_days()
+
+        self.assertEqual(len(result), 3)
+        self.assertIsInstance(result[0], float)
+        self.assertAlmostEqual(result[0], 2460754.0, delta=0.0001)
+        self.assertAlmostEqual(result[1], 2460755.0, delta=0.0001)
+        self.assertAlmostEqual(result[2], 2460756.0, delta=0.0001)
+
+        # Test with mixed input types - datetime for start, Julian date for stop
+        time_spec = TimeSpec(
+            start_time=datetime(2025, 3, 19, 12, 0, tzinfo=timezone.utc),
+            stop_time=2460755.0,  # 2025-03-20 12:00:00 UTC
+            step_size="12h",
+        )
+        result = time_spec.to_julian_days()
+
+        self.assertEqual(len(result), 3)
+        self.assertAlmostEqual(result[0], 2460754.0, delta=0.0001)  # 2025-03-19 12:00
+        self.assertAlmostEqual(result[1], 2460754.5, delta=0.0001)  # 2025-03-20 00:00
+        self.assertAlmostEqual(result[2], 2460755.0, delta=0.0001)  # 2025-03-20 12:00

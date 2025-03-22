@@ -156,29 +156,7 @@ class TimeSpec:
         if self.start_time is None or self.stop_time is None or self.step_size is None:
             raise ValueError("TimeSpec is not fully specified")
 
-        if isinstance(self.start_time, datetime) and isinstance(
-            self.stop_time, datetime
-        ):
-            return self._to_julian_days_datetime()
-        else:
-            return self._to_julian_days_julian()
-
-    def _to_julian_days_datetime(self) -> List[float]:
-        """
-        Convert the TimeSpec with datetime values to a list of Julian dates.
-
-        Returns:
-            A list of Julian dates.
-        """
-        from ..space_time.julian import julian_from_datetime
-
-        if self.start_time is None or self.stop_time is None or self.step_size is None:
-            raise ValueError("TimeSpec is not fully specified")
-
-        if not isinstance(self.start_time, datetime) or not isinstance(
-            self.stop_time, datetime
-        ):
-            raise ValueError("Both start_time and stop_time must be datetime objects")
+        from ..space_time.julian import julian_from_datetime, julian_to_datetime
 
         # Parse step size
         if not self.step_size or len(self.step_size) < 2:
@@ -195,6 +173,19 @@ class TimeSpec:
 
         unit = self.step_size[-1].lower()
 
+        # Convert both time points to datetime objects for consistent handling
+        start_dt = (
+            self.start_time
+            if isinstance(self.start_time, datetime)
+            else julian_to_datetime(float(self.start_time))
+        )
+
+        stop_dt = (
+            self.stop_time
+            if isinstance(self.stop_time, datetime)
+            else julian_to_datetime(float(self.stop_time))
+        )
+
         # Calculate step size in timedelta
         if unit == "d":
             delta = timedelta(days=value)
@@ -209,66 +200,9 @@ class TimeSpec:
 
         # Generate Julian dates
         julian_days: List[float] = []
-        current = self.start_time
-        while current <= self.stop_time:
+        current = start_dt
+        while current <= stop_dt:
             julian_days.append(julian_from_datetime(current))
             current += delta
-
-        return julian_days
-
-    def _to_julian_days_julian(self) -> List[float]:
-        """
-        Convert the TimeSpec with Julian date values to a list of Julian dates.
-
-        Returns:
-            A list of Julian dates.
-        """
-        if self.start_time is None or self.stop_time is None or self.step_size is None:
-            raise ValueError("TimeSpec is not fully specified")
-
-        if isinstance(self.start_time, datetime) or isinstance(
-            self.stop_time, datetime
-        ):
-            raise ValueError(
-                "Both start_time and stop_time must be Julian dates (float)"
-            )
-
-        # Convert both to float if they aren't already
-        start_jd = float(self.start_time)
-        stop_jd = float(self.stop_time)
-
-        # Parse step size to days
-        if not self.step_size or len(self.step_size) < 2:
-            raise ValueError("Invalid step size format. Must be like '1d', '1h', '30m'")
-
-        try:
-            value = float(self.step_size[:-1])
-            if value <= 0:
-                raise ValueError("Step size value must be positive")
-        except ValueError as e:
-            if "must be positive" in str(e):
-                raise
-            raise ValueError("Invalid step size format. Must be like '1d', '1h', '30m'")
-
-        unit = self.step_size[-1].lower()
-
-        # Calculate step size in days
-        if unit == "d":
-            step_days = value
-        elif unit == "h":
-            step_days = value / 24.0
-        elif unit == "m":
-            step_days = value / (24.0 * 60.0)
-        else:
-            raise ValueError(
-                "Step size must end with 'd' (days), 'h' (hours), or 'm' (minutes)"
-            )
-
-        # Generate Julian dates
-        julian_days: List[float] = []
-        current_jd = start_jd
-        while current_jd <= stop_jd:
-            julian_days.append(current_jd)
-            current_jd += step_days
 
         return julian_days
