@@ -1134,3 +1134,64 @@ cmd = [
    - During development before the CLI is fully established
    - When needing access to functionality not exposed in the CLI
    - In test scripts that need to bypass the CLI layer
+```
+
+# Development Lessons
+
+## Weft File Format
+
+### Block Types
+1. The weft format supports three types of blocks:
+   - MultiYearBlock: For long-term, low-precision data
+   - MonthlyBlock: For medium-term, medium-precision data
+   - FortyEightHourBlock: For short-term, high-precision data
+
+2. Block Priority:
+   - FortyEightHourBlock (highest)
+   - MonthlyBlock
+   - MultiYearBlock (lowest)
+
+### Value Behavior
+1. Three types of value behavior:
+   - Wrapping: For angles that wrap around (e.g., longitude [0, 360])
+   - Bounded: For values with min/max limits (e.g., latitude [-90, 90])
+   - Unbounded: For raw values with no limits
+
+2. Value behavior is specified in the file preamble
+
+### File Structure
+1. Preamble format:
+   ```
+   #weft! v0.02 <id> jpl:horizons <date-range> <precision> <value-type> <behavior> chebychevs generated@<timestamp>
+   ```
+
+2. Each block has a 2-byte marker:
+   - MultiYearBlock: b"\x00\x03"
+   - MonthlyBlock: b"\x00\x02"
+   - FortyEightHourBlock: b"\x00\x01"
+
+## Common Issues
+
+### Position Discrepancies
+1. When positions differ significantly:
+   - Check coordinate systems (ecliptic vs equatorial)
+   - Verify value behavior settings
+   - Check for sign errors in coefficients
+   - Verify block selection logic
+
+2. When using multi-year blocks:
+   - Expect lower precision
+   - Consider generating higher precision blocks
+   - Verify Chebyshev coefficient accuracy
+
+### Development Tips
+1. Always check the preamble for:
+   - Value behavior settings
+   - Date range
+   - Value type
+   - Generation timestamp
+
+2. Use logging to track:
+   - Block selection
+   - Value calculation
+   - Interpolation behavior
