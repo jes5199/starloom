@@ -71,7 +71,7 @@ def analyze_data_coverage(
         timestamps: List of available timestamps
 
     Returns:
-        Tuple of (points per day, coverage fraction)
+        Tuple of (coverage fraction, points per day)
     """
     logger.debug(f"analyze_data_coverage for period {start} to {end}")
     logger.debug(f"Total timestamps available: {len(timestamps)}")
@@ -119,7 +119,7 @@ def analyze_data_coverage(
         f"Coverage: {coverage:.4f} (based on span between first and last points)"
     )
 
-    return points_per_day, coverage
+    return coverage, points_per_day
 
 
 def should_include_multi_year_block(

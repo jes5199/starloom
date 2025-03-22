@@ -14,7 +14,6 @@ from src.starloom.weft.block_selection import (
     get_recommended_blocks,
     BlockCriteria,
 )
-from src.starloom.weft.blocks import MonthlyBlock
 
 
 class MockEphemerisDataSource:
