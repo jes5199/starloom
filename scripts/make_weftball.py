@@ -94,9 +94,10 @@ def generate_weft_files(planet, temp_dir):
         logger.info(f"Generating {quantity} data for {planet}")
 
         current_decade_files = []
-        for decade_start, decade_end in get_decade_range("1700-01-01 00:00"):
+        for decade_start, decade_end in DECADES:
+            decade_range = get_decade_range(decade_start)
             decade_file = os.path.join(
-                temp_dir, f"{planet}_{file_name}_{decade_start[:4]}.weft"
+                temp_dir, f"{planet}_{file_name}_{decade_range}.weft"
             )
 
             # Skip if file already exists
@@ -105,21 +106,19 @@ def generate_weft_files(planet, temp_dir):
                 current_decade_files.append(decade_file)
                 continue
 
-            # Build command
+            # Build command using starloom CLI
             cmd = [
-                "python",
-                "-m",
-                "src.starloom.cli.generate_weft",
-                "--planet",
+                "starloom",
+                "weft",
+                "generate",
                 planet,
-                "--output",
-                decade_file,
-                "--quantity",
                 quantity,
                 "--start",
                 f"{decade_start}",
-                "--end",
+                "--stop",
                 f"{decade_end}",
+                "--output",
+                decade_file,
             ]
 
             # Log the command at debug level
@@ -163,22 +162,58 @@ def combine_weft_files(planet, temp_dir, generated_files):
         # Create the combined file name
         combined_file = os.path.join(temp_dir, f"{planet}_{file_name}.weft")
 
-        # Build the command
+        # Take the first two files to start with
+        if len(decade_files) < 2:
+            if len(decade_files) == 1:
+                # Just copy the single file
+                shutil.copy(decade_files[0], combined_file)
+                combined_files[quantity] = combined_file
+            continue
+
+        # Build command using starloom CLI
         cmd = [
-            "python",
-            "-m",
-            "src.starloom.cli.combine_wefts",
-            "--output",
+            "starloom",
+            "weft",
+            "combine",
+            decade_files[0],
+            decade_files[1],
             combined_file,
-            *decade_files,
+            "--timespan",
+            "1900-2100",  # Use a wide timespan for combined file
         ]
 
         # Log the command at debug level
-        logger.debug(f"Running: {' '.join(cmd)}")
+        logger.debug(f"Running initial combine: {' '.join(cmd)}")
 
         # Run the command
         try:
             subprocess.run(cmd, check=True)
+
+            # Now combine any additional files
+            for additional_file in decade_files[2:]:
+                temp_combined = combined_file + ".temp"
+                
+                # Move the current combined file to a temp location
+                shutil.move(combined_file, temp_combined)
+                
+                # Build the command to combine with the next file
+                cmd = [
+                    "starloom",
+                    "weft",
+                    "combine",
+                    temp_combined,
+                    additional_file,
+                    combined_file,
+                    "--timespan",
+                    "1900-2100",  # Use a wide timespan for combined file
+                ]
+                
+                logger.debug(f"Running additional combine: {' '.join(cmd)}")
+                subprocess.run(cmd, check=True)
+                
+                # Remove the temporary file
+                os.remove(temp_combined)
+
             combined_files[quantity] = combined_file
         except subprocess.CalledProcessError as e:
             logger.error(f"Error combining files for {quantity}: {e}")

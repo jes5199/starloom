@@ -1008,3 +1008,69 @@ for decade_start, decade_end in DECADES:
 2. Pay careful attention to return value types, especially when refactoring code
 3. When a function's name suggests it returns multiple values (e.g., "range"), but actually returns a single value, consider renaming it for clarity (e.g., "format_decade")
 4. Always trace through the code execution path to ensure consistent expectations between callers and implementations
+
+## CLI Module Structure and Naming
+
+### Issue with CLI Module References in make_weftball.py
+In the `make_weftball.py` script, there were references to non-existent CLI modules:
+- `src.starloom.cli.generate_weft` (for generating weft files)
+- `src.starloom.cli.combine_wefts` (for combining weft files)
+
+After examining the codebase, it was discovered that these functions were actually implemented as subcommands of a single module `src.starloom.cli.weft` using the Click framework.
+
+### Solution
+Update all CLI command references to use the correct module and subcommand structure:
+
+```python
+# Before (incorrect)
+cmd = [
+    "python", "-m", "src.starloom.cli.generate_weft",
+    "--planet", planet,
+    # other arguments...
+]
+
+# After (correct)
+cmd = [
+    "python", "-m", "src.starloom.cli.weft",
+    "generate",  # Subcommand name
+    planet,      # Positional argument
+    # other arguments...
+]
+```
+
+Similarly for the combine command, using the correct subcommand syntax and parameter ordering:
+
+```python
+# Before (incorrect)
+cmd = [
+    "python", "-m", "src.starloom.cli.combine_wefts",
+    "--output", output_file,
+    *input_files,
+]
+
+# After (correct)
+cmd = [
+    "python", "-m", "src.starloom.cli.weft",
+    "combine",
+    file1, file2,  # The Click command requires exactly two input files
+    output_file,   # Output file is a positional argument, not an option
+    "--timespan", "some-timespan",  # Additional options
+]
+```
+
+### Lesson Learned
+1. When using CLI modules in scripts:
+   - Check the actual module structure by examining the source code
+   - Pay attention to how commands are structured (e.g., subcommands vs. separate modules)
+   - Note the order and nature of arguments (positional vs. options)
+   - Verify parameter names (e.g., `--stop` vs. `--end`)
+
+2. With Click-based CLIs specifically:
+   - Subcommands follow the main module name (e.g., `weft generate`)
+   - Positional arguments come before options (those with -- prefix)
+   - Some commands have specific requirements (e.g., combine takes exactly two input files)
+
+3. When writing automation scripts:
+   - Add robust error handling for subprocess calls
+   - Use debug logging to show the exact commands being executed
+   - Consider implementing special cases (e.g., combining more than two files iteratively)

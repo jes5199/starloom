@@ -695,3 +695,69 @@ This suggests that the script is trying to use a module (`src.starloom.cli.gener
 1. Check what CLI modules actually exist in the src/starloom/cli directory
 2. Determine the correct module name for generating weft files
 3. Update the script to use the correct module
+
+## Module Name Fix
+After checking the available CLI modules, I discovered:
+
+1. `src.starloom.cli.generate_weft` doesn't exist
+2. The correct module is `src.starloom.cli.weft` with several subcommands
+3. The `weft` module has a `generate` subcommand that generates weft files
+4. It also has a `combine` command to combine multiple weft files
+
+### Changes made:
+1. Updated the generate command:
+   ```python
+   # Before:
+   cmd = [
+       "python", "-m", "src.starloom.cli.generate_weft",
+       "--planet", planet,
+       "--output", decade_file,
+       "--quantity", quantity,
+       "--start", f"{decade_start}",
+       "--end", f"{decade_end}",
+   ]
+
+   # After:
+   cmd = [
+       "python", "-m", "src.starloom.cli.weft",
+       "generate",
+       planet,
+       quantity,
+       "--start", f"{decade_start}",
+       "--stop", f"{decade_end}",  # Note: --end changed to --stop
+       "--output", decade_file,
+   ]
+   ```
+
+2. Updated the combine command:
+   ```python
+   # Before:
+   cmd = [
+       "python", "-m", "src.starloom.cli.combine_wefts",
+       "--output", combined_file,
+       *decade_files,
+   ]
+
+   # After:
+   cmd = [
+       "python", "-m", "src.starloom.cli.weft",
+       "combine",
+       decade_files[0], decade_files[1],  # It only combines two files at a time
+       combined_file,
+       "--timespan", "1900-2100",
+   ]
+   ```
+
+3. Added special handling to combine more than two files:
+   - Add a check for fewer than 2 files (just copy if only one file)
+   - For more than 2 files, combine them iteratively:
+     - Start with the first two files
+     - For each additional file, create a temporary combined file
+     - Combine the temporary file with the next file
+     - Continue until all files are combined
+
+### Next Testing Steps
+Run the script again to see if the module error is fixed:
+```
+python -m scripts.make_weftball mercury --debug
+```
