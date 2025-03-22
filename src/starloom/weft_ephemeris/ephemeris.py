@@ -109,7 +109,7 @@ class WeftEphemeris(Ephemeris):
                 try:
                     longitude = reader.get_value_with_linear_interpolation(dt)
                     position_data[Quantity.ECLIPTIC_LONGITUDE] = longitude
-                except Exception as e:
+                except Exception:
                     position_data[Quantity.ECLIPTIC_LONGITUDE] = 0.0
             
             # Latitude
@@ -118,7 +118,7 @@ class WeftEphemeris(Ephemeris):
                 try:
                     latitude = reader.get_value_with_linear_interpolation(dt)
                     position_data[Quantity.ECLIPTIC_LATITUDE] = latitude
-                except Exception as e:
+                except Exception:
                     position_data[Quantity.ECLIPTIC_LATITUDE] = 0.0
             
             # Distance
@@ -127,7 +127,7 @@ class WeftEphemeris(Ephemeris):
                 try:
                     distance = reader.get_value_with_linear_interpolation(dt)
                     position_data[Quantity.DELTA] = distance
-                except Exception as e:
+                except Exception:
                     position_data[Quantity.DELTA] = 0.0
             
             # Add the data to the result

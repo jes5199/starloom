@@ -4,7 +4,6 @@ import os
 import pytest
 import shutil
 import tempfile
-import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
 
