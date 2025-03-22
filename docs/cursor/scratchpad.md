@@ -493,3 +493,37 @@ To verify the changes:
 2. Run with `-v` flag and verify INFO level messages appear
 3. Run with `--debug` flag and verify full DEBUG output appears
 4. Set the `STARLOOM_LOG_LEVEL=DEBUG` environment variable and verify it works
+
+# Current Task: Move CLI Utilities from Weft Module to CLI Module
+
+## Issues Identified
+1. The CLI utilities in `src/starloom/weft/cli.py` should be in the general CLI module instead
+2. These utilities provide common functionality that could be used by other CLI components
+
+## Implementation Plan
+[X] Create a new `common.py` file in the CLI module
+  - Copy the code from `src/starloom/weft/cli.py`
+  - Update docstrings to be more general (for all of starloom, not just weft)
+  - Keep the same function signatures for backward compatibility
+
+[X] Update the `set_log_level` function in `weft/logging.py`
+  - Make it handle all starloom loggers, not just weft loggers
+  - Update the root starloom logger
+  - Maintain backward compatibility by also updating weft loggers
+
+[X] Update imports in dependent files
+  - Find all files using imports from `starloom.weft.cli`
+  - Update them to use imports from `starloom.cli.common`
+  - Verify all imports are correctly updated
+
+[X] Delete the original `src/starloom/weft/cli.py` file
+  - Ensure all functionality has been moved to `cli/common.py`
+  - Ensure all dependent files have been updated
+
+[X] Update `cli/__init__.py` to include the common module
+  - Add `from . import common` to expose the module
+
+## Lessons Learned
+1. CLI utilities should be centralized in a common location for reuse
+2. When moving modules, it's important to update all dependent imports
+3. Maintaining backward compatibility in logging systems prevents issues

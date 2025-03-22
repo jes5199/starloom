@@ -25,7 +25,7 @@ import tarfile
 import argparse
 
 from src.starloom.weft.logging import get_logger
-from src.starloom.weft.cli import setup_arg_parser, configure_logging
+from src.starloom.cli.common import setup_arg_parser, configure_logging
 
 # Define the quantities we want to generate
 QUANTITIES = {

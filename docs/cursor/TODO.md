@@ -65,3 +65,26 @@
 - [ ] Add cache invalidation strategy
 - [ ] Implement prefetching for frequently accessed data
 - [ ] Add migration strategy for schema changes
+
+## CLI Improvements
+
+- [X] Move CLI utilities from weft module to cli module
+  - Create common.py in cli module
+  - Update set_log_level to handle all starloom loggers
+  - Update imports in dependent files
+  - Delete the original cli.py file from weft
+
+- [ ] Standardize CLI command patterns across modules
+  - Ensure all commands follow similar structure
+  - Use consistent parameter naming
+  - Improve help text quality
+
+- [ ] Add progress indicators for long-running operations
+  - Add spinner or progress bar for API requests
+  - Add progress tracking for file generation
+  - Show intermediate results for multi-step operations
+
+- [ ] Improve error handling in CLI
+  - Add better error messages for common errors
+  - Add suggestions for fixing common issues
+  - Add verbose logging options

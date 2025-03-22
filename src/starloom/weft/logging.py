@@ -68,15 +68,22 @@ def _get_log_level() -> int:
 
 def set_log_level(level: int) -> None:
     """
-    Set the logging level for all weft loggers.
+    Set the logging level for all starloom loggers.
     
     Args:
         level: The logging level to set (e.g., logging.DEBUG)
     """
-    # Update all loggers under the starloom.weft namespace
-    logger = logging.getLogger('starloom.weft')
+    # Update the root starloom logger
+    logger = logging.getLogger('starloom')
     logger.setLevel(level)
     
     # Update all child loggers
     for handler in logger.handlers:
+        handler.setLevel(level)
+    
+    # Also update the specific weft logger for backward compatibility
+    weft_logger = logging.getLogger('starloom.weft')
+    weft_logger.setLevel(level)
+    
+    for handler in weft_logger.handlers:
         handler.setLevel(level) 

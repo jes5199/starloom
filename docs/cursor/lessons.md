@@ -890,3 +890,25 @@ When making significant changes to core algorithms or data structures:
   - Updated: `scripts/make_weftball.py`
   - Created: `docs/weft/logging.md`
 - **Benefits**: Debug output is now controlled and silent by default, while still available when needed for troubleshooting. 
+
+## CLI Module Organization
+
+1. Common CLI utilities should be centralized in a shared module:
+   - The `starloom.cli.common` module is an appropriate place for shared CLI utilities
+   - Avoid duplicating CLI utilities in different submodules (like `weft.cli`)
+   - When a utility can be used by multiple CLI commands, move it to the common module
+
+2. When moving utilities between modules:
+   - Update all imports in dependent files to use the new location
+   - Maintain backward compatibility in any shared components like logging
+   - Keep method signatures consistent to minimize breakage
+
+3. For logging configuration:
+   - Use a hierarchical approach with a root logger (e.g., 'starloom')
+   - Configure child loggers consistently (e.g., 'starloom.weft', 'starloom.cli')
+   - When moving logger configuration, ensure all existing code still works
+
+4. CLI argument parsing should follow consistent patterns:
+   - Use the same verbosity flags across all commands (-v, --debug, --quiet)
+   - The `configure_logging` function in `cli.common` provides standardized level setting 
+   - Parser setup should be reusable across different commands and submodules
