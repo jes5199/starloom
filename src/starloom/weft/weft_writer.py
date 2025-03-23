@@ -188,18 +188,6 @@ class WeftWriter:
         Returns:
             A MultiYearBlock or None if coverage criteria not met
         """
-        # Use the data source's start date if it's in the start year or later
-        if data_source.start_date.year >= start_year:
-            start_dt = data_source.start_date
-        else:
-            start_dt = datetime(start_year, 1, 1, tzinfo=ZoneInfo("UTC"))
-
-        # Use the data source's end date if it's in the end year or earlier
-        end_year = start_year + duration
-        if data_source.end_date.year < end_year:
-            end_dt = data_source.end_date
-        else:
-            end_dt = datetime(end_year, 1, 1, tzinfo=ZoneInfo("UTC"))
 
         # Check if this block should be included based on coverage criteria
         if not should_include_multi_year_block(data_source, start_year, duration):
@@ -208,17 +196,9 @@ class WeftWriter:
             )
             return None
 
-        # Calculate actual duration in years (may be partial)
-        actual_duration = (end_dt.year - start_dt.year) + (
-            end_dt.month - start_dt.month
-        ) / 12
-        if actual_duration < 0.5:
-            # Use at least 6 months of duration to ensure a reasonable fit
-            actual_duration = 0.5
-
         # Generate samples and fit coefficients
         coeffs_list = self._generate_chebyshev_coefficients(
-            data_source, start_dt, end_dt, degree
+            data_source, start_year, start_year + duration, degree
         )
 
         return MultiYearBlock(
@@ -288,109 +268,51 @@ class WeftWriter:
         degree: int,
         block_size: Optional[int] = None,
     ) -> List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]]:
-        """
-        Create a section of forty-eight hour blocks with a single header.
-
-        Args:
-            data_source: The data source to get values from
-            start_date: Start date
-            end_date: End date (inclusive)
-            degree: Degree of Chebyshev polynomial to fit
-            block_size: Fixed size for each block (computed if None)
-
-        Returns:
-            List containing one FortyEightHourSectionHeader followed by FortyEightHourBlocks
-        """
-        # Ensure we're working with dates at day boundaries
-        start_date = datetime(
-            start_date.year, start_date.month, start_date.day, tzinfo=ZoneInfo("UTC")
-        )
-        end_date = datetime(
-            end_date.year, end_date.month, end_date.day, tzinfo=ZoneInfo("UTC")
-        )
-
-        logger.debug(f"Creating 48-hour blocks from {start_date} to {end_date}")
-        logger.debug(
-            f"Data source range: {data_source.start_date} to {data_source.end_date}"
-        )
-        logger.debug(f"Data source has {len(data_source.timestamps)} timestamps")
-
-        # If block_size not specified, compute it based on coefficient count
+        # Normalize to day boundaries
+        start_date = datetime(start_date.year, start_date.month, start_date.day, tzinfo=ZoneInfo("UTC"))
+        end_date = datetime(end_date.year, end_date.month, end_date.day, tzinfo=ZoneInfo("UTC"))
+        
+        # Compute block size if not specified
         if block_size is None:
-            # Header bytes: marker(2) + year(2) + month(1) + day(1) = 6 bytes
-            header_size = 6
-            # Each coefficient is a 4-byte float
-            coeff_size = (degree + 1) * 4
-            # Add padding for alignment (to 16 bytes)
+            header_size = 6  # marker (2) + year (2) + month (1) + day (1)
+            coeff_size = (degree + 1) * 4  # each coefficient is 4 bytes
             block_size = header_size + coeff_size
             if block_size % 16 != 0:
                 block_size += 16 - (block_size % 16)
-
-        blocks: List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]] = []
+        
+        blocks = []
         current_date = start_date
-        day_count = 0
-        included_count = 0
-
-        while (
-            current_date < end_date
-        ):  # Changed from <= to < to avoid going past end_date
-            day_count += 1
-            # Check if this day should be included based on coverage criteria
-            include_block = should_include_fourty_eight_hour_block(
-                current_date, data_source
-            )
-            logger.debug(
-                f"Day {current_date.date()}: should_include_daily_block = {include_block}"
-            )
-
-            if not include_block:
-                current_date += timedelta(days=1)
-                continue
-
-            included_count += 1
-
-            # Create a header for this block
-            block_date = date(current_date.year, current_date.month, current_date.day)
-            next_date = block_date + timedelta(days=1)
-            header = FortyEightHourSectionHeader(
-                start_day=block_date,
-                end_day=next_date,  # End day must be after start day
-            )
-            blocks.append(header)
-
-            # Generate samples for this 48-hour period centered at current_date
-            block_start = current_date - timedelta(days=1)  # Start 24h before midnight
-            block_end = current_date + timedelta(days=1)  # End 24h after midnight
-
-            # Adjust if we're at the boundaries of our data
-            if block_start < start_date:
-                block_start = start_date
-            if block_end > end_date:
-                block_end = end_date
-
-            # Generate samples and fit coefficients
-            coeffs_list = self._generate_chebyshev_coefficients(
-                data_source, block_start, block_end, degree
-            )
-
-            # Pad coefficients to fixed size if needed
-            if block_size is not None:
-                coeff_size = block_size - 6  # Subtract header size
-                coeff_count = coeff_size // 4  # Each coefficient is 4 bytes
-                while len(coeffs_list) < coeff_count:
-                    coeffs_list.append(0.0)
-
-            blocks.append(
-                FortyEightHourBlock(
-                    header=header,
-                    coeffs=coeffs_list,
+        while current_date < end_date:
+            # Only process dates that pass the coverage criteria
+            if should_include_fourty_eight_hour_block(current_date, data_source):
+                block_date = date(current_date.year, current_date.month, current_date.day)
+                next_date = block_date + timedelta(days=1)
+                header = FortyEightHourSectionHeader(
+                    start_day=block_date,
+                    end_day=next_date,
                 )
-            )
-
+                blocks.append(header)
+                
+                # Define the 48-hour window centered at current_date,
+                # adjusting for boundaries.
+                block_start = max(start_date, current_date - timedelta(days=1))
+                block_end = min(end_date, current_date + timedelta(days=1))
+                
+                coeffs_list = self._generate_chebyshev_coefficients(
+                    data_source, block_start, block_end, degree
+                )
+                
+                # Pad coefficients to fixed block size if needed
+                if block_size is not None:
+                    coeff_area = block_size - 6  # subtract header size
+                    coeff_count = coeff_area // 4
+                    if len(coeffs_list) < coeff_count:
+                        coeffs_list.extend([0.0] * (coeff_count - len(coeffs_list)))
+                
+                blocks.append(FortyEightHourBlock(header=header, coeffs=coeffs_list))
+            
             current_date += timedelta(days=1)
-
-        logger.debug(f"Checked {day_count} days, included {included_count} blocks")
-
+        
         return blocks
 
     def create_multi_precision_file(
