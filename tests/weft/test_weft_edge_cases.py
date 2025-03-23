@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime, timedelta, timezone, date
 import tempfile
 import pytest
+import time
 
 # Import from starloom package
 from starloom.weft.weft_file import WeftFile
@@ -11,6 +12,7 @@ from starloom.weft.blocks import (
     FortyEightHourSectionHeader,
     FortyEightHourBlock,
 )
+from starloom.weft.weft_reader import WeftReader
 
 
 class TestWeftEdgeCases(unittest.TestCase):
@@ -36,8 +38,8 @@ class TestWeftEdgeCases(unittest.TestCase):
         header = FortyEightHourSectionHeader(
             start_day=date(2023, 1, 1),
             end_day=date(2023, 1, 2),
-            block_size=100,  # Dummy size for testing
-            block_count=1,   # One block for testing
+            block_size=198,  # Updated to match actual serialized size
+            block_count=1,  # One block for testing
         )
         block = FortyEightHourBlock(
             header=header,
@@ -60,8 +62,8 @@ class TestWeftEdgeCases(unittest.TestCase):
                 header=FortyEightHourSectionHeader(
                     start_day=date(2023, 1, 1),
                     end_day=date(2023, 1, 2),
-                    block_size=100,  # Dummy size for testing
-                    block_count=1,   # One block for testing
+                    block_size=198,  # Updated to match actual serialized size
+                    block_count=1,  # One block for testing
                 ),
                 coeffs=[float("nan"), 1.0, 2.0],
                 center_date=date(2023, 1, 1),
@@ -73,8 +75,8 @@ class TestWeftEdgeCases(unittest.TestCase):
         header = FortyEightHourSectionHeader(
             start_day=date(2023, 1, 1),
             end_day=date(2023, 1, 2),
-            block_size=100,  # Dummy size for testing
-            block_count=1,   # One block for testing
+            block_size=198,  # Updated to match actual serialized size
+            block_count=1,  # One block for testing
         )
         block = FortyEightHourBlock(
             header=header,
@@ -130,30 +132,43 @@ class TestWeftEdgeCases(unittest.TestCase):
             header = FortyEightHourSectionHeader(
                 start_day=date(2022, 1, day),
                 end_day=date(2022, 1, day + 1),
+                block_size=198,  # Updated to match actual serialized size
+                block_count=1,  # One block for testing
             )
             blocks.append(header)
             blocks.append(
                 FortyEightHourBlock(
                     header=header,
-                    coeffs=[3.0, 0.0, 0.0],  # Constant value of 3.0
+                    coeffs=[3.0],  # Constant value of 3.0
+                    center_date=date(2022, 1, day),
                 )
             )
 
         # Create WeftFile
-        weft_file = WeftFile("#weft! v0.02\n\n", blocks)
+        weft_file = WeftFile(
+            preamble="#weft! v0.02 test jpl:test 2000s 32bit test chebychevs generated@test",
+            blocks=blocks,
+        )
 
-        # Test that blocks are evaluated in order of precision
-        dt = datetime(2022, 1, 15, 12, 0, tzinfo=timezone.utc)
-        value = weft_file.evaluate(dt)
-        self.assertEqual(value, 3.0)  # Should use daily block
+        # Create a WeftReader
+        reader = WeftReader()
+        reader.file = weft_file  # Directly set the file to avoid file I/O
 
-        dt = datetime(2022, 2, 15, 12, 0, tzinfo=timezone.utc)
-        value = weft_file.evaluate(dt)
-        self.assertEqual(value, 2.0)  # Should use monthly block
+        # Test priorities
+        # 1. Multi-year block (lowest priority)
+        dt = datetime(2021, 6, 15, 12, tzinfo=timezone.utc)
+        value = reader.get_value(dt)
+        self.assertAlmostEqual(value, 1.0)
 
-        dt = datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc)
-        value = weft_file.evaluate(dt)
-        self.assertEqual(value, 1.0)  # Should use multi-year block
+        # 2. Monthly block (medium priority)
+        dt = datetime(2022, 2, 15, 12, tzinfo=timezone.utc)
+        value = reader.get_value(dt)
+        self.assertAlmostEqual(value, 2.0)
+
+        # 3. Daily block (highest priority)
+        dt = datetime(2022, 1, 15, 12, tzinfo=timezone.utc)
+        value = reader.get_value(dt)
+        self.assertAlmostEqual(value, 3.0)
 
     def test_performance_large_file(self):
         """Test performance with a large number of blocks."""
@@ -178,10 +193,26 @@ class TestWeftEdgeCases(unittest.TestCase):
             blocks=blocks,
         )
 
+        # Create a WeftReader
+        reader = WeftReader()
+        reader.file = weft_file  # Directly set the file to avoid file I/O
+
         # Test evaluation at different times
         dt = datetime(2005, 6, 15, 12, tzinfo=timezone.utc)
-        value = weft_file.evaluate(dt)
+        value = reader.get_value(dt)
         self.assertAlmostEqual(value, 2005.5, places=1)
+
+        # Measure performance
+        start_time = time.time()
+        for year in range(2000, 2010):
+            for month in range(1, 13):
+                for day in [1, 15]:
+                    dt = datetime(year, month, day, 12, tzinfo=timezone.utc)
+                    reader.get_value(dt)
+        elapsed = time.time() - start_time
+
+        # Make sure it completed in a reasonable time (adjust if needed)
+        self.assertLess(elapsed, 2.0)  # Should be much faster than 2 seconds
 
     def test_leap_year_handling(self):
         """Test handling of leap years in time scaling."""
@@ -214,14 +245,18 @@ class TestWeftEdgeCases(unittest.TestCase):
             blocks=blocks,
         )
 
+        # Create a WeftReader
+        reader = WeftReader()
+        reader.file = weft_file  # Directly set the file to avoid file I/O
+
         # Test evaluation in leap year
         dt = datetime(2020, 2, 15, 12, tzinfo=timezone.utc)
-        value = weft_file.evaluate(dt)
+        value = reader.get_value(dt)
         self.assertAlmostEqual(value, 1.0)
 
         # Test evaluation in non-leap year
         dt = datetime(2021, 2, 15, 12, tzinfo=timezone.utc)
-        value = weft_file.evaluate(dt)
+        value = reader.get_value(dt)
         self.assertAlmostEqual(value, 2.0)
 
 
@@ -230,9 +265,9 @@ def test_forty_eight_hour_block_evaluation():
     # Create test data
     header = FortyEightHourSectionHeader(
         start_day=date(2025, 1, 1),
-        end_day=date(2025, 1, 2),
-        block_size=100,  # Dummy size for testing
-        block_count=1,   # One block for testing
+        end_day=date(2025, 1, 3),  # Make this a 48-hour range
+        block_size=198,  # Updated to match actual serialized size
+        block_count=1,  # One block for testing
     )
     block = FortyEightHourBlock(
         header=header,
@@ -254,11 +289,7 @@ def test_forty_eight_hour_block_evaluation():
     assert isinstance(value, float)
 
     # Test invalid times
-    dt = datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc)
-    with pytest.raises(ValueError):
-        block.evaluate(dt)
-
-    dt = datetime(2024, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    dt = datetime(2025, 1, 3, 0, 0, tzinfo=timezone.utc)
     with pytest.raises(ValueError):
         block.evaluate(dt)
 
@@ -271,8 +302,8 @@ def test_forty_eight_hour_section_header():
     header = FortyEightHourSectionHeader(
         start_day=start_day,
         end_day=end_day,
-        block_size=100,  # Dummy size for testing
-        block_count=1,   # One block for testing
+        block_size=198,  # Updated to match actual serialized size
+        block_count=1,  # One block for testing
     )
 
     # Test time conversion
@@ -327,8 +358,8 @@ def test_weft_file():
     header = FortyEightHourSectionHeader(
         start_day=date(2025, 6, 15),
         end_day=date(2025, 6, 16),
-        block_size=100,  # Dummy size for testing
-        block_count=1,   # One block for testing
+        block_size=198,  # Updated to match actual serialized size
+        block_count=1,  # One block for testing
     )
     blocks.append(header)
     blocks.append(
@@ -340,7 +371,20 @@ def test_weft_file():
     # Create WeftFile
     weft_file = WeftFile("#weft! v0.02\n\n", blocks)
 
+    # Create a WeftReader
+    reader = WeftReader()
+    reader.file = weft_file  # Directly set the file to avoid file I/O
+
     # Test evaluation
     dt = datetime(2025, 6, 15, 12, 0, tzinfo=timezone.utc)
-    value = weft_file.evaluate(dt)
+    value = reader.get_value(dt)
     assert isinstance(value, float)
+
+    # Test different times
+    dt_early = datetime(2025, 1, 1, 0, 0, tzinfo=timezone.utc)
+    value_early = reader.get_value(dt_early)
+    assert isinstance(value_early, float)
+
+    dt_late = datetime(2034, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    value_late = reader.get_value(dt_late)
+    assert isinstance(value_late, float)

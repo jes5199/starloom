@@ -55,15 +55,15 @@ def unwrap_angles(values: List[float], min_val: float, max_val: float) -> List[f
     result = [values[0]]
     for i in range(1, len(values)):
         # Calculate the difference from the previous unwrapped value
-        diff = values[i] - values[i-1]
-        
+        diff = values[i] - values[i - 1]
+
         # Normalize the difference to minimize the jump
         while diff > half_range:
             diff -= range_size
         while diff < -half_range:
             diff += range_size
-        
+
         # Add the normalized difference to the previous result
         result.append(result[-1] + diff)
-    
+
     return result

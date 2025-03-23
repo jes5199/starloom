@@ -1,5 +1,21 @@
 # Starloom Development Lessons
 
+## Weft Test Fixes (2023-03-23)
+
+When fixing the failing tests in the weft module, we discovered several important lessons:
+
+1. The `unwrap_angles()` function was updated to require two additional parameters (`min_val` and `max_val`), which broke existing tests.
+
+2. The `FortyEightHourBlock` constructor was updated to require a `center_date` parameter for better date handling.
+
+3. The `FortyEightHourSectionHeader` constructor now requires `block_size` and `block_count` parameters for validation.
+
+4. The evaluation logic was moved from `WeftFile` to `WeftReader` as part of a refactoring to improve modularity.
+
+5. The serialized size of `FortyEightHourBlock` is 198 bytes, but tests were using a hardcoded value of 100. When serialization/deserialization validation was added, the tests failed.
+
+6. When updating tests, we should carefully check expected values against actual behavior, especially if the code has improved since the tests were written.
+
 ## Julian Date Module
 
 1. Be careful with importing modules that don't exist - in `julian.py`, there was a reference to an undefined `juliandate` module that was causing linting errors. When refactoring code, make sure to update all references.

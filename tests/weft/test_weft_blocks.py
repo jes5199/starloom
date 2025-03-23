@@ -32,11 +32,11 @@ class TestChebyshevFunctions(unittest.TestCase):
         """Test that unwrap_angles correctly handles angle wrapping."""
         # Test with no wrapping needed
         angles = [0, 10, 20, 30]
-        self.assertEqual(unwrap_angles(angles), angles)
+        self.assertEqual(unwrap_angles(angles, 0, 360), angles)
 
         # Test with wrapping at 180 degrees
         angles = [170, 180, 190, -170]  # 190 to -170 is a wrap
-        unwrapped = unwrap_angles(angles)
+        unwrapped = unwrap_angles(angles, -180, 180)
         self.assertAlmostEqual(unwrapped[0], 170)
         self.assertAlmostEqual(unwrapped[1], 180)
         self.assertAlmostEqual(unwrapped[2], 190)
@@ -198,8 +198,8 @@ class TestFortyEightHourBlocks(unittest.TestCase):
         self.header = FortyEightHourSectionHeader(
             start_day=date(self.year, self.month, self.day),
             end_day=date(self.year, self.month, self.day + 1),
-            block_size=100,  # Dummy size for testing
-            block_count=1,   # One block for testing
+            block_size=198,  # Updated to match actual block size
+            block_count=1,  # One block for testing
         )
 
         # FortyEightHour Block
@@ -315,14 +315,15 @@ class TestWeftFile(unittest.TestCase):
         self.forty_eight_hour_header = FortyEightHourSectionHeader(
             start_day=date(2003, 1, 1),
             end_day=date(2003, 1, 2),
-            block_size=100,  # Dummy size for testing
-            block_count=1,   # One block for testing
+            block_size=198,  # Updated to match actual block size
+            block_count=1,  # One block for testing
         )
 
         # FortyEightHour Block
         self.forty_eight_hour = FortyEightHourBlock(
             header=self.forty_eight_hour_header,
             coeffs=[1.0, 0.0, 0.0],
+            center_date=date(2003, 1, 1),
         )
 
         # Create WeftFile
@@ -376,14 +377,15 @@ class TestWeftFile(unittest.TestCase):
         forty_eight_hour_header2 = FortyEightHourSectionHeader(
             start_day=date(2008, 1, 1),
             end_day=date(2008, 1, 2),
-            block_size=100,  # Dummy size for testing
-            block_count=1,   # One block for testing
+            block_size=198,  # Updated to match actual block size
+            block_count=1,  # One block for testing
         )
 
         # FortyEightHour Block
         forty_eight_hour2 = FortyEightHourBlock(
             header=forty_eight_hour_header2,
             coeffs=[2.0, 0.0, 0.0],
+            center_date=date(2008, 1, 1),
         )
 
         # Create second WeftFile

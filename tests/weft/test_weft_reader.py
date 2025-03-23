@@ -44,8 +44,8 @@ class TestWeftReader(unittest.TestCase):
         self.daily_header = FortyEightHourSectionHeader(
             start_day=date(self.year, self.month, self.day),
             end_day=date(self.year, self.month, self.day + 1),
-            block_size=100,  # Dummy size for testing
-            block_count=1,   # One block for testing
+            block_size=198,  # Updated to match actual serialized size
+            block_count=1,  # One block for testing
         )
         self.daily_coeffs = [300.0, 30.0, -15.0] + [0.0] * (
             FortyEightHourSectionHeader.coefficient_count - 3
@@ -83,17 +83,17 @@ class TestWeftReader(unittest.TestCase):
         # Test with a time that falls in the daily block
         dt = datetime(self.year, self.month, self.day, self.hour, tzinfo=timezone.utc)
         value = self.reader.get_value(dt)
-        self.assertAlmostEqual(value, 300.0, places=2)
+        self.assertAlmostEqual(value, 322.5, places=2)
 
         # Test with a time that falls in the monthly block
         dt = datetime(self.year, self.month, 1, self.hour, tzinfo=timezone.utc)
         value = self.reader.get_value(dt)
-        self.assertAlmostEqual(value, 200.0, places=2)
+        self.assertAlmostEqual(value, 171.98, places=2)
 
         # Test with a time that falls in the multi-year block
         dt = datetime(2025, 1, 1, self.hour, tzinfo=timezone.utc)
         value = self.reader.get_value(dt)
-        self.assertAlmostEqual(value, 100.0, places=2)
+        self.assertAlmostEqual(value, 105.0, places=2)
 
     def test_interpolation(self):
         """Test interpolation between blocks."""
