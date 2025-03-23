@@ -144,7 +144,7 @@ class WeftWriter:
             x_values.append(x)
 
             # Get value at this time
-            value = data_source.get_value_at(dt)
+            value = data_source.get_value_at(dt) # basically a dictionary lookup
             values.append(value)
 
         return x_values, values
