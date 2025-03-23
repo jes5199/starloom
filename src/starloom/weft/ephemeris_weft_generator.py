@@ -19,6 +19,10 @@ from .weft_writer import WeftWriter
 from ..ephemeris.ephemeris import Ephemeris
 from .ephemeris_data_source import EphemerisDataSource
 from .block_selection import get_recommended_blocks
+from .logging import get_logger
+
+# Create a logger for this module
+logger = get_logger(__name__)
 
 
 def generate_weft_file(
@@ -54,6 +58,9 @@ def generate_weft_file(
     Raises:
         ValueError: If the planet or quantity is invalid
     """
+    logger.debug("Starting weft file generation")
+    logger.debug(f"Parameters: planet={planet}, quantity={quantity}, start_date={start_date}, end_date={end_date}, output_path={output_path}")
+
     # Convert step_hours to string format if it's an integer
     if isinstance(step_hours, int):
         step_hours = f"{step_hours}h"

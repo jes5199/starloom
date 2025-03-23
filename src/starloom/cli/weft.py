@@ -78,6 +78,7 @@ def weft(verbose: int, debug: bool, quiet: bool) -> None:
         "verbose": verbose,
     })
     logger.debug("Debug logging enabled")
+    logger.debug(f"Verbosity: {verbose}, Debug: {debug}, Quiet: {quiet}")
 
 
 @weft.command()
@@ -119,6 +120,20 @@ def generate(
     timespan: Optional[str],
 ) -> None:
     """Generate a .weft binary ephemeris file."""
+    # Direct debug output to see if it appears
+    import logging
+    root_logger = logging.getLogger()
+    root_logger.debug("ROOT LOGGER: Starting weft file generation")
+    
+    # Test log levels of different loggers
+    print(f"Root logger level: {logging.getLevelName(root_logger.level)}")
+    print(f"Starloom logger level: {logging.getLevelName(logging.getLogger('starloom').level)}")
+    print(f"Weft module logger level: {logging.getLevelName(logger.level)}")
+    print(f"Handler levels: {[logging.getLevelName(h.level) for h in root_logger.handlers]}")
+    print(f"Logger is disabled: {logger.disabled}")
+    print(f"Logger propagates: {logger.propagate}")
+    
+    # Ensure logger is properly configured
     logger.debug("Starting weft file generation")
     logger.debug(f"Parameters: planet={planet}, quantity={quantity}, start={start}, stop={stop}")
 

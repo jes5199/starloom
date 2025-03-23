@@ -10,6 +10,7 @@ from typing import List, Dict, Tuple, Optional, Any, Union, TypeVar, cast
 from zoneinfo import ZoneInfo
 import os
 from numpy.polynomial import chebyshev
+import time
 
 from .weft import (
     MultiYearBlock,
@@ -121,7 +122,7 @@ class WeftWriter:
             data_source: The data source to get values from
             start_dt: Start datetime
             end_dt: End datetime
-            
+
         Returns:
             Tuple of (x_values, values)
         """
@@ -167,11 +168,27 @@ class WeftWriter:
         Returns:
             List of Chebyshev coefficients
         """
-        # Generate samples
-        x_values, values = self._generate_samples(data_source, start_dt, end_dt)
 
-        # Fit Chebyshev coefficients
+        logger.debug(f"Generating coefficients for {start_dt} to {end_dt}")
+
+        # Time the sample generation
+        sample_start = time.time()
+        x_values, values = self._generate_samples(data_source, start_dt, end_dt)
+        sample_end = time.time()
+        sample_time_ms = (sample_end - sample_start) * 1000
+        logger.debug(f"Generated {len(x_values)} samples for {start_dt} to {end_dt} in {sample_time_ms:.2f}ms")
+
+        # Time the Chebyshev coefficient fitting
+        fit_start = time.time()
         coeffs = chebyshev.chebfit(x_values, values, deg=degree)
+        fit_end = time.time()
+        fit_time_ms = (fit_end - fit_start) * 1000
+        logger.debug(f"Fitted Chebyshev coefficients (degree {degree}) in {fit_time_ms:.2f}ms")
+
+        # Log total time
+        total_time_ms = sample_time_ms + fit_time_ms
+        logger.debug(f"Total coefficient generation time: {total_time_ms:.2f}ms")
+
         return cast(List[float], coeffs.tolist())
 
     def create_multi_year_block(

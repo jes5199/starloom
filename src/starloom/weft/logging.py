@@ -30,27 +30,10 @@ def get_logger(name: str) -> logging.Logger:
     """
     logger = logging.getLogger(name)
 
-    # Only configure the logger if it hasn't been already
-    if not logger.handlers:
-        # Get the root starloom logger's level, or use default if not set
-        root_logger = logging.getLogger("starloom")
-        log_level = (
-            root_logger.getEffectiveLevel()
-            if root_logger.getEffectiveLevel() != 0
-            else _get_log_level()
-        )
-        logger.setLevel(log_level)
-
-        # Create console handler
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(log_level)  # Set handler level to match logger
-        handler.setFormatter(FORMATTER)
-        logger.addHandler(handler)
-
-        # Ensure messages propagate up to root logger
-        logger.propagate = True
-
-    return logger
+    # I can't get log inheritance to work, so I'm just going to return the root logger for now. sorry.
+    # Get the root starloom logger
+    root_logger = logging.getLogger("starloom")
+    return root_logger
 
 
 def _get_log_level() -> int:
@@ -95,20 +78,3 @@ def set_log_level(level: int) -> None:
         handler.setFormatter(FORMATTER)
         root_logger.addHandler(handler)
 
-    # Update all child loggers
-    for handler in root_logger.handlers:
-        handler.setLevel(level)
-
-    # Also update the specific weft logger for backward compatibility
-    weft_logger = logging.getLogger("starloom.weft")
-    weft_logger.setLevel(level)
-
-    # Ensure weft logger has a handler
-    if not weft_logger.handlers:
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(level)
-        handler.setFormatter(FORMATTER)
-        weft_logger.addHandler(handler)
-
-    for handler in weft_logger.handlers:
-        handler.setLevel(level)

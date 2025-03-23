@@ -71,24 +71,39 @@ def configure_logging(args: Dict[str, Any]) -> None:
         else:
             log_level = logging.DEBUG
 
-    # Apply log level to all starloom loggers
-    set_log_level(log_level)
-
-    # Also configure the root logger to ensure all loggers work
+    # Configure the root logger first
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
 
-    # Create a console handler if none exists
-    if not root_logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setLevel(log_level)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        handler.setFormatter(formatter)
-        root_logger.addHandler(handler)
-    else:
-        # Update existing handlers
-        for handler in root_logger.handlers:
-            handler.setLevel(log_level)
+    # Remove any existing handlers
+    root_logger.handlers = []
+
+    # Create a console handler
+    handler = logging.StreamHandler()
+    handler.setLevel(log_level)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    handler.setFormatter(formatter)
+    root_logger.addHandler(handler)
+
+    # Also explicitly configure the starloom and weft loggers
+    starloom_logger = logging.getLogger("starloom")
+    starloom_logger.setLevel(log_level)
+    starloom_logger.propagate = True  # Ensure messages propagate to root
+    
+    # Explicitly set the weft module loggers
+    weft_logger = logging.getLogger("starloom.weft")
+    weft_logger.setLevel(log_level)
+    weft_logger.propagate = True
+    
+    cli_logger = logging.getLogger("starloom.cli")
+    cli_logger.setLevel(log_level)
+    cli_logger.propagate = True
+    
+    # Apply log level to all starloom loggers
+    set_log_level(log_level)
+
+    # Log the configuration
+    root_logger.debug(f"Logging configured with level {logging.getLevelName(log_level)}")
