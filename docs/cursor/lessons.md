@@ -1195,3 +1195,21 @@ cmd = [
    - Block selection
    - Value calculation
    - Interpolation behavior
+
+## Python Package Imports
+
+When working with Python packages that use the `src` layout:
+1. Never import from the `src` directory directly (e.g., `from src.starloom.weft import WeftFile`)
+2. Always use the package name as it would be when installed (e.g., `from starloom.weft import WeftFile`)
+3. The `src` directory is just a development-time convention to help with import isolation and testing
+4. Importing from `src` can cause issues with exception comparison and other runtime behaviors
+
+Example of incorrect import:
+```python
+from src.starloom.weft import WeftFile  # Wrong
+```
+
+Example of correct import:
+```python
+from starloom.weft import WeftFile  # Correct
+```
