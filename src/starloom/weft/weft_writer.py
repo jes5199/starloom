@@ -34,6 +34,7 @@ from .block_selection import (
 )
 from .logging import get_logger
 from .timespan import descriptive_timespan
+from .blocks.utils import unwrap_angles
 
 # Create a logger for this module
 logger = get_logger(__name__)
@@ -184,6 +185,11 @@ class WeftWriter:
         value_end = time_module.time()
         value_time_ms = (value_end - value_start) * 1000
         logger.debug(f"Retrieved {len(values)} values in {value_time_ms:.2f}ms")
+
+        # Handle wrapping behavior if needed
+        if self.wrapping_behavior == "wrapping":
+            values = unwrap_angles(values)
+            logger.debug("Applied angle unwrapping to values")
 
         # Log total time
         total_time_ms = filter_time_ms + value_time_ms
