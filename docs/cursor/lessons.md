@@ -1134,6 +1134,23 @@ cmd = [
    - During development before the CLI is fully established
    - When needing access to functionality not exposed in the CLI
    - In test scripts that need to bypass the CLI layer
+
+## Python Package Imports
+
+When working with Python packages that use the `src` layout:
+1. Never import from the `src` directory directly (e.g., `from src.starloom.weft import WeftFile`)
+2. Always use the package name as it would be when installed (e.g., `from starloom.weft import WeftFile`)
+3. The `src` directory is just a development-time convention to help with import isolation and testing
+4. Importing from `src` can cause issues with exception comparison and other runtime behaviors
+
+Example of incorrect import:
+```python
+from src.starloom.weft import WeftFile  # Wrong
+```
+
+Example of correct import:
+```python
+from starloom.weft import WeftFile  # Correct
 ```
 
 # Development Lessons
@@ -1196,20 +1213,17 @@ cmd = [
    - Value calculation
    - Interpolation behavior
 
-## Python Package Imports
-
-When working with Python packages that use the `src` layout:
-1. Never import from the `src` directory directly (e.g., `from src.starloom.weft import WeftFile`)
-2. Always use the package name as it would be when installed (e.g., `from starloom.weft import WeftFile`)
-3. The `src` directory is just a development-time convention to help with import isolation and testing
-4. Importing from `src` can cause issues with exception comparison and other runtime behaviors
-
-Example of incorrect import:
-```python
-from src.starloom.weft import WeftFile  # Wrong
-```
-
-Example of correct import:
-```python
-from starloom.weft import WeftFile  # Correct
-```
+3. Use the debug mode in WeftFile.evaluate():
+   ```python
+   # Enable debug logging first
+   from starloom.weft.logging import set_log_level
+   import logging
+   set_log_level(logging.DEBUG)
+   
+   # Then use the debug parameter
+   value = weft_file.evaluate(datetime.now(), debug=True)
+   ```
+   - Logs detailed information about which block was used to calculate the value
+   - For interpolated values, logs weights and individual block contributions
+   - All debug information goes to the configured logger, not the return value
+   - Helpful for diagnosing unexpected values or block selection issues

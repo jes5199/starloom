@@ -40,3 +40,26 @@ Enable running: `starloom ephemeris mercury --date now --source weft --data-dir 
 2. Add better error handling and logging
 3. Consider supporting more quantities beyond the basic three
 4. Improve the WeftReader to allow initialization directly from bytes
+
+# Add Logging-Based Debugging to WeftFile Class
+
+## Task
+Modify the WeftFile's debugging to use the logging system instead of returning debug info from the evaluate method.
+
+## Goal
+Enable integration with the standard logging system for tracking the source of values.
+
+## TODOs
+[X] Import and use the logging module in WeftFile
+[X] Create a logger instance in the WeftFile class initialization
+[X] Modify evaluate() to log debug info instead of returning it
+[X] Update _interpolate_forty_eight_hour_blocks() to use logging
+[X] Create helper method for detailed interpolation debug logging
+[X] Update return types to always return float instead of Union[float, Tuple]
+
+## Implementation Notes
+- Used the existing logging system through get_logger(__name__)
+- Kept the debug parameter but changed its behavior to control logging
+- Improved debug messages with detailed information like block IDs and date ranges
+- Added dedicated helper method _log_interpolation_debug() for complex interpolation logging
+- Detailed log format shows values, weights, and normalized weights for each block
