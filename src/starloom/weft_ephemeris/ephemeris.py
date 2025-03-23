@@ -6,7 +6,6 @@ that reads position data from weftball archives (tar.gz files).
 """
 
 import os
-import io
 import tarfile
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Union, List
@@ -216,8 +215,6 @@ class WeftEphemeris(Ephemeris):
                         weft_data = f.read()
 
                         # Create an in-memory file-like object
-                        weft_file = io.BytesIO(weft_data)
-
                         # Create a reader for this weft file
                         reader = WeftReader()
 

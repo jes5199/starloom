@@ -1,7 +1,6 @@
 """Unit tests for MonthlyBlock evaluation."""
 
 import unittest
-import pytest
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
