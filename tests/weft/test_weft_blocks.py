@@ -264,7 +264,7 @@ class TestFortyEightHourBlocks(unittest.TestCase):
 
         # Check that coefficients match
         self.assertEqual(len(block.coefficients), 1)
-        
+
         # Check that center date is read correctly
         self.assertEqual(block.center_date, date(self.year, self.month, self.day))
 
@@ -275,12 +275,12 @@ class TestFortyEightHourBlocks(unittest.TestCase):
 
         # Check marker
         self.assertEqual(data[:2], FortyEightHourBlock.marker)
-        
+
         # Check date fields
         year = struct.unpack(">H", data[2:4])[0]
         month = struct.unpack(">B", data[4:5])[0]
         day = struct.unpack(">B", data[5:6])[0]
-        
+
         self.assertEqual(year, self.year)
         self.assertEqual(month, self.month)
         self.assertEqual(day, self.day)

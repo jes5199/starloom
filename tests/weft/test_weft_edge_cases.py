@@ -315,7 +315,11 @@ def test_weft_file():
         start_day=date(2025, 6, 15), end_day=date(2025, 6, 16)
     )
     blocks.append(header)
-    blocks.append(FortyEightHourBlock(header=header, coeffs=[7.0, 8.0, 9.0], center_date=date(2025, 6, 15)))
+    blocks.append(
+        FortyEightHourBlock(
+            header=header, coeffs=[7.0, 8.0, 9.0], center_date=date(2025, 6, 15)
+        )
+    )
 
     # Create WeftFile
     weft_file = WeftFile("#weft! v0.02\n\n", blocks)

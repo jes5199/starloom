@@ -7,7 +7,6 @@ from .weft_file import (
     FortyEightHourBlock,
     RangedBehavior,
     BlockType,
-    ValueBehavior,
 )
 
 
@@ -206,32 +205,27 @@ class WeftReader:
         # Sort blocks by date
         blocks = sorted(blocks, key=lambda b: b.header.start_day)
 
-        # Calculate midpoints for each block
-        midpoints = []
-        for block in blocks:
-            start_time = datetime.combine(
-                block.header.start_day, time(12, 0), timezone.utc
-            )
-            midpoints.append(start_time)
-
-        # Convert midpoints to timestamps for easier calculation
-        midpoint_ts = [m.timestamp() for m in midpoints]
+        # work in timestamp (floats) for easier calculation
         target_ts = dt.timestamp()
 
-        # Calculate weights based on time distance from each block's midpoint
         weights = []
         for i, block in enumerate(blocks):
-            time_diff = abs(target_ts - midpoint_ts[i]) / 3600  # Convert to hours
+            # Calculate time distance from block's midpoint in hours
+            time_diff = (
+                abs(target_ts - block.midnight().timestamp()) / 3600
+            )  # Convert to hours
+            # Weight decreases linearly from 1 at midpoint to 0 at 24 hours away
             weight = max(0.0, 1.0 - time_diff / 24.0)
             weights.append(weight)
 
         # Log interpolation details
-        self.file.logger.debug(f"Interpolating between {len(blocks)} blocks for {dt.isoformat()}")
+        self.file.logger.debug(
+            f"Interpolating between {len(blocks)} blocks for {dt.isoformat()}"
+        )
         for i, block in enumerate(blocks):
             self.file.logger.debug(
-                f"  Block {i+1}: {block.midnight().isoformat()}, "
+                f"  Block {i + 1}: {block.midnight().isoformat()}, "
                 f"weight={weights[i]:.4f}, "
-                f"midpoint={midpoints[i].isoformat()}, "
                 f"raw_value={block.evaluate(dt):.6f}"
             )
 
@@ -243,12 +237,7 @@ class WeftReader:
             # Fallback to using the closest block
             closest_block = min(
                 blocks,
-                key=lambda b: abs(
-                    dt.timestamp()
-                    - datetime.combine(
-                        b.header.start_day, time(), tzinfo=timezone.utc
-                    ).timestamp()
-                ),
+                key=lambda b: abs(dt.timestamp() - b.midnight().timestamp()),
             )
             return self.apply_value_behavior(closest_block.evaluate(dt))
 
@@ -270,7 +259,10 @@ class WeftReader:
             crossing_boundary = False
             for i in range(len(normalized_values)):
                 for j in range(i + 1, len(normalized_values)):
-                    if abs(normalized_values[i] - normalized_values[j]) > range_size / 2:
+                    if (
+                        abs(normalized_values[i] - normalized_values[j])
+                        > range_size / 2
+                    ):
                         crossing_boundary = True
                         break
 
@@ -279,7 +271,9 @@ class WeftReader:
                 reference = normalized_values[0]
                 unwrapped_values = []
                 for value in normalized_values:
-                    diff = ((value - reference + range_size / 2) % range_size) - range_size / 2
+                    diff = (
+                        (value - reference + range_size / 2) % range_size
+                    ) - range_size / 2
                     unwrapped_values.append(reference + diff)
 
                 value = sum(v * w for v, w in zip(unwrapped_values, weights))

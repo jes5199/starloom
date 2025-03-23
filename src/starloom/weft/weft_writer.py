@@ -234,14 +234,14 @@ class WeftWriter:
         # Drop very small coefficients from the end
         # Convert to list for manipulation
         coeffs_list = coeffs.tolist()
-        
+
         # Define threshold for "very very tiny"
         threshold = 1e-12
-        
+
         # Trim from the end until we find a coefficient larger than the threshold
         while len(coeffs_list) > 1 and abs(coeffs_list[-1]) < threshold:
             coeffs_list.pop()
-            
+
         trim_count = len(coeffs) - len(coeffs_list)
         if trim_count > 0:
             logger.debug(f"Dropped {trim_count} tiny coefficients below {threshold}")
@@ -359,7 +359,7 @@ class WeftWriter:
 
         blocks = []
         current_date = start_date
-        
+
         # Create a single header for the entire range
         header = FortyEightHourSectionHeader(
             start_day=start_date.date(),
@@ -367,7 +367,7 @@ class WeftWriter:
             block_size=0,  # Will be updated after blocks are created
             block_count=0,  # Will be updated after blocks are created
         )
-        
+
         # Store all blocks for this header
         all_blocks = []
 
@@ -379,7 +379,7 @@ class WeftWriter:
                 block_date = date(
                     current_date.year, current_date.month, current_date.day
                 )
-                
+
                 # Define the 48-hour window centered at current_date,
                 # adjusting for boundaries.
                 block_start = max(start_date, current_date - timedelta(days=1))
@@ -389,11 +389,11 @@ class WeftWriter:
                     data_source, block_start, block_end, degree
                 )
 
-                all_blocks.append(FortyEightHourBlock(
-                    header=header, 
-                    coeffs=coeffs_list,
-                    center_date=block_date
-                ))
+                all_blocks.append(
+                    FortyEightHourBlock(
+                        header=header, coeffs=coeffs_list, center_date=block_date
+                    )
+                )
 
             current_date += timedelta(days=1)
 
@@ -403,11 +403,11 @@ class WeftWriter:
             sample_block = all_blocks[0]
             sample_bytes = sample_block.to_bytes()
             block_size = len(sample_bytes)
-            
+
             # Update the header with actual block size and count
             header.block_size = block_size
             header.block_count = len(all_blocks)
-            
+
             # Add the header and all blocks to the result
             blocks.append(header)
             blocks.extend(all_blocks)

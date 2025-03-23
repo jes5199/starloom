@@ -4,15 +4,15 @@ CLI commands for generating and using .weft files.
 
 import click
 import os
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 import sys
 import signal
 import traceback
 from typing import Any, Optional
 import logging
 
-from starloom.weft.blocks.forty_eight_hour_section_header import FortyEightHourSectionHeader
+from starloom.weft.blocks.forty_eight_hour_section_header import (
+    FortyEightHourSectionHeader,
+)
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -22,7 +22,6 @@ from ..weft.weft_file import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourBlock,
-    WeftFile,
 )
 from . import common
 from ..weft.logging import get_logger
@@ -284,7 +283,9 @@ def info(file_path: str) -> None:
             elif isinstance(block, FortyEightHourBlock):
                 block_info = f"48-hour block: {block.center_date} ({len(block.coefficients)} coefficients)"
             elif isinstance(block, FortyEightHourSectionHeader):
-                block_info = f"48-hour section header: {block.start_day} to {block.end_day}"
+                block_info = (
+                    f"48-hour section header: {block.start_day} to {block.end_day}"
+                )
             logger.debug(f"Block info: {block_info}")
             print(block_info)
     except Exception as e:

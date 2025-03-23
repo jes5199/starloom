@@ -3,7 +3,7 @@ FortyEightHourBlock class for handling 48-hour periods with Chebyshev polynomial
 """
 
 import struct
-from datetime import datetime, timezone, date, time, timedelta
+from datetime import datetime, timezone, date, time
 from typing import List, BinaryIO
 
 from .forty_eight_hour_section_header import FortyEightHourSectionHeader
@@ -15,7 +15,12 @@ class FortyEightHourBlock:
 
     marker = b"\x00\x01"  # Block type marker
 
-    def __init__(self, header: FortyEightHourSectionHeader, coeffs: List[float], center_date: date):
+    def __init__(
+        self,
+        header: FortyEightHourSectionHeader,
+        coeffs: List[float],
+        center_date: date,
+    ):
         """
         Initialize a forty-eight hour block.
 
@@ -55,10 +60,10 @@ class FortyEightHourBlock:
     def midnight_utc_from_date(d: date) -> datetime:
         """
         Create a datetime at midnight UTC for the given date.
-        
+
         Args:
             d: The date to convert
-            
+
         Returns:
             A datetime at midnight UTC on the given date
         """
@@ -67,7 +72,7 @@ class FortyEightHourBlock:
     def midnight(self) -> datetime:
         """
         Get the datetime at midnight UTC for this block's center date.
-        
+
         Returns:
             A datetime at midnight UTC on the center date
         """
@@ -88,10 +93,10 @@ class FortyEightHourBlock:
             dt = dt.astimezone(timezone.utc)
         else:
             dt = dt.replace(tzinfo=timezone.utc)
-            
+
         # Create datetime at midnight UTC for the center date
         center_dt = self.midnight()
-        
+
         # Check if dt is within ±24 hours of center_dt
         delta = dt - center_dt
         return abs(delta.total_seconds()) <= 24 * 60 * 60
@@ -105,16 +110,16 @@ class FortyEightHourBlock:
         """
         # Start with the marker
         result = bytearray(self.marker)
-        
+
         # Add center date information
         result.extend(struct.pack(">H", self.center_date.year))  # 2 bytes for year
-        result.extend(struct.pack(">B", self.center_date.month)) # 1 byte for month
-        result.extend(struct.pack(">B", self.center_date.day))   # 1 byte for day
-        
+        result.extend(struct.pack(">B", self.center_date.month))  # 1 byte for month
+        result.extend(struct.pack(">B", self.center_date.day))  # 1 byte for day
+
         # Add coefficients
         for coeff in self._full_coeffs:
             result.extend(struct.pack(">f", float(coeff)))
-            
+
         return bytes(result)
 
     @classmethod
@@ -135,7 +140,7 @@ class FortyEightHourBlock:
         try:
             year = struct.unpack(">H", stream.read(2))[0]  # 2 bytes for year
             month = struct.unpack(">B", stream.read(1))[0]  # 1 byte for month
-            day = struct.unpack(">B", stream.read(1))[0]    # 1 byte for day
+            day = struct.unpack(">B", stream.read(1))[0]  # 1 byte for day
             center_date = date(year, month, day)
         except (struct.error, ValueError) as e:
             raise ValueError(f"Invalid date data: {str(e)}")
@@ -172,15 +177,15 @@ class FortyEightHourBlock:
             raise ValueError("Datetime outside block's range")
 
         dt = dt.astimezone(timezone.utc)
-        
+
         # Calculate x based on hours from center date
         center_dt = self.midnight()
         hours_diff = (dt - center_dt).total_seconds() / 3600  # Convert to hours
-        
+
         # Scale to [-1, 1] where:
         # -1.0 = midnight UTC of center_date
         # 0.0 = noon UTC of center_date
         # +1.0 = midnight UTC of center_date + 1 day
         x = hours_diff / 24
-            
+
         return evaluate_chebyshev(self.coefficients, x)

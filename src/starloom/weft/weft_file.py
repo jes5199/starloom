@@ -8,10 +8,9 @@ to store astronomical values efficiently. It supports multiple levels of precisi
 - Daily blocks for short-term, high-precision data
 """
 
-from datetime import datetime, timezone, time
-from typing import Union, Tuple, Literal, TypedDict, Sequence, List, Dict, Any
+from datetime import datetime, timezone
+from typing import Union, Tuple, Literal, TypedDict, Sequence, List, Dict
 from io import BytesIO
-from typing import cast
 
 from .blocks import (
     MultiYearBlock,
@@ -57,13 +56,13 @@ ValueBehavior = Union[RangedBehavior, UnboundedBehavior]
 class WeftFile:
     """
     A .weft file containing ephemeris data.
-    
+
     This class handles the low-level aspects of .weft files:
     - File structure and format
     - Binary serialization/deserialization
     - Block storage and management
     - File I/O operations
-    
+
     It does not handle value evaluation or interpolation - those responsibilities
     belong to WeftReader.
     """
@@ -145,7 +144,7 @@ class WeftFile:
         blocks: list[BlockType] = []
         current_header: FortyEightHourSectionHeader = None
         current_header_blocks_read: int = 0
-        
+
         while True:
             # Try to read marker
             marker = stream.read(2)
@@ -159,11 +158,14 @@ class WeftFile:
                 blocks.append(MonthlyBlock.from_stream(stream))
             elif marker == FortyEightHourSectionHeader.marker:
                 # Check if we've read all the blocks for the previous header
-                if current_header is not None and current_header_blocks_read != current_header.block_count:
+                if (
+                    current_header is not None
+                    and current_header_blocks_read != current_header.block_count
+                ):
                     raise ValueError(
                         f"Expected {current_header.block_count} FortyEightHourBlocks for header, but read {current_header_blocks_read}"
                     )
-                    
+
                 # Read the new header
                 current_header = FortyEightHourSectionHeader.from_stream(stream)
                 current_header_blocks_read = 0
@@ -171,22 +173,24 @@ class WeftFile:
             elif marker == FortyEightHourBlock.marker:
                 if current_header is None:
                     raise ValueError("FortyEightHourBlock without a preceding header")
-                
+
                 # Read the block and validate it
                 before_position = stream.tell()
                 block = FortyEightHourBlock.from_stream(stream, current_header)
                 after_position = stream.tell()
-                
+
                 # Check block size matches what's in the header
-                actual_block_size = after_position - before_position + 2  # +2 for the marker
+                actual_block_size = (
+                    after_position - before_position + 2
+                )  # +2 for the marker
                 if actual_block_size != current_header.block_size:
                     raise ValueError(
                         f"FortyEightHourBlock size mismatch: expected {current_header.block_size}, got {actual_block_size}"
                     )
-                    
+
                 blocks.append(block)
                 current_header_blocks_read += 1
-                
+
                 # Check if we've reached the expected block count for this header
                 if current_header_blocks_read == current_header.block_count:
                     # Reset for the next header
@@ -196,7 +200,10 @@ class WeftFile:
                 raise ValueError(f"Unknown block type marker: {marker!r}")
 
         # Final check for incomplete block set
-        if current_header is not None and current_header_blocks_read != current_header.block_count:
+        if (
+            current_header is not None
+            and current_header_blocks_read != current_header.block_count
+        ):
             raise ValueError(
                 f"Expected {current_header.block_count} FortyEightHourBlocks for final header, but read {current_header_blocks_read}"
             )
@@ -280,7 +287,9 @@ class WeftFile:
 
         # Separate forty-eight hour blocks and their headers
         headers: List[FortyEightHourSectionHeader] = []
-        header_to_blocks: Dict[FortyEightHourSectionHeader, List[FortyEightHourBlock]] = {}
+        header_to_blocks: Dict[
+            FortyEightHourSectionHeader, List[FortyEightHourBlock]
+        ] = {}
         non_48h_blocks: List[Union[MultiYearBlock, MonthlyBlock]] = []
 
         # Define block sorting function
@@ -327,14 +336,14 @@ class WeftFile:
         for header in headers:
             if header not in header_to_blocks or not header_to_blocks[header]:
                 raise ValueError(f"No 48-hour blocks found for header {header}")
-                
+
             # Add header
             final_blocks.append(header)
-            
+
             # Sort blocks by center date
             header_blocks = header_to_blocks[header]
             header_blocks.sort(key=lambda b: b.center_date)
-            
+
             # Then add all blocks for this header
             final_blocks.extend(header_blocks)
 

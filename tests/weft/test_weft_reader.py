@@ -97,7 +97,9 @@ class TestWeftReader(unittest.TestCase):
         """Test interpolation between blocks."""
         # Create two daily blocks with different values
         dt1 = datetime(self.year, self.month, self.day, self.hour, tzinfo=timezone.utc)
-        dt2 = datetime(self.year, self.month, self.day + 1, self.hour, tzinfo=timezone.utc)
+        dt2 = datetime(
+            self.year, self.month, self.day + 1, self.hour, tzinfo=timezone.utc
+        )
 
         # Get values at both times
         value1 = self.reader.get_value(dt1)

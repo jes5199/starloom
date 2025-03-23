@@ -13,7 +13,9 @@ class FortyEightHourSectionHeader:
     marker = b"\x00\x02"  # Block type marker
     coefficient_count = 48  # Default number of coefficients
 
-    def __init__(self, start_day: date, end_day: date, block_size: int, block_count: int):
+    def __init__(
+        self, start_day: date, end_day: date, block_size: int, block_count: int
+    ):
         """Initialize a forty-eight hour section header.
 
         Args:
@@ -84,7 +86,12 @@ class FortyEightHourSectionHeader:
             start = date(start_year, start_month, start_day)
             end = date(end_year, end_month, end_day)
 
-            return cls(start_day=start, end_day=end, block_size=block_size, block_count=block_count)
+            return cls(
+                start_day=start,
+                end_day=end,
+                block_size=block_size,
+                block_count=block_count,
+            )
         except (struct.error, ValueError) as e:
             raise ValueError(f"Invalid date data: {str(e)}")
 
