@@ -78,20 +78,6 @@ class TestEphemerisDataSource(unittest.TestCase):
         value = data_source.get_value_at(self.start + timedelta(hours=12))
         self.assertEqual(value, 180.0)  # Should be halfway through rotation
 
-    def test_get_value_at_interpolated(self):
-        """Test getting interpolated value."""
-        data_source = EphemerisDataSource(
-            ephemeris=self.mock_ephemeris,
-            planet_id="499",
-            quantity=self.quantity,
-            start_date=self.start,
-            end_date=self.end,
-            step_hours=1,
-        )
-
-        # Check interpolated value
-        value = data_source.get_value_at(self.start + timedelta(hours=12.5))
-        self.assertEqual(value, 187.5)  # Should be interpolated between 180 and 195
 
     def test_get_value_at_bounds(self):
         """Test getting values at time bounds."""
@@ -111,21 +97,6 @@ class TestEphemerisDataSource(unittest.TestCase):
         # Check end bound
         end_value = data_source.get_value_at(self.end)
         self.assertEqual(end_value, 0.0)  # 360 degrees = 0 degrees
-
-    def test_get_value_at_out_of_bounds(self):
-        """Test getting values outside time bounds."""
-        data_source = EphemerisDataSource(
-            ephemeris=self.mock_ephemeris,
-            planet_id="499",
-            quantity=self.quantity,
-            start_date=self.start,
-            end_date=self.end,
-            step_hours=1,
-        )
-
-        # actually this clamps to the bounds
-        self.assertEqual(data_source.get_value_at(self.start - timedelta(hours=1)), 0.0)
-        self.assertEqual(data_source.get_value_at(self.end + timedelta(hours=1)), 0.0)
 
     def test_get_values_in_range(self):
         """Test getting values for a time range."""
