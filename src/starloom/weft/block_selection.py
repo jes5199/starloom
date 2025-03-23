@@ -59,13 +59,12 @@ def calculate_sampling_rate(time_spec: TimeSpec) -> float:
 
 
 def analyze_data_coverage(
-    time_spec: TimeSpec, start: datetime, end: datetime, timestamps: List[datetime]
+    start: datetime, end: datetime, timestamps: List[datetime]
 ) -> Tuple[float, float]:
     """
     Analyze the coverage of data points for a time period.
 
     Args:
-        time_spec: Time specification with step size
         start: Start of time period
         end: End of time period
         timestamps: List of available timestamps
@@ -123,13 +122,12 @@ def analyze_data_coverage(
 
 
 def should_include_multi_year_block(
-    time_spec: TimeSpec, data_source: Any, start_year: int, duration: int
+    data_source: Any, start_year: int, duration: int
 ) -> bool:
     """
     Determine if a multi-year block should be included.
 
     Args:
-        time_spec: The TimeSpec used for sampling
         data_source: The data source to analyze
         start_year: The start year of the block
         duration: The duration of the block in years
@@ -142,20 +140,19 @@ def should_include_multi_year_block(
     end = datetime(start_year + duration, 1, 1, tzinfo=timezone.utc)
 
     # Get data coverage
-    coverage, _ = analyze_data_coverage(time_spec, start, end, data_source.timestamps)
+    coverage, _ = analyze_data_coverage(start, end, data_source.timestamps)
 
     # Multi-year blocks need at least 66.6% coverage
     return coverage >= 0.666
 
 
 def should_include_monthly_block(
-    time_spec: TimeSpec, data_source: Any, year: int, month: int
+    data_source: Any, year: int, month: int
 ) -> bool:
     """
     Determine if a monthly block should be included.
 
     Args:
-        time_spec: The TimeSpec used for sampling
         data_source: The data source to analyze
         year: The year to analyze
         month: The month to analyze (1-12)
@@ -170,11 +167,8 @@ def should_include_monthly_block(
     else:
         end = datetime(year, month + 1, 1, tzinfo=timezone.utc)
 
-    # Check sampling rate
-    points_per_day = calculate_sampling_rate(time_spec)
-
     # Get data coverage
-    coverage, _ = analyze_data_coverage(time_spec, start, end, data_source.timestamps)
+    coverage, points_per_day = analyze_data_coverage(start, end, data_source.timestamps)
 
     # Monthly blocks need at least 4 points per day
     # and 66.6% coverage
@@ -182,7 +176,7 @@ def should_include_monthly_block(
 
 
 def should_include_fourty_eight_hour_block(
-    time_spec: TimeSpec, data_source: Any, date: datetime
+    data_source: Any, date: datetime
 ) -> bool:
     """
     Determine if a daily block should be included.
@@ -200,21 +194,13 @@ def should_include_fourty_eight_hour_block(
     start = center - timedelta(hours=24)
     end = center + timedelta(hours=24)
 
-    # Check sampling rate
-    points_per_day = calculate_sampling_rate(time_spec)
-
     # Get data coverage
-    coverage, actual_points = analyze_data_coverage(
-        time_spec, start, end, data_source.timestamps
+    coverage, points_per_day = analyze_data_coverage(
+        start, end, data_source.timestamps
     )
-
-    # Use actual measured points per day if available
-    if actual_points > 0:
-        points_per_day = actual_points
-
-    # Daily blocks need at least 8 points per day
+    # Daily blocks need at least 4 points per day
     # and 66.6% coverage (the same threshold used for monthly blocks)
-    return coverage >= 0.666 and points_per_day >= 8.0
+    return coverage >= 0.666 and points_per_day >= 4.0
 
 
 def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:

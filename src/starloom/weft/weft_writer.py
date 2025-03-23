@@ -158,9 +158,7 @@ class WeftWriter:
             data_source: The data source to get values from
             start_dt: Start datetime
             end_dt: End datetime
-            sample_count: Number of sample points to generate
             degree: Degree of Chebyshev polynomial to fit
-            quantity: Optional quantity override
 
         Returns:
             List of Chebyshev coefficients
@@ -177,9 +175,7 @@ class WeftWriter:
         data_source: EphemerisDataSource,
         start_year: int,
         duration: int,
-        samples_per_year: int,
         degree: int,
-        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
     ) -> Optional[MultiYearBlock]:
         """
         Create a multi-year block covering the specified years.
@@ -188,9 +184,7 @@ class WeftWriter:
             data_source: The data source to get values from
             start_year: Starting year
             duration: Number of years to cover
-            samples_per_year: Number of sample points per year
             degree: Degree of Chebyshev polynomial to fit
-            quantity: The quantity being computed
 
         Returns:
             A MultiYearBlock or None if coverage criteria not met
@@ -209,11 +203,8 @@ class WeftWriter:
             end_dt = datetime(end_year, 1, 1, tzinfo=ZoneInfo("UTC"))
 
         # Check if this block should be included based on coverage criteria
-        time_spec = TimeSpec.from_range(
-            start=start_dt, stop=end_dt, step=f"{365 * 24 / samples_per_year}h"
-        )
         if not should_include_multi_year_block(
-            time_spec, data_source, start_year, duration
+            data_source, start_year, duration
         ):
             logger.debug(
                 f"Multi-year block not included for {start_year}-{start_year + duration - 1}"
@@ -227,9 +218,6 @@ class WeftWriter:
         if actual_duration < 0.5:
             # Use at least 6 months of duration to ensure a reasonable fit
             actual_duration = 0.5
-
-        # Adjust sample count based on actual duration
-        sample_count = max(degree + 1, int(samples_per_year * actual_duration))
 
         # Generate samples and fit coefficients
         coeffs_list = self._generate_chebyshev_coefficients(
@@ -245,9 +233,7 @@ class WeftWriter:
         data_source: EphemerisDataSource,
         start_date: datetime,
         end_date: datetime,
-        samples_per_day: int,
         degree: int,
-        quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
     ) -> List[MonthlyBlock]:
         """
         Create monthly blocks for the specified months.
@@ -256,186 +242,41 @@ class WeftWriter:
             data_source: The data source to get values from
             start_date: Start date
             end_date: End date (inclusive)
-            samples_per_day: Number of sample points per day
             degree: Degree of Chebyshev polynomial to fit
-            quantity: Optional quantity override
 
         Returns:
             List of MonthlyBlock objects
         """
         blocks = []
 
-        # Handle special case for very short ranges
-        total_days = (end_date - start_date).days + 1
-        if total_days <= 31:
-            # Create a single monthly block for the entire range if it has sufficient coverage
-            day_count = total_days
-
-            # Check if this block should be included based on coverage criteria
-            if should_include_monthly_block(
-                TimeSpec.from_range(
-                    start=start_date, stop=end_date, step=f"{24 / samples_per_day}h"
-                ),
-                data_source,
-                start_date.year,
-                start_date.month,
-            ):
-                # Generate samples and fit coefficients
-                coeffs_list = self._generate_chebyshev_coefficients(
-                    data_source,
-                    start_date,
-                    end_date,
-                    degree,
-                )
-
-                blocks.append(
-                    MonthlyBlock(
-                        year=start_date.year,
-                        month=start_date.month,
-                        day_count=day_count,
-                        coeffs=coeffs_list,
-                    )
-                )
-            return blocks
-
-        # For longer ranges, create blocks for each month
-        current_date = start_date
-
-        # Create first partial month if start_date is not the first of the month
-        if start_date.day > 1:
-            # Calculate end of current month
-            if current_date.month == 12:
-                month_end = datetime(
-                    current_date.year + 1, 1, 1, tzinfo=ZoneInfo("UTC")
-                ) - timedelta(seconds=1)
+        year, month = start_date.year, start_date.month
+    
+        # Loop until the current month goes past end_date
+        while datetime(year, month, 1, tzinfo=start_date.tzinfo) <= end_date:
+            month_start = datetime(year, month, 1, tzinfo=start_date.tzinfo)
+            # Last day of the month: move to next month and subtract a day
+            if month == 12:
+                next_month = datetime(year + 1, 1, 1, tzinfo=start_date.tzinfo)
             else:
-                month_end = datetime(
-                    current_date.year, current_date.month + 1, 1, tzinfo=ZoneInfo("UTC")
-                ) - timedelta(seconds=1)
+                next_month = datetime(year, month + 1, 1, tzinfo=start_date.tzinfo)
+            month_end = next_month - timedelta(days=1)
+            
+            # Adjust boundaries for the overall range
+            block_start = max(start_date, month_start)
+            block_end = min(end_date, month_end)
+            day_count = (block_end - block_start).days + 1
+            
+            # Only include if the month meets the criteria
+            if should_include_monthly_block(data_source, year, month):
+                coeffs_list = self._generate_chebyshev_coefficients(data_source, block_start, block_end, degree)
+                blocks.append(MonthlyBlock(year=year, month=month, day_count=day_count, coeffs=coeffs_list))
+            
+            # Move to the next month
+            year = next_month.year
+            month = next_month.month
 
-            # If month_end is after end_date, use end_date instead
-            if month_end > end_date:
-                month_end = end_date
+        return blocks
 
-            day_count = (month_end - current_date).days + 1
-
-            # Only include this partial month if it meets coverage criteria
-            if should_include_monthly_block(
-                TimeSpec.from_range(
-                    start=current_date, stop=month_end, step=f"{24 / samples_per_day}h"
-                ),
-                data_source,
-                current_date.year,
-                current_date.month,
-            ):
-                # Generate samples and fit coefficients
-                coeffs_list = self._generate_chebyshev_coefficients(
-                    data_source,
-                    current_date,
-                    month_end,
-                    degree,
-                )
-
-                blocks.append(
-                    MonthlyBlock(
-                        year=current_date.year,
-                        month=current_date.month,
-                        day_count=day_count,
-                        coeffs=coeffs_list,
-                    )
-                )
-
-            # Move to the first day of the next month
-            if current_date.month == 12:
-                current_date = datetime(
-                    current_date.year + 1, 1, 1, tzinfo=ZoneInfo("UTC")
-                )
-            else:
-                current_date = datetime(
-                    current_date.year, current_date.month + 1, 1, tzinfo=ZoneInfo("UTC")
-                )
-
-            # If we've gone beyond end_date, return the blocks so far
-            if current_date > end_date:
-                return blocks
-
-        # Process full months
-        while current_date < end_date:
-            # Calculate next month's start
-            if current_date.month == 12:
-                next_month = datetime(
-                    current_date.year + 1, 1, 1, tzinfo=ZoneInfo("UTC")
-                )
-            else:
-                next_month = datetime(
-                    current_date.year, current_date.month + 1, 1, tzinfo=ZoneInfo("UTC")
-                )
-
-            # If next_month would go beyond end_date, handle the final partial month
-            if next_month > end_date:
-                day_count = (end_date - current_date).days + 1
-
-                # Only include this partial month if it meets coverage criteria
-                if should_include_monthly_block(
-                    TimeSpec.from_range(
-                        start=current_date,
-                        stop=end_date,
-                        step=f"{24 / samples_per_day}h",
-                    ),
-                    data_source,
-                    current_date.year,
-                    current_date.month,
-                ):
-                    # Generate samples and fit coefficients
-                    coeffs_list = self._generate_chebyshev_coefficients(
-                        data_source,
-                        current_date,
-                        end_date,
-                        degree,
-                    )
-
-                    blocks.append(
-                        MonthlyBlock(
-                            year=current_date.year,
-                            month=current_date.month,
-                            day_count=day_count,
-                            coeffs=coeffs_list,
-                        )
-                    )
-                break
-
-            # Handle a full month
-            day_count = (next_month - current_date).days
-
-            # Only include this month if it meets coverage criteria
-            if should_include_monthly_block(
-                TimeSpec.from_range(
-                    start=current_date,
-                    stop=next_month - timedelta(microseconds=1),
-                    step=f"{24 / samples_per_day}h",
-                ),
-                data_source,
-                current_date.year,
-                current_date.month,
-            ):
-                # Generate samples and fit coefficients
-                coeffs_list = self._generate_chebyshev_coefficients(
-                    data_source,
-                    current_date,
-                    next_month - timedelta(microseconds=1),
-                    degree,
-                )
-
-                blocks.append(
-                    MonthlyBlock(
-                        year=current_date.year,
-                        month=current_date.month,
-                        day_count=day_count,
-                        coeffs=coeffs_list,
-                    )
-                )
-
-            current_date = next_month
 
         return blocks
 
@@ -446,7 +287,6 @@ class WeftWriter:
         end_date: datetime,
         degree: int,
         block_size: Optional[int] = None,
-        quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
     ) -> List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]]:
         """
         Create a section of forty-eight hour blocks with a single header.
@@ -455,10 +295,8 @@ class WeftWriter:
             data_source: The data source to get values from
             start_date: Start date
             end_date: End date (inclusive)
-            samples_per_day: Number of sample points per day
             degree: Degree of Chebyshev polynomial to fit
             block_size: Fixed size for each block (computed if None)
-            quantity: Optional quantity override
 
         Returns:
             List containing one FortyEightHourSectionHeader followed by FortyEightHourBlocks
@@ -498,13 +336,8 @@ class WeftWriter:
         ):  # Changed from <= to < to avoid going past end_date
             day_count += 1
             # Check if this day should be included based on coverage criteria
-            time_spec = TimeSpec.from_range(
-                start=current_date,
-                stop=current_date + timedelta(days=1) - timedelta(microseconds=1),
-                step=f"{24 / samples_per_day}h",
-            )
             include_block = should_include_fourty_eight_hour_block(
-                time_spec, data_source, current_date
+                current_date, data_source
             )
             logger.debug(
                 f"Day {current_date.date()}: should_include_daily_block = {include_block}"
@@ -537,7 +370,7 @@ class WeftWriter:
 
             # Generate samples and fit coefficients
             coeffs_list = self._generate_chebyshev_coefficients(
-                data_source, block_start, block_end, samples_per_day, degree, quantity
+                data_source, block_start, block_end, degree
             )
 
             # Pad coefficients to fixed size if needed
@@ -600,7 +433,6 @@ class WeftWriter:
                     start_year=decade_start,
                     duration=10,
                     degree=multi_year_config["polynomial_degree"],
-                    quantity=quantity,
                 )
                 if decade_block:
                     blocks.append(decade_block)
@@ -615,7 +447,6 @@ class WeftWriter:
                     start_year=year,
                     duration=1,
                     degree=multi_year_config["polynomial_degree"],
-                    quantity=quantity,
                 )
                 if year_block:
                     blocks.append(year_block)
@@ -629,7 +460,6 @@ class WeftWriter:
                 start_date=start_date,
                 end_date=end_date,
                 degree=monthly_config["polynomial_degree"],
-                quantity=quantity,
             )
             blocks.extend(monthly_blocks)
 
@@ -641,7 +471,6 @@ class WeftWriter:
                 start_date=start_date,
                 end_date=end_date,
                 degree=forty_eight_hour_config["polynomial_degree"],
-                quantity=quantity,
             )
             # The first block is the header, followed by the actual blocks
             if forty_eight_hour_blocks:

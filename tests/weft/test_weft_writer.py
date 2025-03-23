@@ -2,7 +2,6 @@ import unittest
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import math
-from typing import List
 
 # Import from starloom package
 from starloom.weft.blocks.utils import evaluate_chebyshev
