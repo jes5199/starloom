@@ -203,9 +203,12 @@ class WeftWriter:
             )
             return None
 
+        start_dt = datetime(start_year, 1, 1, tzinfo=ZoneInfo("UTC"))
+        end_dt = datetime(start_year + duration, 1, 1, tzinfo=ZoneInfo("UTC"))
+
         # Generate samples and fit coefficients
         coeffs_list = self._generate_chebyshev_coefficients(
-            data_source, start_year, start_year + duration, degree
+            data_source, start_dt, end_dt, degree
         )
 
         return MultiYearBlock(

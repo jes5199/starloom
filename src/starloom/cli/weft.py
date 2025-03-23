@@ -21,6 +21,7 @@ from ..weft.weft import (
     FortyEightHourBlock,
     WeftFile,
 )
+from . import common
 
 
 # Add signal handler for SIGINT (Ctrl+C)
@@ -81,6 +82,22 @@ def weft() -> None:
     help="Custom timespan descriptor for the preamble (e.g. '2000s' or '2020-2030')",
     type=str,
 )
+@click.option(
+    "-v",
+    "--verbose",
+    count=True,
+    help="Increase verbosity (can be used multiple times: -v, -vv, -vvv)",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Enable debug logging (equivalent to -vv)",
+)
+@click.option(
+    "--quiet",
+    is_flag=True,
+    help="Suppress all logging except errors",
+)
 def generate(
     planet: str,
     quantity: str,
@@ -90,8 +107,18 @@ def generate(
     data_dir: str,
     step: str,
     timespan: Optional[str],
+    verbose: int,
+    debug: bool,
+    quiet: bool,
 ) -> None:
     """Generate a .weft binary ephemeris file."""
+    # Configure logging based on command line arguments
+    common.configure_logging({
+        "quiet": quiet,
+        "debug": debug,
+        "verbose": verbose,
+    })
+
     print("Starting generation with parameters:")
     print(f"  Planet: {planet}")
     print(f"  Quantity: {quantity}")
