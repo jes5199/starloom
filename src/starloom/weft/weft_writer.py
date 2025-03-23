@@ -265,19 +265,20 @@ class WeftWriter:
         if not isinstance(coeffs_list, list):
             logger.warning(f"Expected list but got {type(coeffs_list)}, trying conversion")
             try:
-                coeffs_list = list(coeffs_list)  # type: ignore[call-overload]
+                # Convert to list and ensure it's a List[float]
+                coeffs_list = cast(List[float], list(coeffs_list))
             except Exception:
                 logger.error("Failed to convert to list")
                 return [0.0]
 
         # Trim from the end until we find a coefficient larger than the threshold
-        while len(coeffs_list) > 1 and abs(coeffs_list[-1]) < threshold:  # type: ignore[arg-type,index]
-            coeffs_list.pop()  # type: ignore[union-attr]
+        while len(coeffs_list) > 1 and abs(cast(float, coeffs_list[-1])) < threshold:
+            coeffs_list.pop()
 
         # Count how many coefficients we dropped
         if isinstance(coeffs, np.ndarray):
             original_len = len(coeffs)
-            current_len = len(coeffs_list)  # type: ignore[arg-type]
+            current_len = len(coeffs_list)
             if current_len < original_len:
                 logger.debug(f"Dropped {original_len - current_len} tiny coefficients below {threshold}")
 

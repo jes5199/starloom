@@ -7,7 +7,8 @@ and handling logging configuration.
 
 import argparse
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Union
+from argparse import Namespace
 
 from ..weft.logging import set_log_level
 
@@ -39,12 +40,12 @@ def setup_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def configure_logging(args: Dict[str, Any]) -> None:
+def configure_logging(args: Union[Dict[str, Any], Namespace]) -> None:
     """
     Configure logging based on command line arguments.
 
     Args:
-        args: Parsed command line arguments (as a dictionary or argparse.Namespace)
+        args: Parsed command line arguments (as a dictionary or Namespace)
     """
     # Determine log level based on verbosity flags
     if isinstance(args, dict):
@@ -52,8 +53,8 @@ def configure_logging(args: Dict[str, Any]) -> None:
         debug = args.get("debug", False)
         verbosity = args.get("verbose", 0)
     else:
-        # Handle as argparse.Namespace for backward compatibility
-        quiet = getattr(args, "quiet", False)  # type: ignore[unreachable]
+        # Handle as argparse.Namespace
+        quiet = getattr(args, "quiet", False)
         debug = getattr(args, "debug", False)
         verbosity = getattr(args, "verbose", 0)
 

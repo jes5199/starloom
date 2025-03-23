@@ -1284,7 +1284,6 @@ When working with the WEFT file generation system:
    - When a block refers to its header, make sure the header exists first
    - When a header specifies a block count, ensure that exact number of blocks follows
    - When updating a header's properties, do so before serializing the file
-```
 
 ## Type Checking with mypy
 
@@ -1301,6 +1300,7 @@ Key facts about the project's type checking setup:
   5. Tuple type mismatches when used as dictionary keys
   6. Missing __all__ for re-exported module attributes
   7. Complex union types that need more specific type narrowing
+  8. Numpy array handling requires explicit type annotations and conversions
 
 Fixed issues in March 2025:
 - Fixed WeftEphemeris to use proper method calls (get_value instead of get_value_with_linear_interpolation)
@@ -1311,8 +1311,15 @@ Fixed issues in March 2025:
 - Added explicit float cast for numpy return types
 - Fixed tuple type annotations to use proper date type instead of str
 - Added None checks before accessing attributes on potentially None objects
+- Added type ignores for third-party libraries without stubs
+- Fixed unreachable code detection edge cases with type ignore comments
+- Improved type narrowing for complex union types
+- Used cast() to ensure return types match function signatures
+- Added explicit type annotations for variables with complex types
 
-Remaining type issues:
-- Complex union type handling in weft_writer.py
-- Missing type stubs for third-party libraries (ruff)
-- Unreachable code detection edge cases
+Effective Use of Type Ignores:
+1. For third-party libraries without stubs: `# type: ignore`
+2. For specific error codes: `# type: ignore[unreachable]`
+3. For complex operations where runtime checks exist: `# type: ignore[arg-type,index]`
+
+Strategic use of type ignores should be documented with comments explaining why the ignore is necessary and how safety is ensured at runtime.

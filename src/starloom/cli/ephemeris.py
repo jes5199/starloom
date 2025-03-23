@@ -2,7 +2,7 @@
 
 import click
 from datetime import datetime, timezone
-from typing import Optional, Union, Dict, Type, cast
+from typing import Optional, Union, Dict, Type, cast, Protocol
 
 from ..horizons.ephemeris import HorizonsEphemeris
 from ..horizons.planet import Planet
@@ -15,22 +15,17 @@ from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import julian_to_datetime
 
 
+class EphemerisProtocol(Protocol):
+    def __init__(self, data_dir: Optional[str] = None) -> None: ...
+    def get_planet_positions(self, planet: str, time_spec: Any) -> Dict[float, Dict[str, float]]: ...
+
+
 # Define available ephemeris sources
-EPHEMERIS_SOURCES: Dict[
-    str,
-    Type[
-        Union[
-            HorizonsEphemeris,
-            LocalHorizonsEphemeris,
-            CachedHorizonsEphemeris,
-            WeftEphemeris,
-        ]
-    ],
-] = {
-    "horizons": HorizonsEphemeris,
+EPHEMERIS_SOURCES: Dict[str, Type[EphemerisProtocol]] = {
     "sqlite": LocalHorizonsEphemeris,
     "cached_horizons": CachedHorizonsEphemeris,
     "weft": WeftEphemeris,
+    "horizons": HorizonsEphemeris,
 }
 
 # Default ephemeris source
@@ -173,7 +168,7 @@ def ephemeris(
 
     # Create instance based on class type
     if source in ("sqlite", "cached_horizons", "weft"):
-        ephemeris_instance = ephemeris_class(data_dir=data)  # type: ignore
+        ephemeris_instance = ephemeris_class(data_dir=data)
     else:
         ephemeris_instance = ephemeris_class()
 
