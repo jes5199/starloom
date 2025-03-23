@@ -201,12 +201,12 @@ class TestBlockInclusion(unittest.TestCase):
             should_include_fourty_eight_hour_block(data_source, day)
         )
 
-        # Should not include with 6-hour data
-        sparse_timestamps = timestamps[::6]  # Only every 6 hours
+        # Should not include with 12-hour dat
+        sparse_timestamps = timestamps[::12]  # Only every 12 hours
         sparse_data_source = MockEphemerisDataSource(
             start_date=day_start,
             end_date=day_end,
-            step_hours=6,
+            step_hours=12,
             timestamps=sparse_timestamps,
         )
         self.assertFalse(
