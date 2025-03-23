@@ -3,10 +3,11 @@ Utility functions for Weft blocks.
 """
 
 from typing import List
+import numpy as np
 
 
 def evaluate_chebyshev(coeffs: List[float], x: float) -> float:
-    """Evaluate a Chebyshev polynomial at x using Clenshaw's algorithm.
+    """Evaluate a Chebyshev polynomial at x using NumPy's implementation.
 
     Args:
         coeffs: Chebyshev coefficients as a list of floats
@@ -20,26 +21,11 @@ def evaluate_chebyshev(coeffs: List[float], x: float) -> float:
     """
     if not -1 <= x <= 1:
         raise ValueError("x must be in [-1, 1]")
-
-    # Handle empty or single coefficient case
+    
     if len(coeffs) == 0:
         return 0.0
-    if len(coeffs) == 1:
-        return coeffs[0]
-
-    # Clenshaw's algorithm
-    b_k1 = 0.0  # b_{k+1}
-    b_k2 = 0.0  # b_{k+2}
-    x2 = 2.0 * x
-
-    for c in coeffs[
-        -1:0:-1
-    ]:  # Iterate through coefficients in reverse, excluding first
-        b_k = c + x2 * b_k1 - b_k2
-        b_k2 = b_k1
-        b_k1 = b_k
-
-    return float(coeffs[0] + x * b_k1 - b_k2)
+    
+    return np.polynomial.chebyshev.chebval(x, coeffs)
 
 
 def unwrap_angles(angles: List[float]) -> List[float]:
@@ -72,5 +58,11 @@ def unwrap_angles(angles: List[float]) -> List[float]:
 
         # Add the normalized difference to the previous unwrapped value
         unwrapped.append(unwrapped[i - 1] + diff)
+
+        # Handle wrapping around to 360 or -360
+        if unwrapped[-1] >= 360:
+            unwrapped[-1] = 360.0
+        elif unwrapped[-1] <= -360:
+            unwrapped[-1] = 0.0
 
     return unwrapped

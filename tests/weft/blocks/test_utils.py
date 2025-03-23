@@ -43,7 +43,7 @@ class TestEvaluateChebyshev(unittest.TestCase):
         self.assertEqual(evaluate_chebyshev([0.0, 1.0], 0.5), 0.5)
         
         # T_2(x) = 2x^2 - 1
-        self.assertEqual(evaluate_chebyshev([-1.0, 0.0, 2.0], 0.5), -0.5)
+        self.assertEqual(evaluate_chebyshev([-1.0, 0.0, 2.0], 0.5), -2.0)
 
 
 class TestUnwrapAngles(unittest.TestCase):
