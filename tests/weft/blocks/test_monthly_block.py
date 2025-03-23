@@ -1,9 +1,12 @@
 """Unit tests for MonthlyBlock evaluation."""
 
 import unittest
+import pytest
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
-from src.starloom.weft.blocks import MonthlyBlock
+from src.starloom.weft.blocks.monthly_block import MonthlyBlock
+from starloom.space_time.pythonic_datetimes import NaiveDateTimeError
 
 
 class TestMonthlyBlockEvaluation(unittest.TestCase):
@@ -50,16 +53,31 @@ class TestMonthlyBlockEvaluation(unittest.TestCase):
         end_value = self.block.evaluate(end_date)
         self.assertIsInstance(end_value, float)
 
-    def test_evaluation_with_different_timezones(self):
-        """Test evaluation with different timezone inputs."""
-        # Test with UTC
+    def test_evaluation_with_utc_timezone(self):
+        """Test evaluation with UTC timezone."""
         utc_date = datetime(2025, 3, 15, tzinfo=timezone.utc)
         utc_value = self.block.evaluate(utc_date)
+        self.assertIsInstance(utc_value, float)
 
-        # Test with naive datetime (should be treated as UTC)
+    def test_evaluation_with_non_utc_timezone(self):
+        """Test evaluation with non-UTC timezone."""
+        # Test with a non-UTC timezone (US/Pacific)
+        pacific_tz = ZoneInfo("America/Los_Angeles")
+        pacific_date = datetime(2025, 3, 15, tzinfo=pacific_tz)
+        pacific_value = self.block.evaluate(pacific_date)
+        self.assertIsInstance(pacific_value, float)
+
+        # Compare with UTC time at same instant
+        utc_date = pacific_date.astimezone(timezone.utc)
+        utc_value = self.block.evaluate(utc_date)
+        self.assertEqual(pacific_value, utc_value, "Values should be equal for same instant in different timezones")
+
+    def test_evaluation_with_naive_datetime(self):
+        """Test that naive datetime raises appropriate error."""
         naive_date = datetime(2025, 3, 15)
-        naive_value = self.block.evaluate(naive_date)
-        self.assertAlmostEqual(utc_value, naive_value)
+        with self.assertRaises(NaiveDateTimeError) as cm:
+            self.block.evaluate(naive_date)
+        self.assertEqual("Datetime must have timezone info", str(cm.exception))
 
     def test_evaluation_with_zero_coefficients(self):
         """Test evaluation with zero coefficients."""
