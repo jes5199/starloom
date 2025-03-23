@@ -172,3 +172,74 @@ Task: Fix failing tests in the tests/weft/ directory. The code is working better
 [X] Fix FortyEightHourSectionHeader instantiations in test_weft_edge_cases.py
 [X] Update FortyEightHourSectionHeader block_size values to 198 bytes
 [X] Update expected values in test_get_value method to match actual implementation
+
+# Type Checking the Codebase
+
+## Task
+Run a type check on the codebase to verify type correctness.
+
+## Goal
+Ensure all type annotations are correct and fix any identified type issues.
+
+## TODOs
+[X] Run mypy type checker on the codebase
+[X] Review and categorize found type issues
+[X] Fix some of the identified type problems
+[ ] Fix remaining type problems
+[ ] Verify fixes with another typecheck run
+
+## Progress
+- Initial mypy run: 27 errors in 7 files
+- After first fixes: 22 errors in 7 files (5 errors fixed)
+
+## Issues Found
+Total: 22 errors in 7 files
+
+### Import Issues
+- Skipping analyzing "ruff.linter", "ruff.rules", "ruff.tree": missing library stubs or py.typed marker
+- Module "starloom.space_time.julian" does not explicitly export attribute "datetime_to_julian"
+
+### Code Flow Issues
+- src/starloom/cli/common.py:56: Statement is unreachable
+
+### Type Annotation Issues
+- src/starloom/weft/blocks/utils.py:28: Incompatible return value type (got "floating[Any]", expected "float")
+- src/starloom/weft/weft_file.py:145, 197: Incompatible types in assignment (expression has type "None", variable has type "FortyEightHourSectionHeader")
+- [FIXED] src/starloom/weft/weft_reader.py:150: Missing type parameters for generic type "Tuple"
+- [FIXED] src/starloom/weft_ephemeris/ephemeris.py:27: Incompatible default for argument "data" (default has type "None", argument has type "str")
+
+### Union Type Issues
+- src/starloom/weft/weft_reader.py:222, 226, 249, 287: Item "None" of "WeftFile | None" has no attribute
+- src/starloom/weft/weft_writer.py:254: Item "float" of "float | list[float] | ..." has no attribute "pop"
+- [FIXED] src/starloom/weft_ephemeris/ephemeris.py:210: Item "None" of "IO[bytes] | None" has no attribute "__enter__", "__exit__"
+
+### Function Call Issues
+- src/starloom/weft/weft_writer.py:253: Argument issues with "len" and "abs" on complex types
+- src/starloom/weft/weft_writer.py:426: Argument 1 to "extend" has incompatible type
+- src/starloom/weft/weft_writer.py:428: Incompatible return value type issues
+- [FIXED] src/starloom/weft_ephemeris/ephemeris.py:109, 118, 127: "WeftReader" has no attribute "get_value_with_linear_interpolation"
+- [FIXED] src/starloom/weft_ephemeris/ephemeris.py:228: Too many arguments for "load_file" of "WeftReader"
+
+### New Issues Found
+- src/starloom/weft/weft_reader.py:153: Non-overlapping container check (element type: "tuple[date, date]", container item type: "tuple[str, ...]")
+- src/starloom/weft/weft_reader.py:154, 155: Invalid index type "tuple[date, date]" for dictionary with key type "tuple[str, ...]"
+
+## Fixed Type Issues
+1. Fixed missing type parameters for generic Tuple in weft_reader.py
+2. Updated Optional[str] annotation for data parameter with None default in WeftEphemeris
+3. Fixed "get_value_with_linear_interpolation" method calls to use "get_value" instead in WeftEphemeris
+4. Fixed load_file method call with too many arguments in WeftEphemeris
+5. Added proper None check before using file object in with statement in WeftEphemeris
+
+## Priorities for remaining fixes
+1. Fix the tuple type mismatch in the blocks_by_header dict in weft_reader.py
+2. Fix the None-related type issues in WeftReader (lines 222, 226, 249, 287)
+3. Fix return value types and function call argument type issues
+4. Address unreachable code issue
+5. Fix import problems
+
+## Next Steps
+For the remaining issues, we should continue in order of severity and focus on fixing:
+1. The tuple type mismatch in weft_reader.py (lines 153-155)
+2. None-related issues in WeftReader (lines 222, 226, 249, 287)
+3. Fix the complex type issues in weft_writer.py

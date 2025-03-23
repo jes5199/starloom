@@ -24,7 +24,7 @@ class WeftEphemeris(Ephemeris):
     extracting them to disk, and provides ephemeris data from them.
     """
 
-    def __init__(self, data_dir: str = "./data", data: str = None) -> None:
+    def __init__(self, data_dir: str = "./data", data: Optional[str] = None) -> None:
         """
         Initialize a WeftEphemeris instance.
 
@@ -106,7 +106,7 @@ class WeftEphemeris(Ephemeris):
             if f"{planet_lower}_longitude" in self.readers.get(planet_lower, {}):
                 reader = self.readers[planet_lower][f"{planet_lower}_longitude"]
                 try:
-                    longitude = reader.get_value_with_linear_interpolation(dt)
+                    longitude = reader.get_value(dt)
                     position_data[Quantity.ECLIPTIC_LONGITUDE] = longitude
                 except Exception:
                     position_data[Quantity.ECLIPTIC_LONGITUDE] = 0.0
@@ -115,7 +115,7 @@ class WeftEphemeris(Ephemeris):
             if f"{planet_lower}_latitude" in self.readers.get(planet_lower, {}):
                 reader = self.readers[planet_lower][f"{planet_lower}_latitude"]
                 try:
-                    latitude = reader.get_value_with_linear_interpolation(dt)
+                    latitude = reader.get_value(dt)
                     position_data[Quantity.ECLIPTIC_LATITUDE] = latitude
                 except Exception:
                     position_data[Quantity.ECLIPTIC_LATITUDE] = 0.0
@@ -124,7 +124,7 @@ class WeftEphemeris(Ephemeris):
             if f"{planet_lower}_distance" in self.readers.get(planet_lower, {}):
                 reader = self.readers[planet_lower][f"{planet_lower}_distance"]
                 try:
-                    distance = reader.get_value_with_linear_interpolation(dt)
+                    distance = reader.get_value(dt)
                     position_data[Quantity.DELTA] = distance
                 except Exception:
                     position_data[Quantity.DELTA] = 0.0
@@ -207,35 +207,33 @@ class WeftEphemeris(Ephemeris):
                     file_info = tar.getmember(filename)
 
                     # Read the file into memory
-                    with tar.extractfile(file_info) as f:
-                        if f is None:
-                            continue
+                    file_obj = tar.extractfile(file_info)
+                    if file_obj is None:
+                        continue
 
-                        # Read the data into a bytes object
+                    # Read the data into a bytes object
+                    with file_obj as f:
                         weft_data = f.read()
 
-                        # Create an in-memory file-like object
-                        # Create a reader for this weft file
-                        reader = WeftReader()
+                    # Create an in-memory file-like object
+                    # Create a reader for this weft file
+                    reader = WeftReader()
 
-                        # The WeftReader normally reads from a file,
-                        # but we need to parse the data from memory.
-                        # We'll modify the approach to use from_bytes:
-                        with open("temp_weft_file.weft", "wb") as temp_file:
-                            temp_file.write(weft_data)
+                    # The WeftReader normally reads from a file,
+                    # but we need to parse the data from memory.
+                    # We'll modify the approach to use from_bytes:
+                    with open("temp_weft_file.weft", "wb") as temp_file:
+                        temp_file.write(weft_data)
 
-                        # Now load the temporary file
-                        reader.load_file(
-                            "temp_weft_file.weft",
-                            f"{planet}_{filename[len(planet) + 1 : -5]}",
-                        )
-                        os.remove("temp_weft_file.weft")
+                    # Now load the temporary file
+                    reader.load_file("temp_weft_file.weft")
+                    os.remove("temp_weft_file.weft")
 
-                        # Store the reader
-                        quantity_name = filename[
-                            len(planet) + 1 : -5
-                        ]  # Extract "longitude", "latitude", etc.
-                        self.readers[planet][f"{planet}_{quantity_name}"] = reader
+                    # Store the reader
+                    quantity_name = filename[
+                        len(planet) + 1 : -5
+                    ]  # Extract "longitude", "latitude", etc.
+                    self.readers[planet][f"{planet}_{quantity_name}"] = reader
 
                 except Exception as e:
                     # Just log the error and continue

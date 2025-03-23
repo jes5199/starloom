@@ -147,7 +147,7 @@ class WeftReader:
         # If we have forty-eight hour blocks, check if they're in the same section
         if forty_eight_hour_blocks:
             # Group blocks by their header
-            blocks_by_header: Dict[Tuple, List[FortyEightHourBlock]] = {}
+            blocks_by_header: Dict[Tuple[str, ...], List[FortyEightHourBlock]] = {}
             for block in forty_eight_hour_blocks:
                 header_key = (block.header.start_day, block.header.end_day)
                 if header_key not in blocks_by_header:

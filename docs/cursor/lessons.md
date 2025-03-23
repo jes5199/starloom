@@ -1284,3 +1284,24 @@ When working with the WEFT file generation system:
    - When a block refers to its header, make sure the header exists first
    - When a header specifies a block count, ensure that exact number of blocks follows
    - When updating a header's properties, do so before serializing the file
+```
+
+## Type Checking with mypy
+
+Run `mypy src` to perform type checking on the entire codebase.
+
+Key facts about the project's type checking setup:
+- mypy is configured in `pyproject.toml` with `strict = true` enabled
+- The project uses Python 3.8+ type annotations
+- Common typing issues encountered:
+  1. Missing Optional[str] for parameters with None defaults
+  2. Missing type parameters for generics like Tuple (must be e.g., Tuple[str, ...])
+  3. Improper None checking before accessing attributes of potentially None objects
+  4. Method calls to non-existent methods (WeftReader.get_value_with_linear_interpolation)
+  5. Tuple type mismatches when used as dictionary keys
+
+Fixed issues in March 2025:
+- Fixed WeftEphemeris to use proper method calls (get_value instead of get_value_with_linear_interpolation)
+- Fixed improper None handling in with statements
+- Fixed Optional type annotations for parameters with None defaults
+- Fixed missing type parameters for generic types
