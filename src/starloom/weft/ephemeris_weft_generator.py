@@ -59,7 +59,9 @@ def generate_weft_file(
         ValueError: If the planet or quantity is invalid
     """
     logger.debug("Starting weft file generation")
-    logger.debug(f"Parameters: planet={planet}, quantity={quantity}, start_date={start_date}, end_date={end_date}, output_path={output_path}")
+    logger.debug(
+        f"Parameters: planet={planet}, quantity={quantity}, start_date={start_date}, end_date={end_date}, output_path={output_path}"
+    )
 
     # Convert step_hours to string format if it's an integer
     if isinstance(step_hours, int):

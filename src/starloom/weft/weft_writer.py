@@ -176,14 +176,18 @@ class WeftWriter:
         x_values, values = self._generate_samples(data_source, start_dt, end_dt)
         sample_end = time.time()
         sample_time_ms = (sample_end - sample_start) * 1000
-        logger.debug(f"Generated {len(x_values)} samples for {start_dt} to {end_dt} in {sample_time_ms:.2f}ms")
+        logger.debug(
+            f"Generated {len(x_values)} samples for {start_dt} to {end_dt} in {sample_time_ms:.2f}ms"
+        )
 
         # Time the Chebyshev coefficient fitting
         fit_start = time.time()
         coeffs = chebyshev.chebfit(x_values, values, deg=degree)
         fit_end = time.time()
         fit_time_ms = (fit_end - fit_start) * 1000
-        logger.debug(f"Fitted Chebyshev coefficients (degree {degree}) in {fit_time_ms:.2f}ms")
+        logger.debug(
+            f"Fitted Chebyshev coefficients (degree {degree}) in {fit_time_ms:.2f}ms"
+        )
 
         # Log total time
         total_time_ms = sample_time_ms + fit_time_ms

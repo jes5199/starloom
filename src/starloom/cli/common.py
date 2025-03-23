@@ -92,18 +92,20 @@ def configure_logging(args: Dict[str, Any]) -> None:
     starloom_logger = logging.getLogger("starloom")
     starloom_logger.setLevel(log_level)
     starloom_logger.propagate = True  # Ensure messages propagate to root
-    
+
     # Explicitly set the weft module loggers
     weft_logger = logging.getLogger("starloom.weft")
     weft_logger.setLevel(log_level)
     weft_logger.propagate = True
-    
+
     cli_logger = logging.getLogger("starloom.cli")
     cli_logger.setLevel(log_level)
     cli_logger.propagate = True
-    
+
     # Apply log level to all starloom loggers
     set_log_level(log_level)
 
     # Log the configuration
-    root_logger.debug(f"Logging configured with level {logging.getLevelName(log_level)}")
+    root_logger.debug(
+        f"Logging configured with level {logging.getLevelName(log_level)}"
+    )

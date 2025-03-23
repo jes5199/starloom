@@ -28,7 +28,6 @@ def get_logger(name: str) -> logging.Logger:
     Returns:
         A configured logger instance
     """
-    logger = logging.getLogger(name)
 
     # I can't get log inheritance to work, so I'm just going to return the root logger for now. sorry.
     # Get the root starloom logger
@@ -77,4 +76,3 @@ def set_log_level(level: int) -> None:
         handler.setLevel(level)
         handler.setFormatter(FORMATTER)
         root_logger.addHandler(handler)
-

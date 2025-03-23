@@ -1,7 +1,6 @@
 """CLI entry point for starloom."""
 
 import click
-import logging
 
 from .horizons import horizons
 from .ephemeris import ephemeris
@@ -33,11 +32,13 @@ logger = get_logger(__name__)
 def cli(verbose: int, debug: bool, quiet: bool) -> None:
     """Starloom CLI."""
     # Configure logging based on command line arguments
-    common.configure_logging({
-        "quiet": quiet,
-        "debug": debug,
-        "verbose": verbose,
-    })
+    common.configure_logging(
+        {
+            "quiet": quiet,
+            "debug": debug,
+            "verbose": verbose,
+        }
+    )
     logger.debug("Debug logging enabled")
 
 
