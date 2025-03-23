@@ -21,10 +21,10 @@ def evaluate_chebyshev(coeffs: List[float], x: float) -> float:
     """
     if not -1 <= x <= 1:
         raise ValueError("x must be in [-1, 1]")
-    
+
     if len(coeffs) == 0:
         return 0.0
-    
+
     return np.polynomial.chebyshev.chebval(x, coeffs)
 
 

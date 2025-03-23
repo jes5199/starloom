@@ -180,7 +180,7 @@ class WeftWriter:
     ) -> List[float]:
         """
         Generate Chebyshev coefficients for a given time range.
-        
+
         Args:
             data_source: The data source to get values from
             start_dt: Start datetime
@@ -188,7 +188,7 @@ class WeftWriter:
             sample_count: Number of sample points to generate
             degree: Degree of Chebyshev polynomial to fit
             quantity: Optional quantity override
-            
+
         Returns:
             List of Chebyshev coefficients
         """
@@ -196,7 +196,7 @@ class WeftWriter:
         x_values, values = self._generate_samples(
             data_source, start_dt, end_dt, sample_count, quantity
         )
-        
+
         # Fit Chebyshev coefficients
         coeffs = chebyshev.chebfit(x_values, values, deg=degree)
         return cast(List[float], coeffs.tolist())
@@ -311,7 +311,12 @@ class WeftWriter:
             ):
                 # Generate samples and fit coefficients
                 coeffs_list = self._generate_chebyshev_coefficients(
-                    data_source, start_date, end_date, samples_per_day * day_count, degree, quantity
+                    data_source,
+                    start_date,
+                    end_date,
+                    samples_per_day * day_count,
+                    degree,
+                    quantity,
                 )
 
                 blocks.append(
@@ -356,7 +361,12 @@ class WeftWriter:
             ):
                 # Generate samples and fit coefficients
                 coeffs_list = self._generate_chebyshev_coefficients(
-                    data_source, current_date, month_end, samples_per_day * day_count, degree, quantity
+                    data_source,
+                    current_date,
+                    month_end,
+                    samples_per_day * day_count,
+                    degree,
+                    quantity,
                 )
 
                 blocks.append(
@@ -411,7 +421,12 @@ class WeftWriter:
                 ):
                     # Generate samples and fit coefficients
                     coeffs_list = self._generate_chebyshev_coefficients(
-                        data_source, current_date, end_date, samples_per_day * day_count, degree, quantity
+                        data_source,
+                        current_date,
+                        end_date,
+                        samples_per_day * day_count,
+                        degree,
+                        quantity,
                     )
 
                     blocks.append(
@@ -440,7 +455,12 @@ class WeftWriter:
             ):
                 # Generate samples and fit coefficients
                 coeffs_list = self._generate_chebyshev_coefficients(
-                    data_source, current_date, next_month - timedelta(microseconds=1), samples_per_day * day_count, degree, quantity
+                    data_source,
+                    current_date,
+                    next_month - timedelta(microseconds=1),
+                    samples_per_day * day_count,
+                    degree,
+                    quantity,
                 )
 
                 blocks.append(

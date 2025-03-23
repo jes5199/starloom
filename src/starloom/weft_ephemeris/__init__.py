@@ -7,4 +7,4 @@ position data from weftball archives (tar.gz files containing weft data).
 
 from .ephemeris import WeftEphemeris
 
-__all__ = ["WeftEphemeris"] 
+__all__ = ["WeftEphemeris"]

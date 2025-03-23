@@ -104,7 +104,9 @@ class WeftReader:
                 if block.month == 12:
                     block_end = datetime(block.year + 1, 1, 1, tzinfo=timezone.utc)
                 else:
-                    block_end = datetime(block.year, block.month + 1, 1, tzinfo=timezone.utc)
+                    block_end = datetime(
+                        block.year, block.month + 1, 1, tzinfo=timezone.utc
+                    )
             elif isinstance(block, FortyEightHourBlock):
                 block_start = datetime.combine(
                     block.header.start_day, time(0, tzinfo=timezone.utc)

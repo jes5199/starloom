@@ -35,7 +35,7 @@ def get_zodiac_sign(longitude: float) -> str:
         if start_deg <= longitude < next_start or (i == 11 and longitude >= start_deg):
             # Calculate degrees within sign
             degrees_in_sign = longitude - start_deg
-            return f"{int(degrees_in_sign+0.5)}° {sign} (longitude: {longitude})"
+            return f"{int(degrees_in_sign + 0.5)}° {sign} (longitude: {longitude})"
 
     # Shouldn't reach here
     return f"{longitude}°"

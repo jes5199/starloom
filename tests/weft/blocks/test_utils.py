@@ -38,10 +38,10 @@ class TestEvaluateChebyshev(unittest.TestCase):
         """Test evaluation with a known Chebyshev polynomial."""
         # T_0(x) = 1
         self.assertEqual(evaluate_chebyshev([1.0], 0.5), 1.0)
-        
+
         # T_1(x) = x
         self.assertEqual(evaluate_chebyshev([0.0, 1.0], 0.5), 0.5)
-        
+
         # T_2(x) = 2x^2 - 1
         self.assertEqual(evaluate_chebyshev([-1.0, 0.0, 2.0], 0.5), -2.0)
 
@@ -77,4 +77,4 @@ class TestUnwrapAngles(unittest.TestCase):
         angles = [0.0, -45.0, -90.0, -135.0, -180.0, -225.0, -270.0, -315.0, 0.0]
         result = unwrap_angles(angles)
         expected = [0.0, -45.0, -90.0, -135.0, -180.0, -225.0, -270.0, -315.0, 0.0]
-        self.assertEqual(result, expected) 
+        self.assertEqual(result, expected)

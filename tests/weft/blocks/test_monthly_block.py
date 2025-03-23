@@ -70,7 +70,11 @@ class TestMonthlyBlockEvaluation(unittest.TestCase):
         # Compare with UTC time at same instant
         utc_date = pacific_date.astimezone(timezone.utc)
         utc_value = self.block.evaluate(utc_date)
-        self.assertEqual(pacific_value, utc_value, "Values should be equal for same instant in different timezones")
+        self.assertEqual(
+            pacific_value,
+            utc_value,
+            "Values should be equal for same instant in different timezones",
+        )
 
     def test_evaluation_with_naive_datetime(self):
         """Test that naive datetime raises appropriate error."""
@@ -89,4 +93,4 @@ class TestMonthlyBlockEvaluation(unittest.TestCase):
         )
         date = datetime(2025, 3, 15, tzinfo=timezone.utc)
         value = zero_block.evaluate(date)
-        self.assertEqual(value, 0.0) 
+        self.assertEqual(value, 0.0)

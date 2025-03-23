@@ -17,7 +17,15 @@ from ..space_time.julian import julian_to_datetime
 
 # Define available ephemeris sources
 EPHEMERIS_SOURCES: Dict[
-    str, Type[Union[HorizonsEphemeris, LocalHorizonsEphemeris, CachedHorizonsEphemeris, WeftEphemeris]]
+    str,
+    Type[
+        Union[
+            HorizonsEphemeris,
+            LocalHorizonsEphemeris,
+            CachedHorizonsEphemeris,
+            WeftEphemeris,
+        ]
+    ],
 ] = {
     "horizons": HorizonsEphemeris,
     "sqlite": LocalHorizonsEphemeris,
@@ -118,7 +126,7 @@ def ephemeris(
 
     Using a specific data source:
        starloom ephemeris venus --source sqlite --data ./data
-       
+
     Using a weftball file:
        starloom ephemeris mercury --source weft --data mercury_weftball.tar.gz
     """
