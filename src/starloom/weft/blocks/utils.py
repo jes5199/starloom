@@ -28,41 +28,48 @@ def evaluate_chebyshev(coeffs: List[float], x: float) -> float:
     return np.polynomial.chebyshev.chebval(x, coeffs)
 
 
-def unwrap_angles(angles: List[float]) -> List[float]:
+def unwrap_angles(values: List[float], min_val: float, max_val: float) -> List[float]:
     """
-    Unwrap a sequence of angles to avoid jumps greater than 180 degrees.
+    Unwrap a sequence of values to avoid jumps greater than half the range size.
 
-    This is useful for angles like longitude which may wrap from 359 to 0.
+    This is useful for angles like longitude which may wrap around their range.
+    For example, right ascension wraps at 24 hours, while ecliptic longitude
+    wraps at 360 degrees. The range can be either 0-based (e.g., [0, 360)) or
+    centered (e.g., [-180, 180]).
 
     Args:
-        angles: List of angles (in degrees)
+        values: List of values to unwrap
+        min_val: The minimum value of the range (e.g., 0 for [0, 360), -180 for [-180, 180])
+        max_val: The maximum value of the range (e.g., 360 for [0, 360), 180 for [-180, 180])
 
     Returns:
-        List of unwrapped angles
+        List of unwrapped values
     """
-    if not angles:
+    if not values:
         return []
 
     # Make a copy to avoid modifying the original
-    unwrapped = [angles[0]]
+    unwrapped = [values[0]]
+    range_size = max_val - min_val
+    half_range = range_size / 2
 
-    for i in range(1, len(angles)):
-        # Calculate the smallest angular difference
-        diff = angles[i] - angles[i - 1]
+    for i in range(1, len(values)):
+        # Calculate the smallest difference
+        diff = values[i] - values[i - 1]
 
-        # Normalize to [-180, 180]
-        if diff > 180:
-            diff -= 360
-        elif diff < -180:
-            diff += 360
+        # Normalize to [-half_range, half_range]
+        if diff > half_range:
+            diff -= range_size
+        elif diff < -half_range:
+            diff += range_size
 
         # Add the normalized difference to the previous unwrapped value
         unwrapped.append(unwrapped[i - 1] + diff)
 
-        # Handle wrapping around to 360 or -360
-        if unwrapped[-1] >= 360:
-            unwrapped[-1] = 360.0
-        elif unwrapped[-1] <= -360:
-            unwrapped[-1] = 0.0
+        # Handle wrapping around to max_val or min_val
+        if unwrapped[-1] >= max_val:
+            unwrapped[-1] = max_val
+        elif unwrapped[-1] <= min_val:
+            unwrapped[-1] = min_val
 
     return unwrapped

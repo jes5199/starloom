@@ -188,7 +188,12 @@ class WeftWriter:
 
         # Handle wrapping behavior if needed
         if self.wrapping_behavior == "wrapping":
-            values = unwrap_angles(values)
+            # Get the range from the value behavior
+            ranged_behavior = cast(RangedBehavior, self.value_behavior)
+            min_val, max_val = ranged_behavior["range"]
+            
+            # Unwrap the values
+            values = unwrap_angles(values, min_val, max_val)
             logger.debug("Applied angle unwrapping to values")
 
         # Log total time
