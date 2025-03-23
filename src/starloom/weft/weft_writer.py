@@ -277,9 +277,6 @@ class WeftWriter:
 
         return blocks
 
-
-        return blocks
-
     def create_forty_eight_hour_blocks(
         self,
         data_source: EphemerisDataSource,
