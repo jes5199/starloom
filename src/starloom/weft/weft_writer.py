@@ -231,11 +231,26 @@ class WeftWriter:
             f"Fitted Chebyshev coefficients (degree {degree}) in {fit_time_ms:.2f}ms"
         )
 
+        # Drop very small coefficients from the end
+        # Convert to list for manipulation
+        coeffs_list = coeffs.tolist()
+        
+        # Define threshold for "very very tiny"
+        threshold = 1e-12
+        
+        # Trim from the end until we find a coefficient larger than the threshold
+        while len(coeffs_list) > 1 and abs(coeffs_list[-1]) < threshold:
+            coeffs_list.pop()
+            
+        trim_count = len(coeffs) - len(coeffs_list)
+        if trim_count > 0:
+            logger.debug(f"Dropped {trim_count} tiny coefficients below {threshold}")
+
         # Log total time
         total_time_ms = sample_time_ms + fit_time_ms
         logger.debug(f"Total coefficient generation time: {total_time_ms:.2f}ms")
 
-        return cast(List[float], coeffs.tolist())
+        return cast(List[float], coeffs_list)
 
     def create_multi_year_block(
         self,
