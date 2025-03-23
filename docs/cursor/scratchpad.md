@@ -63,3 +63,51 @@ Enable integration with the standard logging system for tracking the source of v
 - Improved debug messages with detailed information like block IDs and date ranges
 - Added dedicated helper method _log_interpolation_debug() for complex interpolation logging
 - Detailed log format shows values, weights, and normalized weights for each block
+
+# Improve FortyEightHourBlock and FortyEightHourSectionHeader Relationship
+
+## Task
+Redesign how FortyEightHourBlock and FortyEightHourSectionHeader relate when reading and writing .weft files.
+
+## Goal
+Ensure the last header seen is in effect for multiple FortyEightHourBlock records that follow it, and ensure the block size and count specified in the header are correctly respected.
+
+## TODOs
+[X] Understand the current implementation and its limitations
+[X] Modify the `from_bytes` method to track the current active header
+[X] Ensure block count from header is respected when reading blocks
+[X] Validate block sizes match what's specified in the header
+[X] Test the changes with sample weft files
+[X] Update any related methods that might be affected
+
+## Implementation Notes
+- A FortyEightHourSectionHeader (0x00 02) should apply to all FortyEightHourBlock entries (0x00 01) that follow it
+- Need to track how many blocks we've read for each header to ensure we match the expected count
+- Block sizes should be consistent with what's specified in the header
+- May need to adjust error handling for malformed files
+
+## Current Implementation Analysis
+- In `WeftFile.from_bytes`, the method creates a flat list of blocks
+- When encountering a FortyEightHourBlock, it checks if the last block was a FortyEightHourSectionHeader
+- If not, it raises an error (correct behavior)
+- The method passes the last header to the FortyEightHourBlock constructor
+- However, it doesn't track how many blocks have been read for each header
+- It doesn't validate that the number of blocks matches the count in the header
+- It doesn't check if the size of each block matches what's specified in the header
+
+## Implemented Changes
+1. Added tracking of the current FortyEightHourSectionHeader and the count of blocks read for it
+2. Added validation that we read exactly the number of blocks specified in the header
+3. Added validation of block sizes to ensure they match what's specified in the header
+4. Improved error messages to provide more detail about what went wrong
+5. Updated the `combine` method to properly handle multiple FortyEightHourBlocks per header
+   - Changed from storing a single block per header to storing a list of blocks
+   - Added sorting of blocks by center date for consistent ordering
+   - Extended the final block list with all blocks for each header
+
+## Summary
+The implementation now correctly handles the relationship between FortyEightHourSectionHeader and FortyEightHourBlock:
+- Multiple FortyEightHourBlocks can be associated with a single header
+- Block count and size validation ensure the file format is followed correctly
+- The combine method properly merges multiple blocks for the same header
+- Error messages are more descriptive about what went wrong during parsing

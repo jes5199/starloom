@@ -134,6 +134,9 @@ class WeftFile:
                 raise ValueError("Invalid preamble format")
 
         blocks: list[BlockType] = []
+        current_header: FortyEightHourSectionHeader = None
+        current_header_blocks_read: int = 0
+        
         while True:
             # Try to read marker
             marker = stream.read(2)
@@ -146,15 +149,48 @@ class WeftFile:
             elif marker == MonthlyBlock.marker:
                 blocks.append(MonthlyBlock.from_stream(stream))
             elif marker == FortyEightHourSectionHeader.marker:
-                blocks.append(FortyEightHourSectionHeader.from_stream(stream))
+                # Check if we've read all the blocks for the previous header
+                if current_header is not None and current_header_blocks_read != current_header.block_count:
+                    raise ValueError(
+                        f"Expected {current_header.block_count} FortyEightHourBlocks for header, but read {current_header_blocks_read}"
+                    )
+                    
+                # Read the new header
+                current_header = FortyEightHourSectionHeader.from_stream(stream)
+                current_header_blocks_read = 0
+                blocks.append(current_header)
             elif marker == FortyEightHourBlock.marker:
-                if not blocks or not isinstance(
-                    blocks[-1], FortyEightHourSectionHeader
-                ):
-                    raise ValueError("FortyEightHourBlock without preceding header")
-                blocks.append(FortyEightHourBlock.from_stream(stream, blocks[-1]))
+                if current_header is None:
+                    raise ValueError("FortyEightHourBlock without a preceding header")
+                
+                # Read the block and validate it
+                before_position = stream.tell()
+                block = FortyEightHourBlock.from_stream(stream, current_header)
+                after_position = stream.tell()
+                
+                # Check block size matches what's in the header
+                actual_block_size = after_position - before_position + 2  # +2 for the marker
+                if actual_block_size != current_header.block_size:
+                    raise ValueError(
+                        f"FortyEightHourBlock size mismatch: expected {current_header.block_size}, got {actual_block_size}"
+                    )
+                    
+                blocks.append(block)
+                current_header_blocks_read += 1
+                
+                # Check if we've reached the expected block count for this header
+                if current_header_blocks_read == current_header.block_count:
+                    # Reset for the next header
+                    current_header = None
+                    current_header_blocks_read = 0
             else:
                 raise ValueError(f"Unknown block type marker: {marker!r}")
+
+        # Final check for incomplete block set
+        if current_header is not None and current_header_blocks_read != current_header.block_count:
+            raise ValueError(
+                f"Expected {current_header.block_count} FortyEightHourBlocks for final header, but read {current_header_blocks_read}"
+            )
 
         return cls(preamble=preamble, blocks=blocks)
 
@@ -421,7 +457,7 @@ class WeftFile:
 
         # Separate forty-eight hour blocks and their headers
         headers: List[FortyEightHourSectionHeader] = []
-        header_to_block: Dict[FortyEightHourSectionHeader, FortyEightHourBlock] = {}
+        header_to_blocks: Dict[FortyEightHourSectionHeader, List[FortyEightHourBlock]] = {}
         non_48h_blocks: List[Union[MultiYearBlock, MonthlyBlock]] = []
 
         # Define block sorting function
@@ -440,11 +476,14 @@ class WeftFile:
 
         for block in file1.blocks + file2.blocks:
             if isinstance(block, FortyEightHourSectionHeader):
-                headers.append(block)
+                # Only add unique headers
+                if block not in headers:
+                    headers.append(block)
             elif isinstance(block, FortyEightHourBlock):
                 header = block.header
-                if header not in header_to_block:
-                    header_to_block[header] = block
+                if header not in header_to_blocks:
+                    header_to_blocks[header] = []
+                header_to_blocks[header].append(block)
             elif isinstance(block, (MultiYearBlock, MonthlyBlock)):
                 non_48h_blocks.append(block)
 
@@ -463,11 +502,18 @@ class WeftFile:
 
         # Then add headers and their blocks in chronological order
         for header in headers:
-            if header not in header_to_block:
-                raise ValueError(f"No 48-hour block found for header {header}")
-            # Add both header and its corresponding block
+            if header not in header_to_blocks or not header_to_blocks[header]:
+                raise ValueError(f"No 48-hour blocks found for header {header}")
+                
+            # Add header
             final_blocks.append(header)
-            final_blocks.append(header_to_block[header])
+            
+            # Sort blocks by center date
+            header_blocks = header_to_blocks[header]
+            header_blocks.sort(key=lambda b: b.center_date)
+            
+            # Then add all blocks for this header
+            final_blocks.extend(header_blocks)
 
         # Create new preamble
         now = datetime.now(timezone.utc)

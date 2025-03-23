@@ -1227,3 +1227,15 @@ from starloom.weft import WeftFile  # Correct
    - For interpolated values, logs weights and individual block contributions
    - All debug information goes to the configured logger, not the return value
    - Helpful for diagnosing unexpected values or block selection issues
+
+## Weft Format Implementation
+
+1. When implementing binary file formats with hierarchical sections, proper tracking of section headers and their associated blocks is crucial for maintaining data integrity.
+
+2. The FortyEightHourSectionHeader (0x00 02) defines parameters (block size, block count) that must be strictly enforced for all FortyEightHourBlocks (0x00 01) that follow it.
+
+3. When reading binary data, validate not just the semantic correctness but also the structural requirements like block sizes and counts to ensure proper parsing.
+
+4. Error messages should be specific about what went wrong during parsing, including details like expected vs. actual block counts or sizes.
+
+5. When combining files with hierarchical structures, ensure that the relationship between parent sections (headers) and their child blocks is preserved throughout the process.
