@@ -9,10 +9,9 @@ to store astronomical values efficiently. It supports multiple levels of precisi
 """
 
 from datetime import datetime, timezone, time
-from typing import Union, Tuple, Literal, TypedDict, Sequence, List, Dict, Optional, Any
+from typing import Union, Tuple, Literal, TypedDict, Sequence, List, Dict, Any
 from io import BytesIO
 from typing import cast
-import logging
 
 from .blocks import (
     MultiYearBlock,
@@ -189,7 +188,7 @@ class WeftFile:
             if len(forty_eight_hour_blocks) > 1:
                 self.logger.debug(f"Using {len(forty_eight_hour_blocks)} FortyEightHourBlocks with interpolation for {dt.isoformat()}")
                 return self._interpolate_forty_eight_hour_blocks(
-                    forty_eight_hour_blocks, dt, debug
+                    forty_eight_hour_blocks, dt
                 )
             
             value = forty_eight_hour_blocks[0].evaluate(dt)
