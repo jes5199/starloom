@@ -128,11 +128,11 @@ class WeftWriter:
         """
         # Time the timestamp filtering
         filter_start = time.time()
-        
+
         # Use binary search to find indices of start and end timestamps
         # since the timestamps list is sorted
         timestamps = data_source.timestamps
-        
+
         # Find start index (first timestamp >= start_dt)
         start_idx = 0
         end_idx = len(timestamps) - 1
@@ -142,7 +142,7 @@ class WeftWriter:
                 start_idx = mid_idx + 1
             else:
                 end_idx = mid_idx - 1
-        
+
         # Find end index (last timestamp <= end_dt)
         start_idx_for_end = start_idx
         end_idx = len(timestamps) - 1
@@ -152,13 +152,15 @@ class WeftWriter:
                 start_idx_for_end = mid_idx + 1
             else:
                 end_idx = mid_idx - 1
-        
+
         # Extract the timestamps in range using the found indices
-        filtered_timestamps = timestamps[start_idx:end_idx+1]
-        
+        filtered_timestamps = timestamps[start_idx : end_idx + 1]
+
         filter_end = time.time()
         filter_time_ms = (filter_end - filter_start) * 1000
-        logger.debug(f"Filtered {len(filtered_timestamps)} timestamps in {filter_time_ms:.2f}ms (binary search)")
+        logger.debug(
+            f"Filtered {len(filtered_timestamps)} timestamps in {filter_time_ms:.2f}ms (binary search)"
+        )
 
         if not filtered_timestamps:
             return [], []
@@ -177,7 +179,7 @@ class WeftWriter:
             x_values.append(x)
 
             # Get value at this time
-            value = data_source.get_value_at(dt) # basically a dictionary lookup
+            value = data_source.get_value_at(dt)  # basically a dictionary lookup
             values.append(value)
         value_end = time.time()
         value_time_ms = (value_end - value_start) * 1000

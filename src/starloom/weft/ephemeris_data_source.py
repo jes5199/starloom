@@ -7,7 +7,6 @@ data fetching and filtering for different Weft block types.
 
 from datetime import datetime, timedelta
 from typing import List, Tuple, Optional, Union, Dict, Any, cast
-import bisect
 
 from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris import Quantity
@@ -130,7 +129,6 @@ class EphemerisDataSource:
             The value
         """
         return float(self.data[dt][self.standard_quantity])
-
 
     def get_values_in_range(
         self, start: datetime, end: datetime, step_hours: Optional[float] = None

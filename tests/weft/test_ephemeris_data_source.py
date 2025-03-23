@@ -78,7 +78,6 @@ class TestEphemerisDataSource(unittest.TestCase):
         value = data_source.get_value_at(self.start + timedelta(hours=12))
         self.assertEqual(value, 180.0)  # Should be halfway through rotation
 
-
     def test_get_value_at_bounds(self):
         """Test getting values at time bounds."""
         data_source = EphemerisDataSource(
