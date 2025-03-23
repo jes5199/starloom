@@ -111,3 +111,34 @@ The implementation now correctly handles the relationship between FortyEightHour
 - Block count and size validation ensure the file format is followed correctly
 - The combine method properly merges multiple blocks for the same header
 - Error messages are more descriptive about what went wrong during parsing
+
+# Current Task: Simplify WeftReader
+
+## Task Description
+Simplify the WeftReader class to:
+1. Only handle a single file
+2. Simplify interpolation logic to only interpolate between 48-hour blocks in the same section
+3. Maintain block priority (48h -> monthly -> multi-year)
+4. Remove unnecessary complexity
+
+## Plan
+[X] Remove multi-file support
+[X] Simplify file loading to single file
+[X] Clean up interpolation logic
+[X] Remove unnecessary methods
+[X] Update documentation
+[ ] Test changes
+
+## Progress
+Completed major refactoring:
+1. Removed multi-file support and simplified to single file handling
+2. Updated interpolation logic to only interpolate between blocks in same section
+3. Removed unnecessary methods and simplified the codebase
+4. Updated documentation to reflect changes
+5. Maintained block priority order
+6. Improved error handling and logging
+
+Next steps:
+1. Test the changes to ensure functionality is correct
+2. Verify interpolation behavior with different block types
+3. Check error handling for edge cases
