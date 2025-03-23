@@ -51,30 +51,30 @@ class TestUnwrapAngles(unittest.TestCase):
 
     def test_empty_sequence(self):
         """Test unwrapping empty sequence."""
-        result = unwrap_angles([])
+        result = unwrap_angles([], min_val=-180, max_val=180)
         self.assertEqual(result, [])
 
     def test_single_angle(self):
         """Test unwrapping single angle."""
-        result = unwrap_angles([45.0])
+        result = unwrap_angles([45.0], min_val=-180, max_val=180)
         self.assertEqual(result, [45.0])
 
     def test_no_wrapping_needed(self):
         """Test sequence that doesn't need unwrapping."""
         angles = [0.0, 45.0, 90.0, 135.0, 180.0]
-        result = unwrap_angles(angles)
+        result = unwrap_angles(angles, min_val=-180, max_val=180)
         self.assertEqual(result, angles)
 
     def test_wrapping_sequence(self):
         """Test sequence that needs unwrapping."""
         angles = [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0, 0.0]
-        result = unwrap_angles(angles)
+        result = unwrap_angles(angles, min_val=-180, max_val=180)
         expected = [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0, 360.0]
         self.assertEqual(result, expected)
 
     def test_negative_wrapping(self):
         """Test sequence that wraps in negative direction."""
         angles = [0.0, -45.0, -90.0, -135.0, -180.0, -225.0, -270.0, -315.0, 0.0]
-        result = unwrap_angles(angles)
+        result = unwrap_angles(angles, min_val=-180, max_val=180)
         expected = [0.0, -45.0, -90.0, -135.0, -180.0, -225.0, -270.0, -315.0, 0.0]
         self.assertEqual(result, expected)

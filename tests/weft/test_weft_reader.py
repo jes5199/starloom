@@ -44,6 +44,8 @@ class TestWeftReader(unittest.TestCase):
         self.daily_header = FortyEightHourSectionHeader(
             start_day=date(self.year, self.month, self.day),
             end_day=date(self.year, self.month, self.day + 1),
+            block_size=100,  # Dummy size for testing
+            block_count=1,   # One block for testing
         )
         self.daily_coeffs = [300.0, 30.0, -15.0] + [0.0] * (
             FortyEightHourSectionHeader.coefficient_count - 3

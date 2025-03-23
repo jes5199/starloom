@@ -198,6 +198,8 @@ class TestFortyEightHourBlocks(unittest.TestCase):
         self.header = FortyEightHourSectionHeader(
             start_day=date(self.year, self.month, self.day),
             end_day=date(self.year, self.month, self.day + 1),
+            block_size=100,  # Dummy size for testing
+            block_count=1,   # One block for testing
         )
 
         # FortyEightHour Block
@@ -313,6 +315,8 @@ class TestWeftFile(unittest.TestCase):
         self.forty_eight_hour_header = FortyEightHourSectionHeader(
             start_day=date(2003, 1, 1),
             end_day=date(2003, 1, 2),
+            block_size=100,  # Dummy size for testing
+            block_count=1,   # One block for testing
         )
 
         # FortyEightHour Block
@@ -372,6 +376,8 @@ class TestWeftFile(unittest.TestCase):
         forty_eight_hour_header2 = FortyEightHourSectionHeader(
             start_day=date(2008, 1, 1),
             end_day=date(2008, 1, 2),
+            block_size=100,  # Dummy size for testing
+            block_count=1,   # One block for testing
         )
 
         # FortyEightHour Block

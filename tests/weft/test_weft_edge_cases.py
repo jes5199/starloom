@@ -36,6 +36,8 @@ class TestWeftEdgeCases(unittest.TestCase):
         header = FortyEightHourSectionHeader(
             start_day=date(2023, 1, 1),
             end_day=date(2023, 1, 2),
+            block_size=100,  # Dummy size for testing
+            block_count=1,   # One block for testing
         )
         block = FortyEightHourBlock(
             header=header,
@@ -58,6 +60,8 @@ class TestWeftEdgeCases(unittest.TestCase):
                 header=FortyEightHourSectionHeader(
                     start_day=date(2023, 1, 1),
                     end_day=date(2023, 1, 2),
+                    block_size=100,  # Dummy size for testing
+                    block_count=1,   # One block for testing
                 ),
                 coeffs=[float("nan"), 1.0, 2.0],
                 center_date=date(2023, 1, 1),
@@ -69,6 +73,8 @@ class TestWeftEdgeCases(unittest.TestCase):
         header = FortyEightHourSectionHeader(
             start_day=date(2023, 1, 1),
             end_day=date(2023, 1, 2),
+            block_size=100,  # Dummy size for testing
+            block_count=1,   # One block for testing
         )
         block = FortyEightHourBlock(
             header=header,
@@ -225,6 +231,8 @@ def test_forty_eight_hour_block_evaluation():
     header = FortyEightHourSectionHeader(
         start_day=date(2025, 1, 1),
         end_day=date(2025, 1, 2),
+        block_size=100,  # Dummy size for testing
+        block_count=1,   # One block for testing
     )
     block = FortyEightHourBlock(
         header=header,
@@ -260,7 +268,12 @@ def test_forty_eight_hour_section_header():
     # Create a header with test data
     start_day = date(2025, 1, 1)
     end_day = date(2025, 1, 2)
-    header = FortyEightHourSectionHeader(start_day=start_day, end_day=end_day)
+    header = FortyEightHourSectionHeader(
+        start_day=start_day,
+        end_day=end_day,
+        block_size=100,  # Dummy size for testing
+        block_count=1,   # One block for testing
+    )
 
     # Test time conversion
     dt = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
@@ -312,7 +325,10 @@ def test_weft_file():
 
     # Add a daily block
     header = FortyEightHourSectionHeader(
-        start_day=date(2025, 6, 15), end_day=date(2025, 6, 16)
+        start_day=date(2025, 6, 15),
+        end_day=date(2025, 6, 16),
+        block_size=100,  # Dummy size for testing
+        block_count=1,   # One block for testing
     )
     blocks.append(header)
     blocks.append(
