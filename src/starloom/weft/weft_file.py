@@ -164,7 +164,7 @@ class WeftFile:
 
         Args:
             dt: The datetime to evaluate at
-    
+
         Returns:
             The interpolated value at the datetime
 
@@ -186,11 +186,13 @@ class WeftFile:
         # If we have forty-eight hour blocks, use them with interpolation
         if forty_eight_hour_blocks:
             if len(forty_eight_hour_blocks) > 1:
-                self.logger.debug(f"Using {len(forty_eight_hour_blocks)} FortyEightHourBlocks with interpolation for {dt.isoformat()}")
+                self.logger.debug(
+                    f"Using {len(forty_eight_hour_blocks)} FortyEightHourBlocks with interpolation for {dt.isoformat()}"
+                )
                 return self._interpolate_forty_eight_hour_blocks(
                     forty_eight_hour_blocks, dt
                 )
-            
+
             value = forty_eight_hour_blocks[0].evaluate(dt)
             block = forty_eight_hour_blocks[0]
             self.logger.debug(
@@ -244,7 +246,7 @@ class WeftFile:
         # Get values and weights for each block
         values_and_weights = []
         debug_blocks = []
-        
+
         for block in blocks:
             # Get block boundaries
             start = datetime.combine(
@@ -260,15 +262,17 @@ class WeftFile:
             # Evaluate block
             value = block.evaluate(dt)
             values_and_weights.append((value, weight))
-            
+
             # Always collect debug info, logger will decide whether to use it
-            debug_blocks.append({
-                "id": id(block),
-                "start_day": block.header.start_day.isoformat(),
-                "end_day": block.header.end_day.isoformat(),
-                "weight": weight,
-                "value": value
-            })
+            debug_blocks.append(
+                {
+                    "id": id(block),
+                    "start_day": block.header.start_day.isoformat(),
+                    "end_day": block.header.end_day.isoformat(),
+                    "weight": weight,
+                    "value": value,
+                }
+            )
 
         # Normalize weights
         total_weight = sum(w for _, w in values_and_weights)
@@ -276,25 +280,29 @@ class WeftFile:
             # If all weights are 0, use simple average
             value = sum(v for v, _ in values_and_weights) / len(values_and_weights)
             normalized_weights = [1.0 / len(blocks) for _ in blocks]
-            self._log_interpolation_debug(debug_blocks, normalized_weights, value, "simple_average", dt)
+            self._log_interpolation_debug(
+                debug_blocks, normalized_weights, value, "simple_average", dt
+            )
             return value
 
         # Calculate weighted average
         weighted_sum = sum(v * w for v, w in values_and_weights)
         value = weighted_sum / total_weight
-        
+
         normalized_weights = [w / total_weight for _, w in values_and_weights]
-        self._log_interpolation_debug(debug_blocks, normalized_weights, value, "weighted_average", dt)
-        
+        self._log_interpolation_debug(
+            debug_blocks, normalized_weights, value, "weighted_average", dt
+        )
+
         return value
-        
+
     def _log_interpolation_debug(
-        self, 
-        blocks: List[Dict[str, Any]], 
+        self,
+        blocks: List[Dict[str, Any]],
         normalized_weights: List[float],
         final_value: float,
         method: str,
-        dt: datetime
+        dt: datetime,
     ) -> None:
         """Log detailed interpolation debug information."""
         block_details = []
@@ -304,7 +312,7 @@ class WeftFile:
                 f"value={block['value']}, weight={block['weight']:.4f}, "
                 f"normalized_weight={normalized_weights[i]:.4f}"
             )
-            
+
         self.logger.debug(
             f"Interpolated value {final_value} for {dt.isoformat()} using {method}:\n"
             f"  Total blocks: {len(blocks)}\n"

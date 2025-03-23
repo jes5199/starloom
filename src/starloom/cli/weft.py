@@ -18,7 +18,7 @@ from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
 from .horizons import parse_date_input
 from ..weft import WeftReader
-from ..weft.weft import (
+from ..weft.weft_file import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourBlock,

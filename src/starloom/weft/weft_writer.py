@@ -12,7 +12,7 @@ import os
 from numpy.polynomial import chebyshev
 import time
 
-from .weft import (
+from .weft_file import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourSectionHeader,

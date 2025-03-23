@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, time
 from typing import Dict, List, Tuple, Optional, Union, cast
-from .weft import (
+from .weft_file import (
     WeftFile,
     MultiYearBlock,
     MonthlyBlock,

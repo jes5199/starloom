@@ -4,7 +4,7 @@ from datetime import datetime, timezone, date
 from io import BytesIO
 
 # Import from starloom package
-from starloom.weft.weft import WeftFile
+from starloom.weft.weft_file import WeftFile
 from starloom.weft.blocks import (
     MultiYearBlock,
     MonthlyBlock,

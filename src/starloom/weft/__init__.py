@@ -7,7 +7,7 @@ storage and fast evaluation.
 """
 
 from .blocks.utils import evaluate_chebyshev, unwrap_angles
-from .weft import (
+from .weft_file import (
     WeftFile,
     MultiYearBlock,
     MonthlyBlock,
