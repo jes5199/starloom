@@ -69,7 +69,6 @@ def weft() -> None:
 )
 @click.option("--output", "-o", help="Output file path", required=True)
 @click.option("--data-dir", help="Data directory for cached horizons", default="./data")
-@click.option("--prefetch/--no-prefetch", help="Prefetch data", default=True)
 @click.option(
     "--step",
     help="Step size for reading from ephemeris (e.g. '1h' for hourly, '30m' for 30 minutes)",
@@ -89,7 +88,6 @@ def generate(
     stop: str,
     output: str,
     data_dir: str,
-    prefetch: bool,
     step: str,
     timespan: Optional[str],
 ) -> None:
@@ -101,7 +99,6 @@ def generate(
     print(f"  End date: {stop}")
     print(f"  Output: {output}")
     print(f"  Data dir: {data_dir}")
-    print(f"  Prefetch: {prefetch}")
     print(f"  Step: {step}")
     if timespan:
         print(f"  Timespan: {timespan}")
