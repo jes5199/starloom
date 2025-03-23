@@ -101,9 +101,7 @@ class TestAnalyzeDataCoverage(unittest.TestCase):
 
     def test_no_data(self):
         """Test with no data points."""
-        coverage, points_per_day = analyze_data_coverage(
-            self.start, self.end, []
-        )
+        coverage, points_per_day = analyze_data_coverage(self.start, self.end, [])
         self.assertEqual(coverage, 0.0)
         self.assertEqual(points_per_day, 0.0)
 
@@ -131,9 +129,7 @@ class TestBlockInclusion(unittest.TestCase):
         )
 
         # Should include with weekly data
-        self.assertTrue(
-            should_include_multi_year_block(data_source, 2025, 1)
-        )
+        self.assertTrue(should_include_multi_year_block(data_source, 2025, 1))
 
         # Should include with sparse data as long as coverage is sufficient
         sparse_timestamps = timestamps[::4]  # Only every 4th week
@@ -143,9 +139,7 @@ class TestBlockInclusion(unittest.TestCase):
             step_hours=24 * 28,  # Monthly
             timestamps=sparse_timestamps,
         )
-        self.assertTrue(
-            should_include_multi_year_block(sparse_data_source, 2025, 1)
-        )
+        self.assertTrue(should_include_multi_year_block(sparse_data_source, 2025, 1))
 
     def test_monthly_block_inclusion(self):
         """Test monthly block inclusion criteria."""
@@ -165,9 +159,7 @@ class TestBlockInclusion(unittest.TestCase):
         )
 
         # Should include with 4 points per day
-        self.assertTrue(
-            should_include_monthly_block(data_source, 2025, 3)
-        )
+        self.assertTrue(should_include_monthly_block(data_source, 2025, 3))
 
         # Should not include with daily data
         daily_timestamps = timestamps[::4]  # Only daily points
@@ -177,9 +169,7 @@ class TestBlockInclusion(unittest.TestCase):
             step_hours=24,
             timestamps=daily_timestamps,
         )
-        self.assertFalse(
-            should_include_monthly_block(daily_data_source, 2025, 3)
-        )
+        self.assertFalse(should_include_monthly_block(daily_data_source, 2025, 3))
 
     def test_forty_eight_hour_block_inclusion(self):
         """Test forty-eight hour block inclusion criteria."""
@@ -197,9 +187,7 @@ class TestBlockInclusion(unittest.TestCase):
         )
 
         # Should include with hourly data
-        self.assertTrue(
-            should_include_fourty_eight_hour_block(data_source, day)
-        )
+        self.assertTrue(should_include_fourty_eight_hour_block(data_source, day))
 
         # Should not include with 12-hour dat
         sparse_timestamps = timestamps[::12]  # Only every 12 hours
