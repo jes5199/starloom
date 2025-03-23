@@ -1299,9 +1299,20 @@ Key facts about the project's type checking setup:
   3. Improper None checking before accessing attributes of potentially None objects
   4. Method calls to non-existent methods (WeftReader.get_value_with_linear_interpolation)
   5. Tuple type mismatches when used as dictionary keys
+  6. Missing __all__ for re-exported module attributes
+  7. Complex union types that need more specific type narrowing
 
 Fixed issues in March 2025:
 - Fixed WeftEphemeris to use proper method calls (get_value instead of get_value_with_linear_interpolation)
 - Fixed improper None handling in with statements
 - Fixed Optional type annotations for parameters with None defaults
 - Fixed missing type parameters for generic types
+- Added __all__ declaration to julian.py to properly re-export datetime_to_julian
+- Added explicit float cast for numpy return types
+- Fixed tuple type annotations to use proper date type instead of str
+- Added None checks before accessing attributes on potentially None objects
+
+Remaining type issues:
+- Complex union type handling in weft_writer.py
+- Missing type stubs for third-party libraries (ruff)
+- Unreachable code detection edge cases

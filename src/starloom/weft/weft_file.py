@@ -9,7 +9,7 @@ to store astronomical values efficiently. It supports multiple levels of precisi
 """
 
 from datetime import datetime, timezone
-from typing import Union, Tuple, Literal, TypedDict, Sequence, List, Dict
+from typing import Union, Tuple, Literal, TypedDict, Sequence, List, Dict, Optional
 from io import BytesIO
 
 from .blocks import (
@@ -142,7 +142,7 @@ class WeftFile:
                 raise ValueError("Invalid preamble format")
 
         blocks: list[BlockType] = []
-        current_header: FortyEightHourSectionHeader = None
+        current_header: Optional[FortyEightHourSectionHeader] = None
         current_header_blocks_read: int = 0
 
         while True:

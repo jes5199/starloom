@@ -185,61 +185,43 @@ Ensure all type annotations are correct and fix any identified type issues.
 [X] Run mypy type checker on the codebase
 [X] Review and categorize found type issues
 [X] Fix some of the identified type problems
-[ ] Fix remaining type problems
+[X] Fix most trivial type issues
+[ ] Fix remaining complex type issues
 [ ] Verify fixes with another typecheck run
 
 ## Progress
 - Initial mypy run: 27 errors in 7 files
 - After first fixes: 22 errors in 7 files (5 errors fixed)
+- After second pass on trivial issues: 12 errors in 4 files (15 errors fixed)
 
-## Issues Found
-Total: 22 errors in 7 files
-
-### Import Issues
-- Skipping analyzing "ruff.linter", "ruff.rules", "ruff.tree": missing library stubs or py.typed marker
-- Module "starloom.space_time.julian" does not explicitly export attribute "datetime_to_julian"
-
-### Code Flow Issues
-- src/starloom/cli/common.py:56: Statement is unreachable
-
-### Type Annotation Issues
-- src/starloom/weft/blocks/utils.py:28: Incompatible return value type (got "floating[Any]", expected "float")
-- src/starloom/weft/weft_file.py:145, 197: Incompatible types in assignment (expression has type "None", variable has type "FortyEightHourSectionHeader")
-- [FIXED] src/starloom/weft/weft_reader.py:150: Missing type parameters for generic type "Tuple"
-- [FIXED] src/starloom/weft_ephemeris/ephemeris.py:27: Incompatible default for argument "data" (default has type "None", argument has type "str")
-
-### Union Type Issues
-- src/starloom/weft/weft_reader.py:222, 226, 249, 287: Item "None" of "WeftFile | None" has no attribute
-- src/starloom/weft/weft_writer.py:254: Item "float" of "float | list[float] | ..." has no attribute "pop"
-- [FIXED] src/starloom/weft_ephemeris/ephemeris.py:210: Item "None" of "IO[bytes] | None" has no attribute "__enter__", "__exit__"
-
-### Function Call Issues
-- src/starloom/weft/weft_writer.py:253: Argument issues with "len" and "abs" on complex types
-- src/starloom/weft/weft_writer.py:426: Argument 1 to "extend" has incompatible type
-- src/starloom/weft/weft_writer.py:428: Incompatible return value type issues
-- [FIXED] src/starloom/weft_ephemeris/ephemeris.py:109, 118, 127: "WeftReader" has no attribute "get_value_with_linear_interpolation"
-- [FIXED] src/starloom/weft_ephemeris/ephemeris.py:228: Too many arguments for "load_file" of "WeftReader"
-
-### New Issues Found
-- src/starloom/weft/weft_reader.py:153: Non-overlapping container check (element type: "tuple[date, date]", container item type: "tuple[str, ...]")
-- src/starloom/weft/weft_reader.py:154, 155: Invalid index type "tuple[date, date]" for dictionary with key type "tuple[str, ...]"
-
-## Fixed Type Issues
+## Issues Fixed
 1. Fixed missing type parameters for generic Tuple in weft_reader.py
 2. Updated Optional[str] annotation for data parameter with None default in WeftEphemeris
 3. Fixed "get_value_with_linear_interpolation" method calls to use "get_value" instead in WeftEphemeris
 4. Fixed load_file method call with too many arguments in WeftEphemeris
 5. Added proper None check before using file object in with statement in WeftEphemeris
+6. Fixed None checks for logger access in WeftReader
+7. Fixed tuple type annotation to use date instead of str in WeftReader
+8. Added Optional type to FortyEightHourSectionHeader variable in WeftFile
+9. Changed unreachable code in cli/common.py to use getattr instead of hasattr+access
+10. Added explicit cast to float in utils.py to fix floating[Any] return type
+11. Added None check before accessing value_behavior attribute
+12. Added __all__ to properly re-export datetime_to_julian in julian.py
 
-## Priorities for remaining fixes
-1. Fix the tuple type mismatch in the blocks_by_header dict in weft_reader.py
-2. Fix the None-related type issues in WeftReader (lines 222, 226, 249, 287)
-3. Fix return value types and function call argument type issues
-4. Address unreachable code issue
-5. Fix import problems
+## Remaining Issues (12 errors in 4 files)
+
+### Import Issues
+- Skipping analyzing "ruff.linter", "ruff.rules", "ruff.tree": missing library stubs or py.typed marker
+
+### Code Flow Issues
+- src/starloom/cli/common.py:56: Statement is unreachable  
+   - Tried fixing with getattr but mypy still reports an issue
+
+### Complex Type Issues in weft_writer.py
+- Problems with complex union types in weft_writer.py (lines 253-256)
+- Issues with extend method and return value types (lines 426-428)
 
 ## Next Steps
-For the remaining issues, we should continue in order of severity and focus on fixing:
-1. The tuple type mismatch in weft_reader.py (lines 153-155)
-2. None-related issues in WeftReader (lines 222, 226, 249, 287)
-3. Fix the complex type issues in weft_writer.py
+1. Focus on the complex type issues in weft_writer.py
+2. Add type ignores for the ruff import issues (which aren't easily fixable without adding stubs)
+3. Investigate further the unreachable statement issue in common.py

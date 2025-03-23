@@ -25,7 +25,7 @@ def evaluate_chebyshev(coeffs: List[float], x: float) -> float:
     if len(coeffs) == 0:
         return 0.0
 
-    return np.polynomial.chebyshev.chebval(x, coeffs)
+    return float(np.polynomial.chebyshev.chebval(x, coeffs))
 
 
 def unwrap_angles(values: List[float], min_val: float, max_val: float) -> List[float]:

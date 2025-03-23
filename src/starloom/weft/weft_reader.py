@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, time
+from datetime import datetime, timezone, time, date
 from typing import Dict, List, Tuple, Optional, Union, cast
 from .weft_file import (
     WeftFile,
@@ -147,7 +147,7 @@ class WeftReader:
         # If we have forty-eight hour blocks, check if they're in the same section
         if forty_eight_hour_blocks:
             # Group blocks by their header
-            blocks_by_header: Dict[Tuple[str, ...], List[FortyEightHourBlock]] = {}
+            blocks_by_header: Dict[Tuple[date, date], List[FortyEightHourBlock]] = {}
             for block in forty_eight_hour_blocks:
                 header_key = (block.header.start_day, block.header.end_day)
                 if header_key not in blocks_by_header:
@@ -219,15 +219,16 @@ class WeftReader:
             weights.append(weight)
 
         # Log interpolation details
-        self.file.logger.debug(
-            f"Interpolating between {len(blocks)} blocks for {dt.isoformat()}"
-        )
-        for i, block in enumerate(blocks):
+        if self.file is not None:
             self.file.logger.debug(
-                f"  Block {i + 1}: {block.midnight().isoformat()}, "
-                f"weight={weights[i]:.4f}, "
-                f"raw_value={block.evaluate(dt):.6f}"
+                f"Interpolating between {len(blocks)} blocks for {dt.isoformat()}"
             )
+            for i, block in enumerate(blocks):
+                self.file.logger.debug(
+                    f"  Block {i + 1}: {block.midnight().isoformat()}, "
+                    f"weight={weights[i]:.4f}, "
+                    f"raw_value={block.evaluate(dt):.6f}"
+                )
 
         # Normalize weights
         weight_sum = sum(weights)
@@ -246,6 +247,8 @@ class WeftReader:
 
         # Handle wrapping angles
         if self._is_wrapping_angle():
+            if self.file is None:
+                raise ValueError("No file loaded")
             behavior = cast(RangedBehavior, self.file.value_behavior)
             min_val, max_val = behavior["range"]
             range_size = max_val - min_val
@@ -284,9 +287,10 @@ class WeftReader:
             value = sum(v * w for v, w in zip(block_values, weights))
             result = self.apply_value_behavior(value)
 
-        self.file.logger.debug(
-            f"Final interpolated value: {result:.6f} (weights: {', '.join(f'{w:.4f}' for w in weights)})"
-        )
+        if self.file is not None:
+            self.file.logger.debug(
+                f"Final interpolated value: {result:.6f} (weights: {', '.join(f'{w:.4f}' for w in weights)})"
+            )
 
         return result
 

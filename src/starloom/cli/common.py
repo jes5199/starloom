@@ -53,9 +53,9 @@ def configure_logging(args: Dict[str, Any]) -> None:
         verbosity = args.get("verbose", 0)
     else:
         # Handle as argparse.Namespace for backward compatibility
-        quiet = args.quiet if hasattr(args, "quiet") else False
-        debug = args.debug if hasattr(args, "debug") else False
-        verbosity = args.verbose if hasattr(args, "verbose") else 0
+        quiet = getattr(args, "quiet", False)
+        debug = getattr(args, "debug", False)
+        verbosity = getattr(args, "verbose", 0)
 
     if quiet:
         log_level = logging.ERROR
