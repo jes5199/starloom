@@ -359,40 +359,20 @@ class WeftWriter:
 
         blocks = []
         current_date = start_date
-        current_header = None
-        current_blocks = []
+        
+        # Create a single header for the entire range
+        header = FortyEightHourSectionHeader(
+            start_day=start_date.date(),
+            end_day=end_date.date(),
+            block_size=0,  # Will be updated after blocks are created
+            block_count=0,  # Will be updated after blocks are created
+        )
+        
+        # Store all blocks for this header
+        all_blocks = []
 
+        # Process each day in the range
         while current_date <= end_date:
-            # Check if we need to create a new header for this date
-            if (current_date.day in [1, 15] or current_date == start_date) and current_date <= end_date:
-                # If we have a current header, update it with block info and add its blocks
-                if current_header and current_blocks:
-                    # Calculate size of first block (they're all the same size)
-                    sample_block = current_blocks[0]
-                    sample_bytes = sample_block.to_bytes()
-                    block_size = len(sample_bytes)  # Include the full block size
-                    
-                    # Update the header with actual block size and count
-                    current_header.block_size = block_size
-                    current_header.block_count = len(current_blocks)
-                    
-                    # Add the header and its blocks to the result
-                    blocks.append(current_header)
-                    blocks.extend(current_blocks)
-                
-                # Start a new header
-                block_date = date(
-                    current_date.year, current_date.month, current_date.day
-                )
-                next_date = block_date + timedelta(days=15)  # Each header covers 15 days
-                current_header = FortyEightHourSectionHeader(
-                    start_day=block_date,
-                    end_day=next_date,
-                    block_size=0,  # Will be updated after blocks are created
-                    block_count=0,  # Will be updated after blocks are created
-                )
-                current_blocks = []
-
             # Only process dates that pass the coverage criteria
             if should_include_fourty_eight_hour_block(data_source, current_date):
                 # Create a block for this date
@@ -409,28 +389,28 @@ class WeftWriter:
                     data_source, block_start, block_end, degree
                 )
 
-                current_blocks.append(FortyEightHourBlock(
-                    header=current_header, 
+                all_blocks.append(FortyEightHourBlock(
+                    header=header, 
                     coeffs=coeffs_list,
                     center_date=block_date
                 ))
 
             current_date += timedelta(days=1)
 
-        # Don't forget to add the last header and its blocks
-        if current_header and current_blocks:
-            # Calculate size of first block (they're all the same size)
-            sample_block = current_blocks[0]
+        # Skip if no blocks were created
+        if all_blocks:
+            # Calculate block size from the first block
+            sample_block = all_blocks[0]
             sample_bytes = sample_block.to_bytes()
-            block_size = len(sample_bytes)  # Include the full block size
+            block_size = len(sample_bytes)
             
             # Update the header with actual block size and count
-            current_header.block_size = block_size
-            current_header.block_count = len(current_blocks)
+            header.block_size = block_size
+            header.block_count = len(all_blocks)
             
-            # Add the header and its blocks to the result
-            blocks.append(current_header)
-            blocks.extend(current_blocks)
+            # Add the header and all blocks to the result
+            blocks.append(header)
+            blocks.extend(all_blocks)
 
         return blocks
 
