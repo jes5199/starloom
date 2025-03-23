@@ -127,6 +127,8 @@ Simplify the WeftReader class to:
 [X] Clean up interpolation logic
 [X] Remove unnecessary methods
 [X] Update documentation
+[X] Update CLI code
+[X] Update tests
 [ ] Test changes
 
 ## Progress
@@ -137,6 +139,14 @@ Completed major refactoring:
 4. Updated documentation to reflect changes
 5. Maintained block priority order
 6. Improved error handling and logging
+7. Updated CLI code to use new interface:
+   - Fixed lookup command
+   - Fixed combine command
+8. Updated test suite:
+   - Removed multi-file tests
+   - Added new single-file tests
+   - Improved test coverage for interpolation
+   - Added error handling tests
 
 Next steps:
 1. Test the changes to ensure functionality is correct

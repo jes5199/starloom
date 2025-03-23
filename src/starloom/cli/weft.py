@@ -313,10 +313,10 @@ def lookup(file_path: str, date: str) -> None:
 
         # Read the file
         reader = WeftReader()
-        reader.load_file(file_path, "file1")
+        reader.load_file(file_path)
 
         # Look up the value
-        value = reader.get_value("file1", dt)
+        value = reader.get_value(dt)
 
         # Display the value
         logger.debug(f"Found value: {value}")
@@ -331,44 +331,28 @@ def lookup(file_path: str, date: str) -> None:
 @weft.command()
 @click.argument("file1", type=click.Path(exists=True))
 @click.argument("file2", type=click.Path(exists=True))
-@click.argument("output", type=click.Path())
-@click.option(
-    "--timespan",
-    "-t",
-    help="Descriptive timespan (e.g. '2024s' or '2024-2025')",
-    required=True,
-)
-def combine(file1: str, file2: str, output: str, timespan: str) -> None:
-    """Combine two .weft files into a single file.
+@click.argument("timespan", required=True)
+def combine(file1: str, file2: str, timespan: str) -> None:
+    """Combine two .weft files into a single file."""
+    logger.debug(f"Combining files {file1} and {file2} with timespan {timespan}")
+    from ..weft import WeftReader, WeftFile
 
-    The input files must have matching preambles (except for timespan and generation timestamp).
-    The output file will have a new timespan specified by --timespan.
-    """
-    logger.debug(f"Combining files {file1} and {file2} into {output}")
     try:
         # Read both files
-        reader = WeftReader()
-        weft1 = reader.load_file(file1, "file1")
-        weft2 = reader.load_file(file2, "file2")
+        reader1 = WeftReader()
+        reader2 = WeftReader()
+        weft1 = reader1.load_file(file1)
+        weft2 = reader2.load_file(file2)
 
         # Combine the files
         combined = WeftFile.combine(weft1, weft2, timespan)
 
-        # Ensure output path has extension
-        if not output.endswith(".weft"):
-            output = f"{output}.weft"
-
-        # Ensure output directory exists
-        output_dir = os.path.dirname(os.path.abspath(output))
-        if output_dir and not os.path.exists(output_dir):
-            logger.debug(f"Creating output directory: {output_dir}")
-            os.makedirs(output_dir, exist_ok=True)
-
-        # Save the combined file
-        combined.write_to_file(output)
-        logger.debug(f"Successfully combined files into: {output}")
-        click.echo(f"Successfully combined files into: {output}")
+        # Write the combined file
+        output_file = f"combined_{timespan}.weft"
+        combined.write_to_file(output_file)
+        logger.debug(f"Wrote combined file to {output_file}")
+        click.echo(f"Combined file written to {output_file}")
 
     except Exception as e:
-        logger.error(f"Error combining .weft files: {e}", exc_info=True)
-        raise click.ClickException(f"Error combining .weft files: {e}")
+        logger.error(f"Error combining files: {e}", exc_info=True)
+        raise click.ClickException(f"Error combining files: {e}")

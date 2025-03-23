@@ -66,91 +66,52 @@ class TestWeftReader(unittest.TestCase):
         # Create temporary file
         self.temp_dir = tempfile.mkdtemp()
         self.temp_file = os.path.join(self.temp_dir, "test.weft")
-        with open(self.temp_file, "wb") as f:
-            f.write(self.weft_file.to_bytes())
+        self.weft_file.write_to_file(self.temp_file)
 
         # Create reader
-        self.reader = WeftReader(self.temp_file)
+        self.reader = WeftReader()
+        self.reader.load_file(self.temp_file)
 
     def tearDown(self):
-        """Clean up after tests."""
-        # Remove temporary directory
+        """Clean up test data."""
         shutil.rmtree(self.temp_dir)
 
-        # Restore original coefficient count
-        FortyEightHourSectionHeader.coefficient_count = self.original_coeff_count
+    def test_get_value(self):
+        """Test getting values at different times."""
+        # Test with a time that falls in the daily block
+        dt = datetime(self.year, self.month, self.day, self.hour, tzinfo=timezone.utc)
+        value = self.reader.get_value(dt)
+        self.assertAlmostEqual(value, 300.0, places=2)
 
-    def test_load_file(self):
-        """Test loading a file."""
-        # Test that file was loaded correctly
-        self.assertIn("default", self.reader.files)
-        weft_file = self.reader.files["default"]
-        self.assertEqual(len(weft_file.blocks), len(self.blocks))
+        # Test with a time that falls in the monthly block
+        dt = datetime(self.year, self.month, 1, self.hour, tzinfo=timezone.utc)
+        value = self.reader.get_value(dt)
+        self.assertAlmostEqual(value, 200.0, places=2)
 
-    def test_unload_file(self):
-        """Test unloading a file."""
-        # Test unloading file
-        self.reader.unload_file("default")
-        self.assertNotIn("default", self.reader.files)
+        # Test with a time that falls in the multi-year block
+        dt = datetime(2025, 1, 1, self.hour, tzinfo=timezone.utc)
+        value = self.reader.get_value(dt)
+        self.assertAlmostEqual(value, 100.0, places=2)
 
-    def test_get_info(self):
-        """Test getting file info."""
-        # Test getting file info
-        info = self.reader.get_info("default")
-        self.assertIsInstance(info, dict)
-        self.assertIn("preamble", info)
-        self.assertIn("block_count", info)
-        self.assertEqual(info["block_count"], len(self.blocks))
+    def test_interpolation(self):
+        """Test interpolation between blocks."""
+        # Create two daily blocks with different values
+        dt1 = datetime(self.year, self.month, self.day, self.hour, tzinfo=timezone.utc)
+        dt2 = datetime(self.year, self.month, self.day + 1, self.hour, tzinfo=timezone.utc)
 
-    def test_get_date_range(self):
-        """Test getting date range."""
-        # Test getting date range
-        start, end = self.reader.get_date_range("default")
-        self.assertIsInstance(start, datetime)
-        self.assertIsInstance(end, datetime)
-        self.assertTrue(start <= end)
+        # Get values at both times
+        value1 = self.reader.get_value(dt1)
+        value2 = self.reader.get_value(dt2)
 
-    def test_get_value_multi_year(self):
-        """Test getting value from multi-year block."""
-        # Test getting value from multi-year block
-        dt = datetime(2022, 1, 1, 0, 0, tzinfo=timezone.utc)
-        value = self.reader.get_value("default", dt)
-        self.assertIsInstance(value, float)
+        # Values should be different
+        self.assertNotEqual(value1, value2)
 
-    def test_get_value_monthly(self):
-        """Test getting value from monthly block."""
-        # Test getting value from monthly block
-        dt = datetime(self.year, self.month, 15, 12, 0, tzinfo=timezone.utc)
-        value = self.reader.get_value("default", dt)
-        self.assertIsInstance(value, float)
-
-    def test_get_value_daily(self):
-        """Test getting value from daily block."""
-        # Test getting value from daily block
-        dt = datetime(
-            self.year, self.month, self.day, self.hour, 0, tzinfo=timezone.utc
-        )
-        value = self.reader.get_value("default", dt)
-        self.assertIsInstance(value, float)
-
-    def test_linear_interpolation(self):
-        """Test linear interpolation between blocks."""
-        # Test interpolation between blocks
-        dt1 = datetime(self.year, self.month, self.day, 0, 0, tzinfo=timezone.utc)
-        dt2 = datetime(self.year, self.month, self.day, 12, 0, tzinfo=timezone.utc)
-        value1 = self.reader.get_value("default", dt1)
-        value2 = self.reader.get_value("default", dt2)
-        self.assertIsInstance(value1, float)
-        self.assertIsInstance(value2, float)
-
-    def test_mixed_precision_priority(self):
-        """Test priority of different precision blocks."""
-        # Test that higher precision blocks take priority
-        dt = datetime(
-            self.year, self.month, self.day, self.hour, 0, tzinfo=timezone.utc
-        )
-        value = self.reader.get_value("default", dt)
-        self.assertIsInstance(value, float)
+    def test_no_file_loaded(self):
+        """Test error handling when no file is loaded."""
+        reader = WeftReader()
+        dt = datetime(self.year, self.month, self.day, self.hour, tzinfo=timezone.utc)
+        with self.assertRaises(ValueError):
+            reader.get_value(dt)
 
 
 if __name__ == "__main__":
