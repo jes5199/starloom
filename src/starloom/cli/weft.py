@@ -356,7 +356,7 @@ def combine(file1: str, file2: str, output_file: str, timespan: str) -> None:
         combined = WeftFile.combine(weft1, weft2, timespan)
 
         # Write the combined file
-        combined.write_to_file(output_file, timespan=timespan)
+        combined.write_to_file(output_file)
         logger.debug(f"Wrote combined file to {output_file}")
         click.echo(f"Combined file written to {output_file}")
 
