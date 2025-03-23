@@ -7,15 +7,23 @@ from .weft_file import (
     FortyEightHourBlock,
     RangedBehavior,
     BlockType,
+    ValueBehavior,
 )
 
 
 class WeftReader:
     """
-    A reader for .weft files that handles block priority and caching.
+    A reader for .weft files that handles value evaluation and interpolation.
 
-    Block priority (highest to lowest):
-    1. Daily blocks
+    This class is responsible for:
+    - Loading and managing .weft files
+    - Evaluating values at specific times
+    - Interpolating between blocks
+    - Handling value behaviors (wrapping, bounded, unbounded)
+    - Managing multiple files and their relationships
+
+    Block priority for evaluation (highest to lowest):
+    1. Daily blocks (with interpolation)
     2. Monthly blocks
     3. Multi-year blocks
     """
@@ -145,7 +153,62 @@ class WeftReader:
         if file_id not in self.files:
             raise KeyError(f"No file loaded with ID {file_id}")
 
-        return self.files[file_id].evaluate(dt)
+        # Convert to UTC if timezone-aware, or assume UTC if naive
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+
+        weft_file = self.files[file_id]
+
+        # Find all forty-eight hour blocks that contain this datetime
+        forty_eight_hour_blocks = []
+        for block in weft_file.blocks:
+            if isinstance(block, FortyEightHourBlock) and block.contains(dt):
+                forty_eight_hour_blocks.append(block)
+
+        # If we have forty-eight hour blocks, use them with interpolation
+        if forty_eight_hour_blocks:
+            if len(forty_eight_hour_blocks) > 1:
+                weft_file.logger.debug(
+                    f"Using {len(forty_eight_hour_blocks)} FortyEightHourBlocks with interpolation for {dt.isoformat()}"
+                )
+                return self._interpolate_forty_eight_hour_blocks(
+                    forty_eight_hour_blocks, dt, file_id
+                )
+
+            value = forty_eight_hour_blocks[0].evaluate(dt)
+            block = forty_eight_hour_blocks[0]
+            weft_file.logger.debug(
+                f"Value {value} from FortyEightHourBlock {block.month}: "
+                f"{block.header.start_day.isoformat()} to {block.header.end_day.isoformat()} "
+                f"for {dt.isoformat()}"
+            )
+            return self.apply_value_behavior(file_id, value)
+
+        # Try monthly blocks next
+        for block in weft_file.blocks:
+            if isinstance(block, MonthlyBlock) and block.contains(dt):
+                value = block.evaluate(dt)
+                weft_file.logger.debug(
+                    f"Value {value} from MonthlyBlock {id(block)}: "
+                    f"year={block.year}, month={block.month} "
+                    f"for {dt.isoformat()}"
+                )
+                return self.apply_value_behavior(file_id, value)
+
+        # Finally, try multi-year blocks
+        for block in weft_file.blocks:
+            if isinstance(block, MultiYearBlock) and block.contains(dt):
+                value = block.evaluate(dt)
+                weft_file.logger.debug(
+                    f"Value {value} from MultiYearBlock {id(block)}: "
+                    f"start_year={block.start_year}, duration={block.duration} "
+                    f"for {dt.isoformat()}"
+                )
+                return self.apply_value_behavior(file_id, value)
+
+        raise ValueError(f"No block found for datetime: {dt}")
 
     def get_value_with_linear_interpolation(
         self, dt: datetime, file_id: Optional[str] = None
@@ -244,6 +307,17 @@ class WeftReader:
             weight = max(0.0, 1.0 - time_diff / 24.0)
             weights.append(weight)
 
+        # Log detailed information about the blocks and weights
+        weft_file = self.files[file_id]
+        weft_file.logger.debug(f"Interpolating between {len(blocks)} blocks for {dt.isoformat()}")
+        for i, block in enumerate(blocks):
+            weft_file.logger.debug(
+                f"  Block {i+1}: {block.midnight().isoformat()}, "
+                f"weight={weights[i]:.4f}, "
+                f"midpoint={midpoints[i].isoformat()}, "
+                f"raw_value={block.evaluate(dt):.6f}"
+            )
+
         # Normalize weights to sum to 1.0
         weight_sum = sum(weights)
         if weight_sum > 0:
@@ -261,7 +335,6 @@ class WeftReader:
         if self._is_wrapping_angle(file_id):
             # For wrapping angles, we need to interpolate carefully
             # Get the range of the wrapping behavior
-            weft_file = self.files[file_id]
             behavior = cast(RangedBehavior, weft_file.value_behavior)
             min_val, max_val = behavior["range"]
             range_size = max_val - min_val
@@ -301,16 +374,23 @@ class WeftReader:
                 value = sum(v * w for v, w in zip(unwrapped_values, weights))
 
                 # Normalize the result back to the original range
-                return min_val + ((value - min_val) % range_size)
+                result = min_val + ((value - min_val) % range_size)
             else:
                 # Not crossing boundary, can use regular interpolation with normalized values
-                return sum(v * w for v, w in zip(normalized_values, weights))
+                result = sum(v * w for v, w in zip(normalized_values, weights))
         else:
             # For regular non-wrapping values, use standard weighted average
             value = sum(v * w for v, w in zip(block_values, weights))
 
             # Apply value behavior
-            return self.files[file_id].apply_value_behavior(value)
+            result = self.apply_value_behavior(file_id, value)
+
+        # Log the final result
+        weft_file.logger.debug(
+            f"Final interpolated value: {result:.6f} (weights: {', '.join(f'{w:.4f}' for w in weights)})"
+        )
+
+        return result
 
     def _interpolate_remaining_blocks(
         self,
@@ -348,7 +428,7 @@ class WeftReader:
         if weight_sum > 0:
             weights = [w / weight_sum for w in weights]
             value = sum(v * w for v, w in zip(valid_values, weights))
-            return self.files[file_id].apply_value_behavior(value)
+            return self.apply_value_behavior(file_id, value)
         else:
             return self._interpolate_fallback(blocks, dt, file_id)
 
@@ -376,7 +456,7 @@ class WeftReader:
                 ).timestamp()
             ),
         )
-        return self.files[file_id].apply_value_behavior(closest_block.evaluate(dt))
+        return self.apply_value_behavior(file_id, closest_block.evaluate(dt))
 
     def _is_wrapping_angle(self, file_id: str) -> bool:
         """
@@ -390,6 +470,33 @@ class WeftReader:
         """
         weft_file = self.files[file_id]
         return weft_file.value_behavior["type"] == "wrapping"
+
+    def apply_value_behavior(self, file_id: str, value: float) -> float:
+        """
+        Apply value behavior to a value.
+
+        Args:
+            file_id: The file ID to get behavior from
+            value: The value to process
+
+        Returns:
+            The processed value
+        """
+        weft_file = self.files[file_id]
+        behavior_type = weft_file.value_behavior["type"]
+        if behavior_type == "wrapping":
+            min_val, max_val = cast(RangedBehavior, weft_file.value_behavior)["range"]
+            range_size = max_val - min_val
+            while value < min_val:
+                value += range_size
+            while value >= max_val:
+                value -= range_size
+            return value
+        elif behavior_type == "bounded":
+            min_val, max_val = cast(RangedBehavior, weft_file.value_behavior)["range"]
+            return max(min_val, min(max_val, value))
+        else:  # unbounded
+            return value
 
     def get_keys(self) -> List[str]:
         """

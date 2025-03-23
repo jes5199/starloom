@@ -57,6 +57,15 @@ ValueBehavior = Union[RangedBehavior, UnboundedBehavior]
 class WeftFile:
     """
     A .weft file containing ephemeris data.
+    
+    This class handles the low-level aspects of .weft files:
+    - File structure and format
+    - Binary serialization/deserialization
+    - Block storage and management
+    - File I/O operations
+    
+    It does not handle value evaluation or interpolation - those responsibilities
+    belong to WeftReader.
     """
 
     def __init__(
@@ -193,192 +202,6 @@ class WeftFile:
             )
 
         return cls(preamble=preamble, blocks=blocks)
-
-    def evaluate(self, dt: datetime) -> float:
-        """
-        Evaluate the file at a specific datetime.
-
-        Args:
-            dt: The datetime to evaluate at
-
-        Returns:
-            The interpolated value at the datetime
-
-        Raises:
-            ValueError: If no block contains the datetime
-        """
-        # Convert to UTC if timezone-aware, or assume UTC if naive
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        else:
-            dt = dt.astimezone(timezone.utc)
-
-        # Find all forty-eight hour blocks that contain this datetime
-        forty_eight_hour_blocks = []
-        for block in self.blocks:
-            if isinstance(block, FortyEightHourBlock) and block.contains(dt):
-                forty_eight_hour_blocks.append(block)
-
-        # If we have forty-eight hour blocks, use them with interpolation
-        if forty_eight_hour_blocks:
-            if len(forty_eight_hour_blocks) > 1:
-                self.logger.debug(
-                    f"Using {len(forty_eight_hour_blocks)} FortyEightHourBlocks with interpolation for {dt.isoformat()}"
-                )
-                return self._interpolate_forty_eight_hour_blocks(
-                    forty_eight_hour_blocks, dt
-                )
-
-            value = forty_eight_hour_blocks[0].evaluate(dt)
-            block = forty_eight_hour_blocks[0]
-            self.logger.debug(
-                f"Value {value} from FortyEightHourBlock {block.month}: "
-                f"{block.header.start_day.isoformat()} to {block.header.end_day.isoformat()} "
-                f"for {dt.isoformat()}"
-            )
-            return value
-
-        # Try monthly blocks next
-        for block in self.blocks:
-            if isinstance(block, MonthlyBlock) and block.contains(dt):
-                value = block.evaluate(dt)
-                self.logger.debug(
-                    f"Value {value} from MonthlyBlock {id(block)}: "
-                    f"year={block.year}, month={block.month} "
-                    f"for {dt.isoformat()}"
-                )
-                return value
-
-        # Finally, try multi-year blocks
-        for block in self.blocks:
-            if isinstance(block, MultiYearBlock) and block.contains(dt):
-                value = block.evaluate(dt)
-                self.logger.debug(
-                    f"Value {value} from MultiYearBlock {id(block)}: "
-                    f"start_year={block.start_year}, duration={block.duration} "
-                    f"for {dt.isoformat()}"
-                )
-                return value
-
-        raise ValueError(f"No block found for datetime: {dt}")
-
-    def _interpolate_forty_eight_hour_blocks(
-        self, blocks: List[FortyEightHourBlock], dt: datetime, debug: bool = False
-    ) -> float:
-        """
-        Interpolate between multiple forty-eight hour blocks.
-
-        When multiple forty-eight hour blocks cover the same datetime, we linearly
-        interpolate between them based on their relative influence.
-
-        Args:
-            blocks: List of forty-eight hour blocks that contain the datetime
-            dt: The datetime to evaluate at
-            debug: If True, logs debug information about the interpolation
-
-        Returns:
-            The interpolated value
-        """
-        # Get values and weights for each block
-        values_and_weights = []
-        debug_blocks = []
-
-        for block in blocks:
-            # Get block boundaries
-            start = datetime.combine(
-                block.header.start_day, time(0), tzinfo=timezone.utc
-            )
-            end = datetime.combine(block.header.end_day, time(0), tzinfo=timezone.utc)
-
-            # Calculate weight based on position in block
-            total_seconds = (end - start).total_seconds()
-            seconds_from_start = (dt - start).total_seconds()
-            weight = 1.0 - abs(seconds_from_start / total_seconds - 0.5) * 2
-
-            # Evaluate block
-            value = block.evaluate(dt)
-            values_and_weights.append((value, weight))
-
-            # Always collect debug info, logger will decide whether to use it
-            debug_blocks.append(
-                {
-                    "id": id(block),
-                    "start_day": block.header.start_day.isoformat(),
-                    "end_day": block.header.end_day.isoformat(),
-                    "weight": weight,
-                    "value": value,
-                }
-            )
-
-        # Normalize weights
-        total_weight = sum(w for _, w in values_and_weights)
-        if total_weight == 0:
-            # If all weights are 0, use simple average
-            value = sum(v for v, _ in values_and_weights) / len(values_and_weights)
-            normalized_weights = [1.0 / len(blocks) for _ in blocks]
-            self._log_interpolation_debug(
-                debug_blocks, normalized_weights, value, "simple_average", dt
-            )
-            return value
-
-        # Calculate weighted average
-        weighted_sum = sum(v * w for v, w in values_and_weights)
-        value = weighted_sum / total_weight
-
-        normalized_weights = [w / total_weight for _, w in values_and_weights]
-        self._log_interpolation_debug(
-            debug_blocks, normalized_weights, value, "weighted_average", dt
-        )
-
-        return value
-
-    def _log_interpolation_debug(
-        self,
-        blocks: List[Dict[str, Any]],
-        normalized_weights: List[float],
-        final_value: float,
-        method: str,
-        dt: datetime,
-    ) -> None:
-        """Log detailed interpolation debug information."""
-        block_details = []
-        for i, block in enumerate(blocks):
-            block_details.append(
-                f"Block {block['id']} ({block['start_day']} to {block['end_day']}): "
-                f"value={block['value']}, weight={block['weight']:.4f}, "
-                f"normalized_weight={normalized_weights[i]:.4f}"
-            )
-
-        self.logger.debug(
-            f"Interpolated value {final_value} for {dt.isoformat()} using {method}:\n"
-            f"  Total blocks: {len(blocks)}\n"
-            f"  {chr(10)}  ".join(block_details)
-        )
-
-    def apply_value_behavior(self, value: float) -> float:
-        """
-        Apply value behavior to a value.
-
-        Args:
-            value: The value to process
-
-        Returns:
-            The processed value
-        """
-        behavior_type = self.value_behavior["type"]
-        if behavior_type == "wrapping":
-            min_val, max_val = cast(RangedBehavior, self.value_behavior)["range"]
-            range_size = max_val - min_val
-            while value < min_val:
-                value += range_size
-            while value >= max_val:
-                value -= range_size
-            return value
-        elif behavior_type == "bounded":
-            min_val, max_val = cast(RangedBehavior, self.value_behavior)["range"]
-            return max(min_val, min(max_val, value))
-        else:  # unbounded
-            return value
 
     def write_to_file(self, filepath: str) -> None:
         """
