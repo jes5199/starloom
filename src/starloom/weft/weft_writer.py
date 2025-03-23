@@ -126,10 +126,41 @@ class WeftWriter:
         Returns:
             Tuple of (x_values, values)
         """
-        # Get all timestamps within the range
-        timestamps = [dt for dt in data_source.timestamps if start_dt <= dt <= end_dt]
+        # Time the timestamp filtering
+        filter_start = time.time()
+        
+        # Use binary search to find indices of start and end timestamps
+        # since the timestamps list is sorted
+        timestamps = data_source.timestamps
+        
+        # Find start index (first timestamp >= start_dt)
+        start_idx = 0
+        end_idx = len(timestamps) - 1
+        while start_idx <= end_idx:
+            mid_idx = (start_idx + end_idx) // 2
+            if timestamps[mid_idx] < start_dt:
+                start_idx = mid_idx + 1
+            else:
+                end_idx = mid_idx - 1
+        
+        # Find end index (last timestamp <= end_dt)
+        start_idx_for_end = start_idx
+        end_idx = len(timestamps) - 1
+        while start_idx_for_end <= end_idx:
+            mid_idx = (start_idx_for_end + end_idx) // 2
+            if timestamps[mid_idx] <= end_dt:
+                start_idx_for_end = mid_idx + 1
+            else:
+                end_idx = mid_idx - 1
+        
+        # Extract the timestamps in range using the found indices
+        filtered_timestamps = timestamps[start_idx:end_idx+1]
+        
+        filter_end = time.time()
+        filter_time_ms = (filter_end - filter_start) * 1000
+        logger.debug(f"Filtered {len(filtered_timestamps)} timestamps in {filter_time_ms:.2f}ms (binary search)")
 
-        if not timestamps:
+        if not filtered_timestamps:
             return [], []
 
         # Calculate x values for each timestamp
@@ -137,7 +168,9 @@ class WeftWriter:
         x_values = []
         values = []
 
-        for dt in timestamps:
+        # Time the value retrieval and x-value calculation
+        value_start = time.time()
+        for dt in filtered_timestamps:
             # Calculate x value in [-1, 1] range
             elapsed_seconds = (dt - start_dt).total_seconds()
             x = -1.0 + 2.0 * elapsed_seconds / total_seconds
@@ -146,6 +179,13 @@ class WeftWriter:
             # Get value at this time
             value = data_source.get_value_at(dt) # basically a dictionary lookup
             values.append(value)
+        value_end = time.time()
+        value_time_ms = (value_end - value_start) * 1000
+        logger.debug(f"Retrieved {len(values)} values in {value_time_ms:.2f}ms")
+
+        # Log total time
+        total_time_ms = filter_time_ms + value_time_ms
+        logger.debug(f"Total sample generation time: {total_time_ms:.2f}ms")
 
         return x_values, values
 
