@@ -10,6 +10,7 @@ import sys
 import signal
 import traceback
 from typing import Any, Optional
+import logging
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -22,7 +23,10 @@ from ..weft.weft import (
     WeftFile,
 )
 from . import common
+from ..weft.logging import get_logger
 
+# Create a logger for this module
+logger = get_logger(__name__)
 
 # Add signal handler for SIGINT (Ctrl+C)
 def sigint_handler(sig: int, frame: Any) -> None:
@@ -49,9 +53,31 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 
 @click.group()
-def weft() -> None:
+@click.option(
+    "-v",
+    "--verbose",
+    count=True,
+    help="Increase verbosity (can be used multiple times: -v, -vv, -vvv)",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Enable debug logging (equivalent to -vv)",
+)
+@click.option(
+    "--quiet",
+    is_flag=True,
+    help="Suppress all logging except errors",
+)
+def weft(verbose: int, debug: bool, quiet: bool) -> None:
     """Commands for working with .weft binary ephemeris files."""
-    pass
+    # Configure logging based on command line arguments
+    common.configure_logging({
+        "quiet": quiet,
+        "debug": debug,
+        "verbose": verbose,
+    })
+    logger.debug("Debug logging enabled")
 
 
 @weft.command()
@@ -82,22 +108,6 @@ def weft() -> None:
     help="Custom timespan descriptor for the preamble (e.g. '2000s' or '2020-2030')",
     type=str,
 )
-@click.option(
-    "-v",
-    "--verbose",
-    count=True,
-    help="Increase verbosity (can be used multiple times: -v, -vv, -vvv)",
-)
-@click.option(
-    "--debug",
-    is_flag=True,
-    help="Enable debug logging (equivalent to -vv)",
-)
-@click.option(
-    "--quiet",
-    is_flag=True,
-    help="Suppress all logging except errors",
-)
 def generate(
     planet: str,
     quantity: str,
@@ -107,17 +117,10 @@ def generate(
     data_dir: str,
     step: str,
     timespan: Optional[str],
-    verbose: int,
-    debug: bool,
-    quiet: bool,
 ) -> None:
     """Generate a .weft binary ephemeris file."""
-    # Configure logging based on command line arguments
-    common.configure_logging({
-        "quiet": quiet,
-        "debug": debug,
-        "verbose": verbose,
-    })
+    logger.debug("Starting weft file generation")
+    logger.debug(f"Parameters: planet={planet}, quantity={quantity}, start={start}, stop={stop}")
 
     print("Starting generation with parameters:")
     print(f"  Planet: {planet}")
@@ -139,16 +142,20 @@ def generate(
         if isinstance(start_dt, float):
             from ..space_time.julian import datetime_from_julian
 
+            logger.debug("Converting start date from Julian")
             print("Converting start date from Julian...")
             start_dt = datetime_from_julian(start_dt)
         if isinstance(end_dt, float):
             from ..space_time.julian import datetime_from_julian
 
+            logger.debug("Converting end date from Julian")
             print("Converting end date from Julian...")
             end_dt = datetime_from_julian(end_dt)
+        logger.debug(f"Parsed dates: {start_dt} to {end_dt}")
         print(f"Parsed dates: {start_dt} to {end_dt}")
 
         # Get the ephemeris quantity
+        logger.debug("Looking up ephemeris quantity")
         print("Looking up ephemeris quantity...")
         ephemeris_quantity = None
         for eq in EphemerisQuantity:
@@ -158,20 +165,24 @@ def generate(
 
         if ephemeris_quantity is None:
             raise click.BadParameter(f"Unknown quantity: {quantity}")
+        logger.debug(f"Found ephemeris quantity: {ephemeris_quantity}")
         print(f"Found ephemeris quantity: {ephemeris_quantity}")
 
         # Ensure output path has extension
         if not output.endswith(".weft"):
             output = f"{output}.weft"
+        logger.debug(f"Using output path: {output}")
         print(f"Using output path: {output}")
 
         # Ensure output directory exists
         output_dir = os.path.dirname(os.path.abspath(output))
         if output_dir and not os.path.exists(output_dir):
+            logger.debug(f"Creating output directory: {output_dir}")
             print(f"Creating output directory: {output_dir}")
             os.makedirs(output_dir, exist_ok=True)
 
         # Generate the file
+        logger.debug("Starting file generation")
         print("Generating .weft file...")
         try:
             file_path = generate_weft_file(
@@ -185,13 +196,16 @@ def generate(
                 custom_timespan=timespan,
             )
 
+            logger.debug(f"Successfully generated .weft file: {file_path}")
             click.echo(f"Successfully generated .weft file: {file_path}")
         except Exception as e:
+            logger.error(f"Error during generation: {e}", exc_info=True)
             print("Error during generation:")
             print(traceback.format_exc())
             raise click.ClickException(f"Error generating .weft file: {e}")
 
     except ValueError as e:
+        logger.error(f"Value error: {e}", exc_info=True)
         raise click.ClickException(str(e))
 
 
@@ -199,6 +213,7 @@ def generate(
 @click.argument("file_path", type=click.Path(exists=True))
 def info(file_path: str) -> None:
     """Display information about a .weft file."""
+    logger.debug(f"Reading info for file: {file_path}")
     try:
         reader = WeftReader()
         weft_file = reader.load_file(file_path)
@@ -206,6 +221,7 @@ def info(file_path: str) -> None:
             raise click.ClickException(f"Failed to load .weft file: {file_path}")
 
         # Display preamble
+        logger.debug("Displaying file preamble")
         print(f"Preamble: {weft_file.preamble.strip()}")
 
         # Display file size
@@ -218,6 +234,7 @@ def info(file_path: str) -> None:
             size_str = f"{file_size_bytes / (1024 * 1024):.1f} MB"
         else:
             size_str = f"{file_size_bytes / (1024 * 1024 * 1024):.1f} GB"
+        logger.debug(f"File size: {size_str}")
         print(f"{size_str}", end=": ")
 
         # Display block counts
@@ -229,9 +246,9 @@ def info(file_path: str) -> None:
             b for b in weft_file.blocks if isinstance(b, FortyEightHourBlock)
         ]
 
-        print(
-            f"{len(weft_file.blocks)} blocks ({len(multi_year_blocks)} large, {len(monthly_blocks)} monthly, {len(forty_eight_hour_blocks)} days)"
-        )
+        block_counts = f"{len(weft_file.blocks)} blocks ({len(multi_year_blocks)} large, {len(monthly_blocks)} monthly, {len(forty_eight_hour_blocks)} days)"
+        logger.debug(f"Block counts: {block_counts}")
+        print(block_counts)
 
         # Display overall date range
         if weft_file.blocks:
@@ -279,23 +296,22 @@ def info(file_path: str) -> None:
             else:
                 end_date = datetime(2100, 1, 1, tzinfo=ZoneInfo("UTC"))
 
-            print(f"{start_date} to {end_date}")
+            date_range = f"{start_date} to {end_date}"
+            logger.debug(f"Date range: {date_range}")
+            print(date_range)
 
         # Display block details
         for block in weft_file.blocks:
             if isinstance(block, MultiYearBlock):
-                print(
-                    f"Multi-year block: {block.start_year} +{block.duration} ({len(block.coeffs)} coefficients)"
-                )
+                block_info = f"Multi-year block: {block.start_year} +{block.duration} ({len(block.coeffs)} coefficients)"
             elif isinstance(block, MonthlyBlock):
-                print(
-                    f"Monthly block: {block.year}-{block.month:02d} ({len(block.coeffs)} coefficients)"
-                )
+                block_info = f"Monthly block: {block.year}-{block.month:02d} ({len(block.coeffs)} coefficients)"
             elif isinstance(block, FortyEightHourBlock):
-                print(
-                    f"48-hour block: {block.header.start_day} ({len(block.coefficients)} coefficients)"
-                )
+                block_info = f"48-hour block: {block.header.start_day} ({len(block.coefficients)} coefficients)"
+            logger.debug(f"Block info: {block_info}")
+            print(block_info)
     except Exception as e:
+        logger.error(f"Error reading .weft file: {e}", exc_info=True)
         raise click.ClickException(f"Error reading .weft file: {e}")
 
 
@@ -304,6 +320,7 @@ def info(file_path: str) -> None:
 @click.argument("date", required=True)
 def lookup(file_path: str, date: str) -> None:
     """Look up a value in a .weft file for a specific date."""
+    logger.debug(f"Looking up value for date {date} in file {file_path}")
     from ..weft import WeftReader
 
     try:
@@ -314,6 +331,7 @@ def lookup(file_path: str, date: str) -> None:
         if isinstance(dt, float):
             from ..space_time.julian import datetime_from_julian
 
+            logger.debug("Converting date from Julian")
             dt = datetime_from_julian(dt)
 
         # Read the file
@@ -324,10 +342,12 @@ def lookup(file_path: str, date: str) -> None:
         value = reader.get_value("file1", dt)
 
         # Display the value
+        logger.debug(f"Found value: {value}")
         click.echo(f"Date: {dt}")
         click.echo(f"Value: {value}")
 
     except Exception as e:
+        logger.error(f"Error looking up value: {e}", exc_info=True)
         raise click.ClickException(f"Error looking up value: {e}")
 
 
@@ -347,6 +367,7 @@ def combine(file1: str, file2: str, output: str, timespan: str) -> None:
     The input files must have matching preambles (except for timespan and generation timestamp).
     The output file will have a new timespan specified by --timespan.
     """
+    logger.debug(f"Combining files {file1} and {file2} into {output}")
     try:
         # Read both files
         reader = WeftReader()
@@ -363,11 +384,14 @@ def combine(file1: str, file2: str, output: str, timespan: str) -> None:
         # Ensure output directory exists
         output_dir = os.path.dirname(os.path.abspath(output))
         if output_dir and not os.path.exists(output_dir):
+            logger.debug(f"Creating output directory: {output_dir}")
             os.makedirs(output_dir, exist_ok=True)
 
         # Save the combined file
         combined.write_to_file(output)
+        logger.debug(f"Successfully combined files into: {output}")
         click.echo(f"Successfully combined files into: {output}")
 
     except Exception as e:
+        logger.error(f"Error combining .weft files: {e}", exc_info=True)
         raise click.ClickException(f"Error combining .weft files: {e}")

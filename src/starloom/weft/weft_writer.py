@@ -121,9 +121,7 @@ class WeftWriter:
             data_source: The data source to get values from
             start_dt: Start datetime
             end_dt: End datetime
-            sample_count: Number of sample points to generate (ignored when using all data points)
-            quantity: Optional quantity override
-
+            
         Returns:
             Tuple of (x_values, values)
         """

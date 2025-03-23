@@ -73,3 +73,22 @@ def configure_logging(args: Dict[str, Any]) -> None:
 
     # Apply log level to all starloom loggers
     set_log_level(log_level)
+
+    # Also configure the root logger to ensure all loggers work
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
+    # Create a console handler if none exists
+    if not root_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(log_level)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
+    else:
+        # Update existing handlers
+        for handler in root_logger.handlers:
+            handler.setLevel(log_level)
