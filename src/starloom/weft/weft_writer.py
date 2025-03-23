@@ -31,7 +31,6 @@ from .block_selection import (
     should_include_monthly_block,
     should_include_fourty_eight_hour_block,
 )
-from ..ephemeris.time_spec import TimeSpec
 from .logging import get_logger
 
 # Create a logger for this module
@@ -203,9 +202,7 @@ class WeftWriter:
             end_dt = datetime(end_year, 1, 1, tzinfo=ZoneInfo("UTC"))
 
         # Check if this block should be included based on coverage criteria
-        if not should_include_multi_year_block(
-            data_source, start_year, duration
-        ):
+        if not should_include_multi_year_block(data_source, start_year, duration):
             logger.debug(
                 f"Multi-year block not included for {start_year}-{start_year + duration - 1}"
             )
@@ -250,7 +247,7 @@ class WeftWriter:
         blocks = []
 
         year, month = start_date.year, start_date.month
-    
+
         # Loop until the current month goes past end_date
         while datetime(year, month, 1, tzinfo=start_date.tzinfo) <= end_date:
             month_start = datetime(year, month, 1, tzinfo=start_date.tzinfo)
@@ -260,17 +257,23 @@ class WeftWriter:
             else:
                 next_month = datetime(year, month + 1, 1, tzinfo=start_date.tzinfo)
             month_end = next_month - timedelta(days=1)
-            
+
             # Adjust boundaries for the overall range
             block_start = max(start_date, month_start)
             block_end = min(end_date, month_end)
             day_count = (block_end - block_start).days + 1
-            
+
             # Only include if the month meets the criteria
             if should_include_monthly_block(data_source, year, month):
-                coeffs_list = self._generate_chebyshev_coefficients(data_source, block_start, block_end, degree)
-                blocks.append(MonthlyBlock(year=year, month=month, day_count=day_count, coeffs=coeffs_list))
-            
+                coeffs_list = self._generate_chebyshev_coefficients(
+                    data_source, block_start, block_end, degree
+                )
+                blocks.append(
+                    MonthlyBlock(
+                        year=year, month=month, day_count=day_count, coeffs=coeffs_list
+                    )
+                )
+
             # Move to the next month
             year = next_month.year
             month = next_month.month

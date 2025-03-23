@@ -146,9 +146,7 @@ def should_include_multi_year_block(
     return coverage >= 0.666
 
 
-def should_include_monthly_block(
-    data_source: Any, year: int, month: int
-) -> bool:
+def should_include_monthly_block(data_source: Any, year: int, month: int) -> bool:
     """
     Determine if a monthly block should be included.
 
@@ -175,9 +173,7 @@ def should_include_monthly_block(
     return coverage >= 0.666 and points_per_day >= 4.0
 
 
-def should_include_fourty_eight_hour_block(
-    data_source: Any, date: datetime
-) -> bool:
+def should_include_fourty_eight_hour_block(data_source: Any, date: datetime) -> bool:
     """
     Determine if a daily block should be included.
 
@@ -195,9 +191,7 @@ def should_include_fourty_eight_hour_block(
     end = center + timedelta(hours=24)
 
     # Get data coverage
-    coverage, points_per_day = analyze_data_coverage(
-        start, end, data_source.timestamps
-    )
+    coverage, points_per_day = analyze_data_coverage(start, end, data_source.timestamps)
     # Daily blocks need at least 4 points per day
     # and 66.6% coverage (the same threshold used for monthly blocks)
     return coverage >= 0.666 and points_per_day >= 4.0

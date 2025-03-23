@@ -108,9 +108,7 @@ class MockDataSource:
         # step_count timestamps in the range start_dt to end_dt
         duration = end_dt - start_dt
         step = duration / step_count
-        self.timestamps = [
-            start_dt + step * i for i in range(step_count + 1)
-        ]
+        self.timestamps = [start_dt + step * i for i in range(step_count + 1)]
 
     def get_value_at(self, dt: datetime) -> float:
         """Get the value at the given datetime using our known function."""
@@ -130,7 +128,6 @@ def test_chebyshev_coefficient_generation():
         ).total_seconds()
         x = 2 * (elapsed_seconds / total_seconds) - 1
         return math.sin(x) + math.cos(2 * x)
-
 
     # Create WeftWriter
     writer = WeftWriter(EphemerisQuantity.ECLIPTIC_LONGITUDE)
@@ -153,7 +150,6 @@ def test_chebyshev_coefficient_generation():
     print("\nChebyshev coefficients:")
     for i, coeff in enumerate(coeffs):
         print(f"T_{i}(x) * {coeff}")
-
 
     # Test points throughout the day
     test_points = [
