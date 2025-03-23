@@ -249,6 +249,15 @@ class WeftWriter:
         # Define threshold for "very very tiny"
         threshold = 1e-12
 
+        # Make sure we have a list before proceeding
+        if not isinstance(coeffs_list, list):
+            logger.warning(f"Expected list type but got {type(coeffs_list)}")
+            # Convert to list if possible, or return original coefficients
+            try:
+                coeffs_list = list(coeffs_list)
+            except (TypeError, ValueError):
+                return coeffs.tolist()  # Return original conversion result
+
         # Trim from the end until we find a coefficient larger than the threshold
         while len(coeffs_list) > 1 and abs(coeffs_list[-1]) < threshold:
             coeffs_list.pop()
@@ -423,7 +432,7 @@ class WeftWriter:
 
             # Add the header and all blocks to the result
             blocks.append(header)
-            blocks.extend(all_blocks)
+            blocks.extend(all_blocks)  # type: ignore[arg-type]
 
         return blocks
 

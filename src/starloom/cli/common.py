@@ -53,7 +53,7 @@ def configure_logging(args: Dict[str, Any]) -> None:
         verbosity = args.get("verbose", 0)
     else:
         # Handle as argparse.Namespace for backward compatibility
-        quiet = getattr(args, "quiet", False)
+        quiet = getattr(args, "quiet", False)  # type: ignore[unreachable]
         debug = getattr(args, "debug", False)
         verbosity = getattr(args, "verbose", 0)
 

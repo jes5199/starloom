@@ -2,9 +2,9 @@
 
 from typing import List
 
-from ruff.linter import LinterContext
-from ruff.rules import Rule, RuleSet
-from ruff.tree import Import, ImportFrom
+from ruff.linter import LinterContext  # type: ignore
+from ruff.rules import Rule, RuleSet  # type: ignore
+from ruff.tree import Import, ImportFrom  # type: ignore
 
 
 def check_src_imports(
