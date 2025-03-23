@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 import os
 from numpy.polynomial import chebyshev
 import time as time_module
+import numpy as np
 
 from .weft_file import (
     MultiYearBlock,
@@ -242,36 +243,46 @@ class WeftWriter:
             f"Fitted Chebyshev coefficients (degree {degree}) in {fit_time_ms:.2f}ms"
         )
 
-        # Drop very small coefficients from the end
-        # Convert to list for manipulation
-        coeffs_list = coeffs.tolist()
+        # Convert numpy array to list of float
+        try:
+            # This is safe because we know coeffs is a numpy array of floats
+            coeffs_list = coeffs.tolist()
+        except (AttributeError, TypeError):
+            # Handle the case where coeffs is not a numpy array
+            logger.warning(f"Failed to convert coeffs to list using tolist(): {type(coeffs)}")
+            try:
+                # Try to convert to a list of floats
+                coeffs_list = [float(c) for c in coeffs]
+            except Exception as e:
+                # If all else fails, return a safe default
+                logger.error(f"Unable to process coefficients: {e}")
+                return [0.0]
 
         # Define threshold for "very very tiny"
         threshold = 1e-12
 
-        # Make sure we have a list before proceeding
+        # Ensure coeffs_list is a list we can work with
         if not isinstance(coeffs_list, list):
-            logger.warning(f"Expected list type but got {type(coeffs_list)}")
-            # Convert to list if possible, or return original coefficients
+            logger.warning(f"Expected list but got {type(coeffs_list)}, trying conversion")
             try:
-                coeffs_list = list(coeffs_list)
-            except (TypeError, ValueError):
-                return coeffs.tolist()  # Return original conversion result
+                coeffs_list = list(coeffs_list)  # type: ignore[call-overload]
+            except Exception:
+                logger.error("Failed to convert to list")
+                return [0.0]
 
         # Trim from the end until we find a coefficient larger than the threshold
-        while len(coeffs_list) > 1 and abs(coeffs_list[-1]) < threshold:
+        while len(coeffs_list) > 1 and abs(coeffs_list[-1]) < threshold:  # type: ignore[arg-type,index]
             coeffs_list.pop()
 
-        trim_count = len(coeffs) - len(coeffs_list)
-        if trim_count > 0:
-            logger.debug(f"Dropped {trim_count} tiny coefficients below {threshold}")
+        # Count how many coefficients we dropped
+        if isinstance(coeffs, np.ndarray):
+            original_len = len(coeffs)
+            current_len = len(coeffs_list)  # type: ignore[arg-type]
+            if current_len < original_len:
+                logger.debug(f"Dropped {original_len - current_len} tiny coefficients below {threshold}")
 
         logger.debug(f"Coefficients: {coeffs_list}")
-
-        # Log total time
-        total_time_ms = sample_time_ms + fit_time_ms
-        logger.debug(f"Total coefficient generation time: {total_time_ms:.2f}ms")
-
+        # Ensure we return a List[float] as the function signature promises
         return cast(List[float], coeffs_list)
 
     def create_multi_year_block(
@@ -376,10 +387,12 @@ class WeftWriter:
         degree: int,
     ) -> List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]]:
         # Normalize to day boundaries
-        start_date = datetime.combine(start_date.date(), time(0, 0), timezone.utc)
-        end_date = datetime.combine(end_date.date(), time(0, 0), timezone.utc)
+        start_date = datetime.combine(start_date.date(), time(0), tzinfo=timezone.utc)
+        end_date = datetime.combine(end_date.date(), time(0), tzinfo=timezone.utc)
 
-        blocks = []
+        # Create blocks and headers as we go
+        blocks: List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]] = []
+
         current_date = start_date
 
         # Create a single header for the entire range
@@ -432,7 +445,7 @@ class WeftWriter:
 
             # Add the header and all blocks to the result
             blocks.append(header)
-            blocks.extend(all_blocks)  # type: ignore[arg-type]
+            blocks.extend(all_blocks)
 
         return blocks
 
