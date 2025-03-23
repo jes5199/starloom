@@ -17,7 +17,9 @@ from ..space_time.julian import julian_to_datetime
 
 class EphemerisProtocol(Protocol):
     def __init__(self, data_dir: Optional[str] = None) -> None: ...
-    def get_planet_positions(self, planet: str, time_spec: Any) -> Dict[float, Dict[str, float]]: ...
+    def get_planet_positions(
+        self, planet: str, time_spec: Any
+    ) -> Dict[float, Dict[str, float]]: ...
 
 
 # Define available ephemeris sources

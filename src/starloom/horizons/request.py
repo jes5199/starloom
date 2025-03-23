@@ -2,8 +2,6 @@ from typing import Dict, Optional, Union, List
 import requests
 from urllib.parse import urlencode
 import hashlib
-import os
-import glob
 from pathlib import Path
 
 from .quantities import Quantities
@@ -96,7 +94,7 @@ class HorizonsRequest:
             # Sort by modification time, oldest first
             cache_files.sort(key=lambda x: x.stat().st_mtime)
             # Remove oldest files until we're under the limit
-            for file in cache_files[:-self.MAX_CACHE_ENTRIES]:
+            for file in cache_files[: -self.MAX_CACHE_ENTRIES]:
                 file.unlink()
 
     def _get_cached_response(self, url: str) -> Optional[str]:
@@ -206,20 +204,20 @@ class HorizonsRequest:
         url = self.get_url()
         if len(url) > self.max_url_length:
             return self._make_post_request()
-            
+
         # Check cache first
         cached_response = self._get_cached_response(url)
         if cached_response is not None:
             return cached_response
-            
+
         # If not in cache, make the request
         response = requests.get(url)
         response.raise_for_status()
         response_text = response.text
-        
+
         # Cache the response
         self._cache_response(url, response_text)
-        
+
         return response_text
 
     def _get_time_params(self) -> Dict[str, str]:

@@ -249,7 +249,9 @@ class WeftWriter:
             coeffs_list = coeffs.tolist()
         except (AttributeError, TypeError):
             # Handle the case where coeffs is not a numpy array
-            logger.warning(f"Failed to convert coeffs to list using tolist(): {type(coeffs)}")
+            logger.warning(
+                f"Failed to convert coeffs to list using tolist(): {type(coeffs)}"
+            )
             try:
                 # Try to convert to a list of floats
                 coeffs_list = [float(c) for c in coeffs]
@@ -263,7 +265,9 @@ class WeftWriter:
 
         # Ensure coeffs_list is a list we can work with
         if not isinstance(coeffs_list, list):
-            logger.warning(f"Expected list but got {type(coeffs_list)}, trying conversion")
+            logger.warning(
+                f"Expected list but got {type(coeffs_list)}, trying conversion"
+            )
             try:
                 # Convert to list and ensure it's a List[float]
                 coeffs_list = cast(List[float], list(coeffs_list))
@@ -280,7 +284,9 @@ class WeftWriter:
             original_len = len(coeffs)
             current_len = len(coeffs_list)
             if current_len < original_len:
-                logger.debug(f"Dropped {original_len - current_len} tiny coefficients below {threshold}")
+                logger.debug(
+                    f"Dropped {original_len - current_len} tiny coefficients below {threshold}"
+                )
 
         logger.debug(f"Coefficients: {coeffs_list}")
         # Ensure we return a List[float] as the function signature promises
