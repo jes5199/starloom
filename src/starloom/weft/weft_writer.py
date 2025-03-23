@@ -65,42 +65,48 @@ class WeftWriter:
         )
 
         # Initialize value behavior based on quantity
+        self.value_behavior = self._initialize_value_behavior()
+
+    def _initialize_value_behavior(self) -> Union[RangedBehavior, UnboundedBehavior]:
+        """Initialize the value behavior based on the quantity type.
+
+        Returns:
+            A RangedBehavior or UnboundedBehavior instance depending on the quantity
+        """
         if self.wrapping_behavior == "wrapping":
-            if quantity == EphemerisQuantity.RIGHT_ASCENSION:
+            if self.quantity == EphemerisQuantity.RIGHT_ASCENSION:
                 # Right ascension is in hours [0, 24)
-                self.value_behavior: Union[RangedBehavior, UnboundedBehavior] = (
-                    RangedBehavior(
-                        type="wrapping",
-                        range=(0.0, 24.0),
-                    )
+                return RangedBehavior(
+                    type="wrapping",
+                    range=(0.0, 24.0),
                 )
             else:
                 # Other angles are in degrees [0, 360)
-                self.value_behavior = RangedBehavior(
+                return RangedBehavior(
                     type="wrapping",
                     range=(0.0, 360.0),
                 )
-        elif quantity == EphemerisQuantity.ECLIPTIC_LATITUDE:
+        elif self.quantity == EphemerisQuantity.ECLIPTIC_LATITUDE:
             # Latitude is bounded [-90, 90]
-            self.value_behavior = RangedBehavior(
+            return RangedBehavior(
                 type="bounded",
                 range=(-90.0, 90.0),
             )
-        elif quantity == EphemerisQuantity.PHASE_ANGLE:
+        elif self.quantity == EphemerisQuantity.PHASE_ANGLE:
             # Phase angle is bounded [0, 180]
-            self.value_behavior = RangedBehavior(
+            return RangedBehavior(
                 type="bounded",
                 range=(0.0, 180.0),
             )
-        elif quantity == EphemerisQuantity.ILLUMINATION:
+        elif self.quantity == EphemerisQuantity.ILLUMINATION:
             # Illumination is bounded [0, 1]
-            self.value_behavior = RangedBehavior(
+            return RangedBehavior(
                 type="bounded",
                 range=(0.0, 1.0),
             )
         else:
             # Other quantities are unbounded
-            self.value_behavior = UnboundedBehavior(type="unbounded")
+            return UnboundedBehavior(type="unbounded")
 
     def _generate_samples(
         self,
