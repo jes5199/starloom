@@ -51,6 +51,7 @@ class TestWeftReader(unittest.TestCase):
         self.daily = FortyEightHourBlock(
             header=self.daily_header,
             coeffs=self.daily_coeffs,
+            center_date=date(self.year, self.month, self.day),
         )
 
         # Create WeftFile

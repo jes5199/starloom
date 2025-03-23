@@ -15,7 +15,7 @@ class FortyEightHourBlock:
 
     marker = b"\x00\x01"  # Block type marker
 
-    def __init__(self, header: FortyEightHourSectionHeader, coeffs: List[float], center_date: date = None):
+    def __init__(self, header: FortyEightHourSectionHeader, coeffs: List[float], center_date: date):
         """
         Initialize a forty-eight hour block.
 
@@ -51,6 +51,28 @@ class FortyEightHourBlock:
             self.header.coefficient_count - len(coeffs)
         )
 
+    @staticmethod
+    def midnight_utc_from_date(d: date) -> datetime:
+        """
+        Create a datetime at midnight UTC for the given date.
+        
+        Args:
+            d: The date to convert
+            
+        Returns:
+            A datetime at midnight UTC on the given date
+        """
+        return datetime.combine(d, time(0, 0), timezone.utc)
+
+    def midnight(self) -> datetime:
+        """
+        Get the datetime at midnight UTC for this block's center date.
+        
+        Returns:
+            A datetime at midnight UTC on the center date
+        """
+        return self.midnight_utc_from_date(self.center_date)
+
     def contains(self, dt: datetime) -> bool:
         """
         Check if a datetime is within this block's range (±24 hours from center).
@@ -61,10 +83,6 @@ class FortyEightHourBlock:
         Returns:
             True if the datetime is within range
         """
-        if self.center_date is None:
-            # Fallback to section header check if center_date not available
-            return self.header.contains_datetime(dt)
-            
         # Convert to UTC if timezone-aware
         if dt.tzinfo is not None:
             dt = dt.astimezone(timezone.utc)
@@ -72,7 +90,7 @@ class FortyEightHourBlock:
             dt = dt.replace(tzinfo=timezone.utc)
             
         # Create datetime at midnight UTC for the center date
-        center_dt = datetime.combine(self.center_date, time(0, 0), timezone.utc)
+        center_dt = self.midnight()
         
         # Check if dt is within ±24 hours of center_dt
         delta = dt - center_dt
@@ -84,13 +102,7 @@ class FortyEightHourBlock:
 
         Returns:
             Binary representation of block
-            
-        Raises:
-            ValueError: If center_date is not set
         """
-        if self.center_date is None:
-            raise ValueError("center_date must be set before converting to bytes")
-            
         # Start with the marker
         result = bytearray(self.marker)
         
@@ -161,18 +173,14 @@ class FortyEightHourBlock:
 
         dt = dt.astimezone(timezone.utc)
         
-        if self.center_date is not None:
-            # Calculate x based on hours from center date
-            center_dt = datetime.combine(self.center_date, time(0, 0), timezone.utc)
-            hours_diff = (dt - center_dt).total_seconds() / 3600  # Convert to hours
-            
-            # Scale to [-1, 1] where:
-            # -1.0 = midnight UTC of center_date
-            # 0.0 = noon UTC of center_date
-            # +1.0 = midnight UTC of center_date + 1 day
-            x = hours_diff / 24
-        else:
-            # Fallback to header's method if center_date not available
-            x = self.header.datetime_to_hours(dt)
+        # Calculate x based on hours from center date
+        center_dt = self.midnight()
+        hours_diff = (dt - center_dt).total_seconds() / 3600  # Convert to hours
+        
+        # Scale to [-1, 1] where:
+        # -1.0 = midnight UTC of center_date
+        # 0.0 = noon UTC of center_date
+        # +1.0 = midnight UTC of center_date + 1 day
+        x = hours_diff / 24
             
         return evaluate_chebyshev(self.coefficients, x)

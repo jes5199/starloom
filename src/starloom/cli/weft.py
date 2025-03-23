@@ -4,13 +4,15 @@ CLI commands for generating and using .weft files.
 
 import click
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import sys
 import signal
 import traceback
 from typing import Any, Optional
 import logging
+
+from starloom.weft.blocks.forty_eight_hour_section_header import FortyEightHourSectionHeader
 
 from ..weft import generate_weft_file
 from ..horizons.quantities import EphemerisQuantity
@@ -273,56 +275,6 @@ def info(file_path: str) -> None:
         logger.debug(f"Block counts: {block_counts}")
         print(block_counts)
 
-        # Display overall date range
-        if weft_file.blocks:
-            first_block = weft_file.blocks[0]
-            last_block = weft_file.blocks[-1]
-            if isinstance(first_block, MultiYearBlock):
-                start_date = datetime(
-                    first_block.start_year, 1, 1, tzinfo=ZoneInfo("UTC")
-                )
-            elif isinstance(first_block, MonthlyBlock):
-                start_date = datetime(
-                    first_block.year, first_block.month, 1, tzinfo=ZoneInfo("UTC")
-                )
-            elif isinstance(first_block, FortyEightHourBlock):
-                start_date = datetime(
-                    first_block.header.start_day.year,
-                    first_block.header.start_day.month,
-                    first_block.header.start_day.day,
-                    tzinfo=ZoneInfo("UTC"),
-                )
-            else:
-                start_date = datetime(2000, 1, 1, tzinfo=ZoneInfo("UTC"))
-
-            if isinstance(last_block, MultiYearBlock):
-                end_date = datetime(
-                    last_block.start_year + last_block.duration,
-                    1,
-                    1,
-                    tzinfo=ZoneInfo("UTC"),
-                )
-            elif isinstance(last_block, MonthlyBlock):
-                end_date = datetime(
-                    last_block.year,
-                    last_block.month,
-                    last_block.day_count,
-                    tzinfo=ZoneInfo("UTC"),
-                )
-            elif isinstance(last_block, FortyEightHourBlock):
-                end_date = datetime(
-                    last_block.header.end_day.year,
-                    last_block.header.end_day.month,
-                    last_block.header.end_day.day,
-                    tzinfo=ZoneInfo("UTC"),
-                )
-            else:
-                end_date = datetime(2100, 1, 1, tzinfo=ZoneInfo("UTC"))
-
-            date_range = f"{start_date} to {end_date}"
-            logger.debug(f"Date range: {date_range}")
-            print(date_range)
-
         # Display block details
         for block in weft_file.blocks:
             if isinstance(block, MultiYearBlock):
@@ -330,7 +282,9 @@ def info(file_path: str) -> None:
             elif isinstance(block, MonthlyBlock):
                 block_info = f"Monthly block: {block.year}-{block.month:02d} ({len(block.coeffs)} coefficients)"
             elif isinstance(block, FortyEightHourBlock):
-                block_info = f"48-hour block: {block.header.start_day} ({len(block.coefficients)} coefficients)"
+                block_info = f"48-hour block: {block.center_date} ({len(block.coefficients)} coefficients)"
+            elif isinstance(block, FortyEightHourSectionHeader):
+                block_info = f"48-hour section header: {block.start_day} to {block.end_day}"
             logger.debug(f"Block info: {block_info}")
             print(block_info)
     except Exception as e:

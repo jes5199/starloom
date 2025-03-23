@@ -385,7 +385,11 @@ class WeftWriter:
                     data_source, block_start, block_end, degree
                 )
 
-                blocks.append(FortyEightHourBlock(header=header, coeffs=coeffs_list))
+                blocks.append(FortyEightHourBlock(
+                    header=header, 
+                    coeffs=coeffs_list,
+                    center_date=block_date
+                ))
 
             current_date += timedelta(days=1)
 

@@ -40,6 +40,7 @@ class TestWeftEdgeCases(unittest.TestCase):
         block = FortyEightHourBlock(
             header=header,
             coeffs=[],  # Empty list is valid, will be padded with zeros
+            center_date=date(2023, 1, 1),
         )
         # Should have one coefficient (zero)
         self.assertEqual(len(block.coefficients), 1)
@@ -59,6 +60,7 @@ class TestWeftEdgeCases(unittest.TestCase):
                     end_day=date(2023, 1, 2),
                 ),
                 coeffs=[float("nan"), 1.0, 2.0],
+                center_date=date(2023, 1, 1),
             )
 
     def test_timezone_handling(self):
@@ -71,6 +73,7 @@ class TestWeftEdgeCases(unittest.TestCase):
         block = FortyEightHourBlock(
             header=header,
             coeffs=[1.0, 0.0, 0.0],  # Constant function
+            center_date=date(2023, 1, 1),
         )
 
         # Test with UTC time
@@ -226,6 +229,7 @@ def test_forty_eight_hour_block_evaluation():
     block = FortyEightHourBlock(
         header=header,
         coeffs=[1.0, 2.0, 3.0, 4.0],
+        center_date=date(2025, 1, 1),
     )
 
     # Test evaluation at different times
@@ -311,7 +315,7 @@ def test_weft_file():
         start_day=date(2025, 6, 15), end_day=date(2025, 6, 16)
     )
     blocks.append(header)
-    blocks.append(FortyEightHourBlock(header=header, coeffs=[7.0, 8.0, 9.0]))
+    blocks.append(FortyEightHourBlock(header=header, coeffs=[7.0, 8.0, 9.0], center_date=date(2025, 6, 15)))
 
     # Create WeftFile
     weft_file = WeftFile("#weft! v0.02\n\n", blocks)

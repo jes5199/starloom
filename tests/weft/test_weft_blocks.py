@@ -204,6 +204,7 @@ class TestFortyEightHourBlocks(unittest.TestCase):
         self.block = FortyEightHourBlock(
             header=self.header,
             coeffs=self.coeffs,
+            center_date=date(self.year, self.month, self.day),
         )
 
     def tearDown(self):
@@ -216,6 +217,7 @@ class TestFortyEightHourBlocks(unittest.TestCase):
         block = FortyEightHourBlock(
             header=self.header,
             coeffs=self.coeffs,
+            center_date=date(self.year, self.month, self.day),
         )
         self.assertEqual(len(block.coefficients), 1)  # Should strip trailing zeros
 
@@ -230,6 +232,7 @@ class TestFortyEightHourBlocks(unittest.TestCase):
             block = FortyEightHourBlock(
                 header=self.header,
                 coeffs=coeffs,
+                center_date=date(self.year, self.month, self.day),
             )
 
             # Test that block handles new count correctly
@@ -261,6 +264,9 @@ class TestFortyEightHourBlocks(unittest.TestCase):
 
         # Check that coefficients match
         self.assertEqual(len(block.coefficients), 1)
+        
+        # Check that center date is read correctly
+        self.assertEqual(block.center_date, date(self.year, self.month, self.day))
 
     def test_forty_eight_hour_to_bytes(self):
         """Test FortyEightHourBlock writing to bytes."""
@@ -269,9 +275,18 @@ class TestFortyEightHourBlocks(unittest.TestCase):
 
         # Check marker
         self.assertEqual(data[:2], FortyEightHourBlock.marker)
+        
+        # Check date fields
+        year = struct.unpack(">H", data[2:4])[0]
+        month = struct.unpack(">B", data[4:5])[0]
+        day = struct.unpack(">B", data[5:6])[0]
+        
+        self.assertEqual(year, self.year)
+        self.assertEqual(month, self.month)
+        self.assertEqual(day, self.day)
 
         # Check coefficient data
-        stream = BytesIO(data[2:])
+        stream = BytesIO(data[6:])  # Skip marker and date fields
         coeffs = []
         for _ in range(FortyEightHourSectionHeader.coefficient_count):
             coeff = struct.unpack(">f", stream.read(4))[0]
