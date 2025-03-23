@@ -272,7 +272,7 @@ class WeftWriter:
 
         # Trim from the end until we find a coefficient larger than the threshold
         while len(coeffs_list) > 1 and abs(coeffs_list[-1]) < threshold:  # type: ignore[arg-type,index]
-            coeffs_list.pop()
+            coeffs_list.pop()  # type: ignore[union-attr]
 
         # Count how many coefficients we dropped
         if isinstance(coeffs, np.ndarray):
