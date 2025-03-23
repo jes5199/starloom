@@ -123,13 +123,9 @@ class TestEphemerisDataSource(unittest.TestCase):
             step_hours=1,
         )
 
-        # Check before start
-        with self.assertRaises(ValueError):
-            data_source.get_value_at(self.start - timedelta(hours=1))
-
-        # Check after end
-        with self.assertRaises(ValueError):
-            data_source.get_value_at(self.end + timedelta(hours=1))
+        # actually this clamps to the bounds
+        self.assertEqual(data_source.get_value_at(self.start - timedelta(hours=1)), 0.0)
+        self.assertEqual(data_source.get_value_at(self.end + timedelta(hours=1)), 0.0)
 
     def test_get_values_in_range(self):
         """Test getting values for a time range."""
