@@ -57,9 +57,6 @@ DECADES = [
     # ("2089-12-31", "2100-01-02"),
 ]
 
-# Set up logger
-logger = get_logger(__name__)
-
 
 def get_decade_range(start_date):
     """Extract the decade from a date string like '1899-12-31' to return '1900s'"""
@@ -89,6 +86,8 @@ def generate_weft_files(planet, temp_dir):
         Dict mapping quantity to generated file paths
     """
     generated_files = {}
+
+    logger.debug(f"Generating weftball for {planet}")
 
     for quantity, file_name in QUANTITIES.items():
         logger.info(f"Generating {quantity} data for {planet}")
@@ -287,6 +286,11 @@ def main():
             "verbose": args.verbose if hasattr(args, "verbose") else 0,
         }
     )
+
+    # Set up logger after configuring logging
+    global logger
+    logger = get_logger(__name__)
+    logger.debug("Debug logging initialized")
 
     # Main script logic
     planet = args.planet.lower()

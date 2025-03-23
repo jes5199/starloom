@@ -39,8 +39,12 @@ def get_logger(name: str) -> logging.Logger:
 
         # Create console handler
         handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(log_level)  # Set handler level to match logger
         handler.setFormatter(FORMATTER)
         logger.addHandler(handler)
+
+        # Ensure messages propagate up to root logger
+        logger.propagate = True
 
     return logger
 
@@ -77,16 +81,30 @@ def set_log_level(level: int) -> None:
         level: The logging level to set (e.g., logging.DEBUG)
     """
     # Update the root starloom logger
-    logger = logging.getLogger("starloom")
-    logger.setLevel(level)
+    root_logger = logging.getLogger("starloom")
+    root_logger.setLevel(level)
+
+    # Configure root logger with a handler if it doesn't have one
+    if not root_logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(level)
+        handler.setFormatter(FORMATTER)
+        root_logger.addHandler(handler)
 
     # Update all child loggers
-    for handler in logger.handlers:
+    for handler in root_logger.handlers:
         handler.setLevel(level)
 
     # Also update the specific weft logger for backward compatibility
     weft_logger = logging.getLogger("starloom.weft")
     weft_logger.setLevel(level)
+
+    # Ensure weft logger has a handler
+    if not weft_logger.handlers:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(level)
+        handler.setFormatter(FORMATTER)
+        weft_logger.addHandler(handler)
 
     for handler in weft_logger.handlers:
         handler.setLevel(level)
