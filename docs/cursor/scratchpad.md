@@ -224,3 +224,29 @@ Ensure all type annotations are correct and fix any identified type issues.
 
 ## Summary
 The codebase now passes mypy type checking with no errors. We've fixed a variety of issues from simple missing annotations to complex type handling with numpy arrays and union types. The changes maintain the original functionality while making the code more type-safe and eliminating potential runtime errors.
+
+# Current Task: Implement HTTP Request Caching
+
+## Task Description
+Implement URL caching for Horizons API requests to avoid redundant API calls.
+
+## Steps
+[X] Create data/http_cache directory
+[X] Implement cache management functions:
+  [X] Create cache directory if it doesn't exist
+  [X] Generate cache filename from URL hash
+  [X] Check if cached response exists
+  [X] Save response to cache
+  [X] Maintain cache size limit (100 entries)
+[X] Modify HorizonsRequest.make_request() to use cache
+[X] Add cache cleanup logic
+
+## Implementation Details
+- Cache location: data/http_cache/
+- Cache format: Plain text files
+- Cache size limit: 100 entries
+- Cache key: URL hash
+- Cache value: Raw response text
+
+## Status
+✅ All tasks completed. The caching system is now implemented and ready to use.

@@ -1,6 +1,10 @@
 from typing import Dict, Optional, Union, List
 import requests
 from urllib.parse import urlencode
+import hashlib
+import os
+import glob
+from pathlib import Path
 
 from .quantities import Quantities
 from .location import Location
@@ -12,6 +16,9 @@ from .ephem_type import EphemType
 
 class HorizonsRequest:
     """A request to the JPL Horizons API."""
+
+    CACHE_DIR = Path("data/http_cache")
+    MAX_CACHE_ENTRIES = 100
 
     def __init__(
         self,
@@ -56,6 +63,66 @@ class HorizonsRequest:
         self.post_url = "https://ssd.jpl.nasa.gov/api/horizons_file.api"
         self.max_url_length = 1843  # Determined by find_max_url_length.py
         self.max_tlist_length = 70
+
+        # Ensure cache directory exists
+        self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    def _get_cache_key(self, url: str) -> str:
+        """Generate a cache key from a URL.
+
+        Args:
+            url: The URL to cache
+
+        Returns:
+            str: A hash of the URL to use as the cache key
+        """
+        return hashlib.sha256(url.encode()).hexdigest()
+
+    def _get_cache_path(self, url: str) -> Path:
+        """Get the cache file path for a URL.
+
+        Args:
+            url: The URL to cache
+
+        Returns:
+            Path: Path to the cache file
+        """
+        return self.CACHE_DIR / f"{self._get_cache_key(url)}.txt"
+
+    def _cleanup_cache(self) -> None:
+        """Clean up old cache entries if we exceed the maximum."""
+        cache_files = list(self.CACHE_DIR.glob("*.txt"))
+        if len(cache_files) > self.MAX_CACHE_ENTRIES:
+            # Sort by modification time, oldest first
+            cache_files.sort(key=lambda x: x.stat().st_mtime)
+            # Remove oldest files until we're under the limit
+            for file in cache_files[:-self.MAX_CACHE_ENTRIES]:
+                file.unlink()
+
+    def _get_cached_response(self, url: str) -> Optional[str]:
+        """Get cached response for a URL if it exists.
+
+        Args:
+            url: The URL to check
+
+        Returns:
+            Optional[str]: Cached response if it exists, None otherwise
+        """
+        cache_path = self._get_cache_path(url)
+        if cache_path.exists():
+            return cache_path.read_text()
+        return None
+
+    def _cache_response(self, url: str, response: str) -> None:
+        """Cache a response for a URL.
+
+        Args:
+            url: The URL to cache
+            response: The response to cache
+        """
+        cache_path = self._get_cache_path(url)
+        cache_path.write_text(response)
+        self._cleanup_cache()
 
     def get_url(self) -> str:
         """Get URL for request.
@@ -139,9 +206,21 @@ class HorizonsRequest:
         url = self.get_url()
         if len(url) > self.max_url_length:
             return self._make_post_request()
+            
+        # Check cache first
+        cached_response = self._get_cached_response(url)
+        if cached_response is not None:
+            return cached_response
+            
+        # If not in cache, make the request
         response = requests.get(url)
         response.raise_for_status()
-        return response.text
+        response_text = response.text
+        
+        # Cache the response
+        self._cache_response(url, response_text)
+        
+        return response_text
 
     def _get_time_params(self) -> Dict[str, str]:
         """Get time-related parameters for the request.
