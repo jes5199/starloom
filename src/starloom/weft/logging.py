@@ -32,8 +32,10 @@ def get_logger(name: str) -> logging.Logger:
 
     # Only configure the logger if it hasn't been already
     if not logger.handlers:
-        # Set the default level
-        logger.setLevel(_get_log_level())
+        # Get the root starloom logger's level, or use default if not set
+        root_logger = logging.getLogger("starloom")
+        log_level = root_logger.getEffectiveLevel() if root_logger.getEffectiveLevel() != 0 else _get_log_level()
+        logger.setLevel(log_level)
 
         # Create console handler
         handler = logging.StreamHandler(sys.stdout)
