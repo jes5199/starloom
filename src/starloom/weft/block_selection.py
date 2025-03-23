@@ -241,17 +241,14 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
     config = {
         "multi_year": {
             "enabled": False,
-            "sample_count": 12,  # Monthly samples
             "polynomial_degree": 63,  # 64 coefficients
         },
         "monthly": {
             "enabled": False,
-            "sample_count": 30,  # Daily samples
             "polynomial_degree": 23,  # 24 coefficients
         },
         "forty_eight_hour": {
             "enabled": False,
-            "sample_count": 48,  # Hourly samples
             "polynomial_degree": 11,  # 12 coefficients
         },
     }

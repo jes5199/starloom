@@ -117,6 +117,7 @@ def generate_weft_file(
     if config is None:
         print("\nAuto-configuring block settings based on data availability...")
         config = get_recommended_blocks(data_source)
+        print(f"Auto-configured config: {config}")
 
     weft_file = writer.create_multi_precision_file(
         data_source=data_source,

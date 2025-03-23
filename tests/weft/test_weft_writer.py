@@ -5,6 +5,7 @@ import math
 from typing import List
 
 # Import from starloom package
+from starloom.weft.blocks.utils import evaluate_chebyshev
 from starloom.weft.weft_writer import WeftWriter
 from starloom.horizons.quantities import EphemerisQuantity
 
@@ -100,10 +101,17 @@ class TestWeftWriter(unittest.TestCase):
 class MockDataSource:
     """A mock data source that returns values from a known function."""
 
-    def __init__(self, func):
+    def __init__(self, func, start_dt: datetime, end_dt: datetime, step_count=96):
         """Initialize with a function that takes a datetime and returns a value."""
         self.func = func
-        self.timestamps = []  # Will be populated in get_value_at
+        self.start_dt = start_dt
+        self.end_dt = end_dt
+        # step_count timestamps in the range start_dt to end_dt
+        duration = end_dt - start_dt
+        step = duration / step_count
+        self.timestamps = [
+            start_dt + step * i for i in range(step_count + 1)
+        ]
 
     def get_value_at(self, dt: datetime) -> float:
         """Get the value at the given datetime using our known function."""
@@ -124,8 +132,6 @@ def test_chebyshev_coefficient_generation():
         x = 2 * (elapsed_seconds / total_seconds) - 1
         return math.sin(x) + math.cos(2 * x)
 
-    # Create mock data source
-    data_source = MockDataSource(known_function)
 
     # Create WeftWriter
     writer = WeftWriter(EphemerisQuantity.ECLIPTIC_LONGITUDE)
@@ -134,12 +140,14 @@ def test_chebyshev_coefficient_generation():
     start_dt = datetime(2025, 1, 1, tzinfo=timezone.utc)
     end_dt = datetime(2025, 1, 2, tzinfo=timezone.utc)
 
+    # Create mock data source
+    data_source = MockDataSource(known_function, start_dt, end_dt)
+
     # Generate coefficients with higher degree
     coeffs = writer._generate_chebyshev_coefficients(
         data_source=data_source,
         start_dt=start_dt,
         end_dt=end_dt,
-        sample_count=96,  # Four samples per hour for better accuracy with higher degree
         degree=31,  # Use 31st degree polynomial for better approximation
     )
 
@@ -147,13 +155,6 @@ def test_chebyshev_coefficient_generation():
     for i, coeff in enumerate(coeffs):
         print(f"T_{i}(x) * {coeff}")
 
-    # Evaluate the Chebyshev series at several points
-    def evaluate_chebyshev(x: float, coeffs: List[float]) -> float:
-        result = 0.0
-        for n, coeff in enumerate(coeffs):
-            term = coeff * math.cos(n * math.acos(x))
-            result += term
-        return result
 
     # Test points throughout the day
     test_points = [
@@ -182,7 +183,7 @@ def test_chebyshev_coefficient_generation():
         expected = known_function(dt)
 
         # Get value from Chebyshev series
-        actual = evaluate_chebyshev(x, coeffs)
+        actual = evaluate_chebyshev(coeffs, x)
 
         # Calculate error
         error = abs(expected - actual)
@@ -213,9 +214,6 @@ def test_sample_generation():
         x = 2 * (elapsed_seconds / total_seconds) - 1
         return math.sin(x) + math.cos(2 * x)
 
-    # Create mock data source
-    data_source = MockDataSource(known_function)
-
     # Create WeftWriter
     writer = WeftWriter(EphemerisQuantity.ECLIPTIC_LONGITUDE)
 
@@ -223,12 +221,14 @@ def test_sample_generation():
     start_dt = datetime(2025, 1, 1, tzinfo=timezone.utc)
     end_dt = datetime(2025, 1, 2, tzinfo=timezone.utc)
 
+    # Create mock data source
+    data_source = MockDataSource(known_function, start_dt, end_dt)
+
     # Generate samples
     x_values, values = writer._generate_samples(
         data_source=data_source,
         start_dt=start_dt,
         end_dt=end_dt,
-        sample_count=48,  # Two samples per hour
     )
 
     print("\nSample Generation Test:")

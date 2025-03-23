@@ -107,8 +107,6 @@ class WeftWriter:
         data_source: EphemerisDataSource,
         start_dt: datetime,
         end_dt: datetime,
-        sample_count: int,
-        quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
     ) -> Tuple[List[float], List[float]]:
         """
         Generate sample points for fitting using all available data points.
@@ -127,30 +125,7 @@ class WeftWriter:
         timestamps = [dt for dt in data_source.timestamps if start_dt <= dt <= end_dt]
 
         if not timestamps:
-            # If no timestamps found, fall back to evenly spaced samples
-            total_seconds = (end_dt - start_dt).total_seconds()
-            step_seconds = total_seconds / (sample_count - 1)
-
-            x_values = []
-            values = []
-
-            # Generate samples
-            for i in range(sample_count):
-                # Calculate x value in [-1, 1] range
-                x = -1.0 + 2.0 * i / (sample_count - 1)
-                x_values.append(x)
-
-                # Calculate datetime for this sample
-                current_dt = start_dt + timedelta(seconds=i * step_seconds)
-                # Ensure we don't exceed the data range
-                if current_dt > end_dt:
-                    current_dt = end_dt
-
-                # Get value at this time
-                value = data_source.get_value_at(current_dt)
-                values.append(value)
-
-            return x_values, values
+            return [], []
 
         # Calculate x values for each timestamp
         total_seconds = (end_dt - start_dt).total_seconds()
@@ -174,9 +149,7 @@ class WeftWriter:
         data_source: EphemerisDataSource,
         start_dt: datetime,
         end_dt: datetime,
-        sample_count: int,
         degree: int,
-        quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
     ) -> List[float]:
         """
         Generate Chebyshev coefficients for a given time range.
@@ -193,9 +166,7 @@ class WeftWriter:
             List of Chebyshev coefficients
         """
         # Generate samples
-        x_values, values = self._generate_samples(
-            data_source, start_dt, end_dt, sample_count, quantity
-        )
+        x_values, values = self._generate_samples(data_source, start_dt, end_dt)
 
         # Fit Chebyshev coefficients
         coeffs = chebyshev.chebfit(x_values, values, deg=degree)
@@ -262,7 +233,7 @@ class WeftWriter:
 
         # Generate samples and fit coefficients
         coeffs_list = self._generate_chebyshev_coefficients(
-            data_source, start_dt, end_dt, sample_count, degree, quantity
+            data_source, start_dt, end_dt, degree
         )
 
         return MultiYearBlock(
@@ -314,9 +285,7 @@ class WeftWriter:
                     data_source,
                     start_date,
                     end_date,
-                    samples_per_day * day_count,
                     degree,
-                    quantity,
                 )
 
                 blocks.append(
@@ -364,9 +333,7 @@ class WeftWriter:
                     data_source,
                     current_date,
                     month_end,
-                    samples_per_day * day_count,
                     degree,
-                    quantity,
                 )
 
                 blocks.append(
@@ -424,9 +391,7 @@ class WeftWriter:
                         data_source,
                         current_date,
                         end_date,
-                        samples_per_day * day_count,
                         degree,
-                        quantity,
                     )
 
                     blocks.append(
@@ -458,9 +423,7 @@ class WeftWriter:
                     data_source,
                     current_date,
                     next_month - timedelta(microseconds=1),
-                    samples_per_day * day_count,
                     degree,
-                    quantity,
                 )
 
                 blocks.append(
@@ -481,7 +444,6 @@ class WeftWriter:
         data_source: EphemerisDataSource,
         start_date: datetime,
         end_date: datetime,
-        samples_per_day: int,
         degree: int,
         block_size: Optional[int] = None,
         quantity: Optional[Union[EphemerisQuantity, OrbitalElementsQuantity]] = None,
@@ -637,7 +599,6 @@ class WeftWriter:
                     data_source=data_source,
                     start_year=decade_start,
                     duration=10,
-                    samples_per_year=multi_year_config["sample_count"],
                     degree=multi_year_config["polynomial_degree"],
                     quantity=quantity,
                 )
@@ -653,7 +614,6 @@ class WeftWriter:
                     data_source=data_source,
                     start_year=year,
                     duration=1,
-                    samples_per_year=multi_year_config["sample_count"],
                     degree=multi_year_config["polynomial_degree"],
                     quantity=quantity,
                 )
@@ -668,7 +628,6 @@ class WeftWriter:
                 data_source=data_source,
                 start_date=start_date,
                 end_date=end_date,
-                samples_per_day=monthly_config["sample_count"],
                 degree=monthly_config["polynomial_degree"],
                 quantity=quantity,
             )
@@ -681,7 +640,6 @@ class WeftWriter:
                 data_source=data_source,
                 start_date=start_date,
                 end_date=end_date,
-                samples_per_day=forty_eight_hour_config["sample_count"],
                 degree=forty_eight_hour_config["polynomial_degree"],
                 quantity=quantity,
             )
