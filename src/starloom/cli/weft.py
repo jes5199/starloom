@@ -332,8 +332,15 @@ def lookup(file_path: str, date: str) -> None:
 @weft.command()
 @click.argument("file1", type=click.Path(exists=True))
 @click.argument("file2", type=click.Path(exists=True))
-@click.argument("timespan", required=True)
-def combine(file1: str, file2: str, timespan: str) -> None:
+@click.argument("output_file", type=click.Path())
+@click.option(
+    "--timespan",
+    "-t",
+    help="Custom timespan descriptor for the preamble (e.g. '2000s' or '2020-2030')",
+    type=str,
+    required=True,
+)
+def combine(file1: str, file2: str, output_file: str, timespan: str) -> None:
     """Combine two .weft files into a single file."""
     logger.debug(f"Combining files {file1} and {file2} with timespan {timespan}")
     from ..weft import WeftReader, WeftFile
@@ -349,8 +356,7 @@ def combine(file1: str, file2: str, timespan: str) -> None:
         combined = WeftFile.combine(weft1, weft2, timespan)
 
         # Write the combined file
-        output_file = f"combined_{timespan}.weft"
-        combined.write_to_file(output_file)
+        combined.write_to_file(output_file, timespan=timespan)
         logger.debug(f"Wrote combined file to {output_file}")
         click.echo(f"Combined file written to {output_file}")
 

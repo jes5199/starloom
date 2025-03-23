@@ -2,7 +2,7 @@
 
 import click
 from datetime import datetime, timezone
-from typing import Optional, Union, Dict, Type, cast, Protocol
+from typing import Optional, Union, Dict, Type, cast, Protocol, Any
 
 from ..horizons.ephemeris import HorizonsEphemeris
 from ..horizons.planet import Planet

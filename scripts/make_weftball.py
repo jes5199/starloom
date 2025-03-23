@@ -99,12 +99,6 @@ def generate_weft_files(planet, temp_dir):
                 temp_dir, f"{planet}_{file_name}_{decade_range}.weft"
             )
 
-            # Skip if file already exists
-            if os.path.exists(decade_file):
-                logger.info(f"Using existing file: {decade_file}")
-                current_decade_files.append(decade_file)
-                continue
-
             # Build command using starloom CLI
             cmd = [
                 "starloom",
@@ -186,10 +180,9 @@ def combine_weft_files(planet, temp_dir, generated_files):
         # Log the command at debug level
         logger.debug(f"Running initial combine: {' '.join(cmd)}")
 
-        # Run the command
+        # Run the command and capture output
         try:
-            subprocess.run(cmd, check=True)
-
+            subprocess.run(cmd, check=True, capture_output=False, text=True)
             # Now combine any additional files
             for additional_file in decade_files[2:]:
                 temp_combined = combined_file + ".temp"
@@ -210,11 +203,10 @@ def combine_weft_files(planet, temp_dir, generated_files):
                 ]
 
                 logger.debug(f"Running additional combine: {' '.join(cmd)}")
-                subprocess.run(cmd, check=True)
+                subprocess.run(cmd, check=True, capture_output=False, text=True)
 
                 # Remove the temporary file
                 os.remove(temp_combined)
-
             combined_files[quantity] = combined_file
         except subprocess.CalledProcessError as e:
             logger.error(f"Error combining files for {quantity}: {e}")
