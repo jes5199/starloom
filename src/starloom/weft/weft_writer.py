@@ -246,6 +246,8 @@ class WeftWriter:
         if trim_count > 0:
             logger.debug(f"Dropped {trim_count} tiny coefficients below {threshold}")
 
+        logger.debug(f"Coefficients: {coeffs_list}")
+
         # Log total time
         total_time_ms = sample_time_ms + fit_time_ms
         logger.debug(f"Total coefficient generation time: {total_time_ms:.2f}ms")
