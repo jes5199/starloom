@@ -194,7 +194,7 @@ class WeftFile:
             value = forty_eight_hour_blocks[0].evaluate(dt)
             block = forty_eight_hour_blocks[0]
             self.logger.debug(
-                f"Value {value} from FortyEightHourBlock {id(block)}: "
+                f"Value {value} from FortyEightHourBlock {block.month}: "
                 f"{block.header.start_day.isoformat()} to {block.header.end_day.isoformat()} "
                 f"for {dt.isoformat()}"
             )

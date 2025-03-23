@@ -229,7 +229,7 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
         },
         "forty_eight_hour": {
             "enabled": False,
-            "polynomial_degree": 11,  # 12 coefficients
+            "polynomial_degree": 23,  # 12 coefficients
         },
     }
 
