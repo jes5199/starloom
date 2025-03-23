@@ -4,8 +4,8 @@ import tempfile
 import pytest
 
 # Import from starloom package
-from src.starloom.weft.weft import WeftFile
-from src.starloom.weft.blocks import (
+from starloom.weft.weft import WeftFile
+from starloom.weft.blocks import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourSectionHeader,

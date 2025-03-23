@@ -5,14 +5,18 @@ import tempfile
 import shutil
 
 # Import from starloom package
-from src.starloom.weft.weft import WeftFile
-from src.starloom.weft.blocks import (
+from starloom.weft.weft import WeftFile
+from starloom.weft.blocks import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourSectionHeader,
     FortyEightHourBlock,
+    DailyBlock,
+    HourlyBlock,
+    MinuteBlock,
+    SecondBlock,
 )
-from src.starloom.weft.weft_reader import WeftReader
+from starloom.weft.weft_reader import WeftReader
 
 
 class TestWeftReader(unittest.TestCase):

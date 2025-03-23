@@ -5,8 +5,8 @@ import math
 from typing import List
 
 # Import from starloom package
-from src.starloom.weft.weft_writer import WeftWriter
-from src.starloom.horizons.quantities import EphemerisQuantity
+from starloom.weft.weft_writer import WeftWriter
+from starloom.horizons.quantities import EphemerisQuantity
 
 
 class TestWeftWriter(unittest.TestCase):

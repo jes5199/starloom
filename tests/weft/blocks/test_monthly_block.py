@@ -5,7 +5,7 @@ import pytest
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from src.starloom.weft.blocks.monthly_block import MonthlyBlock
+from starloom.weft.blocks.monthly_block import MonthlyBlock
 from starloom.space_time.pythonic_datetimes import NaiveDateTimeError
 
 

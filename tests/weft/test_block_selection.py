@@ -4,8 +4,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from src.starloom.ephemeris.time_spec import TimeSpec
-from src.starloom.weft.block_selection import (
+from starloom.ephemeris.time_spec import TimeSpec
+from starloom.weft.block_selection import (
     calculate_sampling_rate,
     analyze_data_coverage,
     should_include_multi_year_block,

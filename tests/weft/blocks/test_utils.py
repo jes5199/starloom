@@ -2,7 +2,7 @@
 
 import unittest
 
-from src.starloom.weft.blocks.utils import evaluate_chebyshev, unwrap_angles
+from starloom.weft.blocks.utils import evaluate_chebyshev, unwrap_angles
 
 
 class TestEvaluateChebyshev(unittest.TestCase):

@@ -4,14 +4,18 @@ from datetime import datetime, timezone, date
 from io import BytesIO
 
 # Import from starloom package
-from src.starloom.weft.weft import WeftFile
-from src.starloom.weft.blocks import (
+from starloom.weft.weft import WeftFile
+from starloom.weft.blocks import (
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourSectionHeader,
     FortyEightHourBlock,
+    DailyBlock,
+    HourlyBlock,
+    MinuteBlock,
+    SecondBlock,
 )
-from src.starloom.weft.blocks.utils import evaluate_chebyshev, unwrap_angles
+from starloom.weft.blocks.utils import evaluate_chebyshev, unwrap_angles
 
 
 class TestChebyshevFunctions(unittest.TestCase):
