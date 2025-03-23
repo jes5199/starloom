@@ -5,12 +5,12 @@ This module provides functionality to write .weft files with century, year, mont
 and daily blocks, using Chebyshev polynomials for efficient storage.
 """
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time, timezone
 from typing import List, Dict, Tuple, Optional, Any, Union, TypeVar, cast
 from zoneinfo import ZoneInfo
 import os
 from numpy.polynomial import chebyshev
-import time
+import time as time_module
 
 from .weft_file import (
     MultiYearBlock,
@@ -127,7 +127,7 @@ class WeftWriter:
             Tuple of (x_values, values)
         """
         # Time the timestamp filtering
-        filter_start = time.time()
+        filter_start = time_module.time()
 
         # Use binary search to find indices of start and end timestamps
         # since the timestamps list is sorted
@@ -156,7 +156,7 @@ class WeftWriter:
         # Extract the timestamps in range using the found indices
         filtered_timestamps = timestamps[start_idx : end_idx + 1]
 
-        filter_end = time.time()
+        filter_end = time_module.time()
         filter_time_ms = (filter_end - filter_start) * 1000
         logger.debug(
             f"Filtered {len(filtered_timestamps)} timestamps in {filter_time_ms:.2f}ms (binary search)"
@@ -171,7 +171,7 @@ class WeftWriter:
         values = []
 
         # Time the value retrieval and x-value calculation
-        value_start = time.time()
+        value_start = time_module.time()
         for dt in filtered_timestamps:
             # Calculate x value in [-1, 1] range
             elapsed_seconds = (dt - start_dt).total_seconds()
@@ -181,7 +181,7 @@ class WeftWriter:
             # Get value at this time
             value = data_source.get_value_at(dt)  # basically a dictionary lookup
             values.append(value)
-        value_end = time.time()
+        value_end = time_module.time()
         value_time_ms = (value_end - value_start) * 1000
         logger.debug(f"Retrieved {len(values)} values in {value_time_ms:.2f}ms")
 
@@ -214,18 +214,18 @@ class WeftWriter:
         logger.debug(f"Generating coefficients for {start_dt} to {end_dt}")
 
         # Time the sample generation
-        sample_start = time.time()
+        sample_start = time_module.time()
         x_values, values = self._generate_samples(data_source, start_dt, end_dt)
-        sample_end = time.time()
+        sample_end = time_module.time()
         sample_time_ms = (sample_end - sample_start) * 1000
         logger.debug(
             f"Generated {len(x_values)} samples for {start_dt} to {end_dt} in {sample_time_ms:.2f}ms"
         )
 
         # Time the Chebyshev coefficient fitting
-        fit_start = time.time()
+        fit_start = time_module.time()
         coeffs = chebyshev.chebfit(x_values, values, deg=degree)
-        fit_end = time.time()
+        fit_end = time_module.time()
         fit_time_ms = (fit_end - fit_start) * 1000
         logger.debug(
             f"Fitted Chebyshev coefficients (degree {degree}) in {fit_time_ms:.2f}ms"
@@ -354,28 +354,52 @@ class WeftWriter:
         degree: int,
     ) -> List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]]:
         # Normalize to day boundaries
-        start_date = datetime(
-            start_date.year, start_date.month, start_date.day, tzinfo=ZoneInfo("UTC")
-        )
-        end_date = datetime(
-            end_date.year, end_date.month, end_date.day, tzinfo=ZoneInfo("UTC")
-        )
+        start_date = datetime.combine(start_date.date(), time(0, 0), timezone.utc)
+        end_date = datetime.combine(end_date.date(), time(0, 0), timezone.utc)
 
         blocks = []
         current_date = start_date
-        while current_date < end_date:
-            # Only process dates that pass the coverage criteria
-            if should_include_fourty_eight_hour_block(data_source, current_date):
+        current_header = None
+        current_blocks = []
+
+        while current_date <= end_date:
+            # Check if we need to create a new header for this date
+            if (current_date.day in [1, 15] or current_date == start_date) and current_date <= end_date:
+                # If we have a current header, update it with block info and add its blocks
+                if current_header and current_blocks:
+                    # Calculate size of first block (they're all the same size)
+                    sample_block = current_blocks[0]
+                    sample_bytes = sample_block.to_bytes()
+                    block_size = len(sample_bytes)  # Include the full block size
+                    
+                    # Update the header with actual block size and count
+                    current_header.block_size = block_size
+                    current_header.block_count = len(current_blocks)
+                    
+                    # Add the header and its blocks to the result
+                    blocks.append(current_header)
+                    blocks.extend(current_blocks)
+                
+                # Start a new header
                 block_date = date(
                     current_date.year, current_date.month, current_date.day
                 )
-                next_date = block_date + timedelta(days=1)
-                header = FortyEightHourSectionHeader(
+                next_date = block_date + timedelta(days=15)  # Each header covers 15 days
+                current_header = FortyEightHourSectionHeader(
                     start_day=block_date,
                     end_day=next_date,
+                    block_size=0,  # Will be updated after blocks are created
+                    block_count=0,  # Will be updated after blocks are created
                 )
-                blocks.append(header)
+                current_blocks = []
 
+            # Only process dates that pass the coverage criteria
+            if should_include_fourty_eight_hour_block(data_source, current_date):
+                # Create a block for this date
+                block_date = date(
+                    current_date.year, current_date.month, current_date.day
+                )
+                
                 # Define the 48-hour window centered at current_date,
                 # adjusting for boundaries.
                 block_start = max(start_date, current_date - timedelta(days=1))
@@ -385,13 +409,28 @@ class WeftWriter:
                     data_source, block_start, block_end, degree
                 )
 
-                blocks.append(FortyEightHourBlock(
-                    header=header, 
+                current_blocks.append(FortyEightHourBlock(
+                    header=current_header, 
                     coeffs=coeffs_list,
                     center_date=block_date
                 ))
 
             current_date += timedelta(days=1)
+
+        # Don't forget to add the last header and its blocks
+        if current_header and current_blocks:
+            # Calculate size of first block (they're all the same size)
+            sample_block = current_blocks[0]
+            sample_bytes = sample_block.to_bytes()
+            block_size = len(sample_bytes)  # Include the full block size
+            
+            # Update the header with actual block size and count
+            current_header.block_size = block_size
+            current_header.block_count = len(current_blocks)
+            
+            # Add the header and its blocks to the result
+            blocks.append(current_header)
+            blocks.extend(current_blocks)
 
         return blocks
 
@@ -474,12 +513,8 @@ class WeftWriter:
                 end_date=end_date,
                 degree=forty_eight_hour_config["polynomial_degree"],
             )
-            # The first block is the header, followed by the actual blocks
-            if forty_eight_hour_blocks:
-                header = forty_eight_hour_blocks[0]
-                data_blocks = forty_eight_hour_blocks[1:]
-                blocks.append(header)  # Add header first
-                blocks.extend(data_blocks)  # Then add all blocks
+            # The headers and blocks are already correctly organized
+            blocks.extend(forty_eight_hour_blocks)
 
         # Create preamble
         preamble = self._create_preamble(

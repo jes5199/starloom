@@ -1239,3 +1239,32 @@ from starloom.weft import WeftFile  # Correct
 4. Error messages should be specific about what went wrong during parsing, including details like expected vs. actual block counts or sizes.
 
 5. When combining files with hierarchical structures, ensure that the relationship between parent sections (headers) and their child blocks is preserved throughout the process.
+
+## Time Handling
+
+When working with the WEFT file generation system:
+
+1. FortyEightHourSectionHeader class requires block_size and block_count parameters:
+   - These parameters must be provided when instantiating the class
+   - The correct approach is to create the header first with dummy values, then update them after creating the blocks
+   - The block_size should be calculated from an actual serialized block to ensure consistency
+
+2. Block size calculation must match exactly what's expected by the reader:
+   - When calculating block sizes, include the full serialized size including any markers
+   - Consistency between writer and reader block size expectations is critical
+   - Test by reading the file after writing to validate format correctness
+
+3. Be careful with module name collisions:
+   - A bug occurred due to importing both `time` module and `time` class from datetime
+   - Fix by importing the module with an alias: `import time as time_module`
+   - Then use the alias throughout the code: `time_module.time()`
+
+4. When organizing blocks in the file:
+   - Group related blocks together (e.g., a header followed by its data blocks)
+   - Update the header with the correct count and size before writing
+   - Ensure the blocks appear in the expected order
+
+5. Use a consistent approach to create and manage header/block relationships:
+   - When a block refers to its header, make sure the header exists first
+   - When a header specifies a block count, ensure that exact number of blocks follows
+   - When updating a header's properties, do so before serializing the file
