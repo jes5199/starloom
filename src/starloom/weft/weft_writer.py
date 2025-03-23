@@ -266,25 +266,16 @@ class WeftWriter:
         start_date: datetime,
         end_date: datetime,
         degree: int,
-        block_size: Optional[int] = None,
     ) -> List[Union[FortyEightHourSectionHeader, FortyEightHourBlock]]:
         # Normalize to day boundaries
         start_date = datetime(start_date.year, start_date.month, start_date.day, tzinfo=ZoneInfo("UTC"))
         end_date = datetime(end_date.year, end_date.month, end_date.day, tzinfo=ZoneInfo("UTC"))
         
-        # Compute block size if not specified
-        if block_size is None:
-            header_size = 6  # marker (2) + year (2) + month (1) + day (1)
-            coeff_size = (degree + 1) * 4  # each coefficient is 4 bytes
-            block_size = header_size + coeff_size
-            if block_size % 16 != 0:
-                block_size += 16 - (block_size % 16)
-        
         blocks = []
         current_date = start_date
         while current_date < end_date:
             # Only process dates that pass the coverage criteria
-            if should_include_fourty_eight_hour_block(current_date, data_source):
+            if should_include_fourty_eight_hour_block(data_source, current_date):
                 block_date = date(current_date.year, current_date.month, current_date.day)
                 next_date = block_date + timedelta(days=1)
                 header = FortyEightHourSectionHeader(
@@ -302,12 +293,6 @@ class WeftWriter:
                     data_source, block_start, block_end, degree
                 )
                 
-                # Pad coefficients to fixed block size if needed
-                if block_size is not None:
-                    coeff_area = block_size - 6  # subtract header size
-                    coeff_count = coeff_area // 4
-                    if len(coeffs_list) < coeff_count:
-                        coeffs_list.extend([0.0] * (coeff_count - len(coeffs_list)))
                 
                 blocks.append(FortyEightHourBlock(header=header, coeffs=coeffs_list))
             
