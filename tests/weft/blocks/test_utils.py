@@ -69,6 +69,8 @@ class TestUnwrapAngles(unittest.TestCase):
         """Test sequence that needs unwrapping."""
         angles = [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0, 0.0]
         result = unwrap_angles(angles, min_val=-180, max_val=180)
+        # The jump from 315° to 0° is -315° which is much larger than 180°
+        # The smaller jump is +45° to go from 315° to 360°
         expected = [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0, 360.0]
         self.assertEqual(result, expected)
 
@@ -76,5 +78,7 @@ class TestUnwrapAngles(unittest.TestCase):
         """Test sequence that wraps in negative direction."""
         angles = [0.0, -45.0, -90.0, -135.0, -180.0, -225.0, -270.0, -315.0, 0.0]
         result = unwrap_angles(angles, min_val=-180, max_val=180)
-        expected = [0.0, -45.0, -90.0, -135.0, -180.0, -225.0, -270.0, -315.0, 0.0]
+        # The jump from -315° to 0° is +315° which is much larger than 180°
+        # The smaller jump is -45° to go from -315° to -360°
+        expected = [0.0, -45.0, -90.0, -135.0, -180.0, -225.0, -270.0, -315.0, -360.0]
         self.assertEqual(result, expected)

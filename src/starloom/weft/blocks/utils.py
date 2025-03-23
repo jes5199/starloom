@@ -48,28 +48,22 @@ def unwrap_angles(values: List[float], min_val: float, max_val: float) -> List[f
     if not values:
         return []
 
-    # Make a copy to avoid modifying the original
-    unwrapped = [values[0]]
     range_size = max_val - min_val
     half_range = range_size / 2
 
+    # Pure unwrapping algorithm - no special cases
+    result = [values[0]]
     for i in range(1, len(values)):
-        # Calculate the smallest difference
-        diff = values[i] - values[i - 1]
-
-        # Normalize to [-half_range, half_range]
-        if diff > half_range:
+        # Calculate the difference from the previous unwrapped value
+        diff = values[i] - values[i-1]
+        
+        # Normalize the difference to minimize the jump
+        while diff > half_range:
             diff -= range_size
-        elif diff < -half_range:
+        while diff < -half_range:
             diff += range_size
-
-        # Add the normalized difference to the previous unwrapped value
-        unwrapped.append(unwrapped[i - 1] + diff)
-
-        # Handle wrapping around to max_val or min_val
-        if unwrapped[-1] >= max_val:
-            unwrapped[-1] = max_val
-        elif unwrapped[-1] <= min_val:
-            unwrapped[-1] = min_val
-
-    return unwrapped
+        
+        # Add the normalized difference to the previous result
+        result.append(result[-1] + diff)
+    
+    return result
