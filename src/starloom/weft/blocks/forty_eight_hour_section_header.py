@@ -13,12 +13,14 @@ class FortyEightHourSectionHeader:
     marker = b"\x00\x02"  # Block type marker
     coefficient_count = 48  # Default number of coefficients
 
-    def __init__(self, start_day: date, end_day: date):
+    def __init__(self, start_day: date, end_day: date, block_size: int, block_count: int):
         """Initialize a forty-eight hour section header.
 
         Args:
             start_day: Start date of the section
             end_day: End date of the section
+            block_size: Size in bytes of each forty-eight hour block
+            block_count: Number of forty-eight hour blocks in this section
 
         Raises:
             ValueError: If end_day is not after start_day
@@ -29,9 +31,15 @@ class FortyEightHourSectionHeader:
             raise ValueError("end_day must be a date object")
         if end_day <= start_day:
             raise ValueError("end_day must be after start_day")
+        if block_size < 0:
+            raise ValueError("block_size must be non-negative")
+        if block_count < 0:
+            raise ValueError("block_count must be non-negative")
 
         self.start_day = start_day
         self.end_day = end_day
+        self.block_size = block_size
+        self.block_count = block_count
 
     def to_bytes(self) -> bytes:
         """Convert header to binary format.
@@ -46,6 +54,8 @@ class FortyEightHourSectionHeader:
         result.extend(struct.pack(">H", self.end_day.year))
         result.extend(struct.pack(">B", self.end_day.month))
         result.extend(struct.pack(">B", self.end_day.day))
+        result.extend(struct.pack(">H", self.block_size))
+        result.extend(struct.pack(">I", self.block_count))
         return bytes(result)
 
     @classmethod
@@ -68,11 +78,13 @@ class FortyEightHourSectionHeader:
             end_year = struct.unpack(">H", stream.read(2))[0]
             end_month = struct.unpack(">B", stream.read(1))[0]
             end_day = struct.unpack(">B", stream.read(1))[0]
+            block_size = struct.unpack(">H", stream.read(2))[0]
+            block_count = struct.unpack(">I", stream.read(4))[0]
 
             start = date(start_year, start_month, start_day)
             end = date(end_year, end_month, end_day)
 
-            return cls(start_day=start, end_day=end)
+            return cls(start_day=start, end_day=end, block_size=block_size, block_count=block_count)
         except (struct.error, ValueError) as e:
             raise ValueError(f"Invalid date data: {str(e)}")
 
