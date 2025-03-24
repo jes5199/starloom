@@ -9,6 +9,7 @@ import signal
 import traceback
 from typing import Any, Optional
 import logging
+import time
 
 from starloom.weft.blocks.forty_eight_hour_section_header import (
     FortyEightHourSectionHeader,
@@ -330,17 +331,28 @@ def lookup(file_path: str, date: str) -> None:
             logger.debug("Converting date from Julian")
             dt = datetime_from_julian(dt)
 
+        # Show information about parsing
+        print(f"Looking up value for {dt} using lazy loading...")
+        
+        start_time = time.time()
+        
         # Read the file
         reader = WeftReader()
         reader.load_file(file_path)
+        
+        load_time = time.time()
+        print(f"File loaded in {load_time - start_time:.3f}s (lazy loading enabled)")
 
         # Look up the value
         value = reader.get_value(dt)
-
+        lookup_time = time.time()
+        
         # Display the value
         logger.debug(f"Found value: {value}")
         click.echo(f"Date: {dt}")
         click.echo(f"Value: {value}")
+        click.echo(f"Lookup completed in {lookup_time - load_time:.3f}s")
+        click.echo(f"Total time: {lookup_time - start_time:.3f}s")
 
     except Exception as e:
         logger.error(f"Error looking up value: {e}", exc_info=True)
@@ -381,3 +393,69 @@ def combine(file1: str, file2: str, output_file: str, timespan: str) -> None:
     except Exception as e:
         logger.error(f"Error combining files: {e}", exc_info=True)
         raise click.ClickException(f"Error combining files: {e}")
+
+
+@weft.command()
+@click.argument("file_path", type=click.Path(exists=True))
+def load_compare(file_path: str) -> None:
+    """Compare lazy loading vs regular loading of a .weft file."""
+    logger.debug(f"Comparing loading methods for file: {file_path}")
+    from ..weft import WeftFile, LazyWeftFile
+
+    try:
+        # Get file size for information
+        file_size_bytes = os.path.getsize(file_path)
+        if file_size_bytes < 1024:
+            size_str = f"{file_size_bytes} B"
+        elif file_size_bytes < 1024 * 1024:
+            size_str = f"{file_size_bytes / 1024:.1f} KB"
+        elif file_size_bytes < 1024 * 1024 * 1024:
+            size_str = f"{file_size_bytes / (1024 * 1024):.1f} MB"
+        else:
+            size_str = f"{file_size_bytes / (1024 * 1024 * 1024):.1f} GB"
+        
+        click.echo(f"Testing file: {file_path} ({size_str})")
+        
+        # Read the file data once
+        with open(file_path, "rb") as f:
+            data = f.read()
+        
+        click.echo(f"File read into memory. Running performance tests...")
+        
+        # Test lazy loading
+        lazy_start = time.time()
+        lazy_file = LazyWeftFile.from_bytes(data)
+        lazy_end = time.time()
+        lazy_time = lazy_end - lazy_start
+        
+        # Count blocks for comparison
+        multi_year_blocks = [b for b in lazy_file.blocks if isinstance(b, MultiYearBlock)]
+        monthly_blocks = [b for b in lazy_file.blocks if isinstance(b, MonthlyBlock)]
+        forty_eight_hour_headers = [
+            b for b in lazy_file.blocks if isinstance(b, FortyEightHourSectionHeader)
+        ]
+        total_48h_blocks = sum(header.block_count for header in forty_eight_hour_headers)
+        
+        # Test regular loading
+        regular_start = time.time()
+        regular_file = WeftFile.from_bytes(data)
+        regular_end = time.time()
+        regular_time = regular_end - regular_start
+        
+        # Report results
+        improvement = (regular_time - lazy_time) / regular_time * 100
+        
+        click.echo(f"\nResults:")
+        click.echo(f"File contains: {len(multi_year_blocks)} multi-year blocks, {len(monthly_blocks)} monthly blocks, {total_48h_blocks} forty-eight hour blocks")
+        click.echo(f"Lazy loading time:    {lazy_time:.6f}s")
+        click.echo(f"Regular loading time: {regular_time:.6f}s")
+        click.echo(f"Improvement: {improvement:.2f}%")
+        
+        if improvement > 0:
+            click.echo("\nLazy loading is faster! This will be especially noticeable for large files with many 48-hour blocks.")
+        else:
+            click.echo("\nRegular loading was faster in this case. This can happen with small files or files with few 48-hour blocks.")
+
+    except Exception as e:
+        logger.error(f"Error comparing loading methods: {e}", exc_info=True)
+        raise click.ClickException(f"Error comparing loading methods: {e}")

@@ -293,12 +293,19 @@ The WeftReader had performance issues when parsing large files because it was lo
 - [X] Modify the get_value method to load blocks lazily
 - [X] Update the CLI 'info' command to handle lazy loading
 - [X] Add documentation in docs/cursor/lessons.md
+- [X] Update the CLI lookup command with timing information
+- [X] Add a load_compare command to benchmark lazy vs regular loading
 
 ## Results
 The optimization should significantly improve:
 - Initial load time for large files
 - Memory usage when many blocks aren't needed
 - Performance when reading a single value
+
+The new CLI commands provide:
+- Detailed timing information for lookup operations
+- Performance comparisons between lazy and regular loading
+- Evidence of lazy loading benefits for large files
 
 Future improvements could include:
 - Caching frequently accessed blocks
