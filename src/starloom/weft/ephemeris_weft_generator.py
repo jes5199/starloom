@@ -11,7 +11,7 @@ import os
 
 from starloom.horizons.ephemeris import HorizonsEphemeris
 
-from ..horizons.planet import Planet
+from ..planet import Planet
 from ..ephemeris.quantities import Quantity
 from ..horizons.quantities import EphemerisQuantity
 from ..horizons.parsers import OrbitalElementsQuantity

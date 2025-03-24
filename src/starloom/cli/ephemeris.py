@@ -8,7 +8,7 @@ from ..ephemeris.quantities import Quantity
 from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance
 from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import julian_to_datetime
-from ..horizons.planet import Planet
+from ..planet import Planet
 
 
 class EphemerisProtocol(Protocol):

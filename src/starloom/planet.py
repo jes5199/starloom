@@ -1,16 +1,3 @@
-"""Planet enum re-exported from starloom.planet for backward compatibility."""
-
-import warnings
-from ..planet import Planet
-
-# Issue a DeprecationWarning
-warnings.warn(
-    "Importing Planet from starloom.horizons.planet is deprecated. "
-    "Import from starloom.planet instead.",
-    DeprecationWarning,
-    stacklevel=2
-)
-
 from enum import Enum
 
 
@@ -117,4 +104,4 @@ class Planet(Enum):
     OKYRHOE = "52872;"
     HYLONOME = "10370;"
     BIENOR = "54598;"
-    ECHECLUS = "60558;"
+    ECHECLUS = "60558;" 

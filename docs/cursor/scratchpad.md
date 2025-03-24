@@ -348,3 +348,36 @@ Enable the ephemeris to read from both compressed (.tar.gz) and uncompressed (.t
   - Changed tarfile.open() to use auto-detection mode ("r") instead of specific mode ("r:gz")
   - Improved error messages to mention both supported formats
   - When checking directories, the code now tries .tar.gz first, then falls back to .tar if needed
+
+# Move Planet Class from horizons Module to Main starloom Module
+
+## Task
+Move the Planet enum class from horizons.planet to the main starloom module to make it more accessible.
+
+## Goal
+Restructure the code to access Planet enum directly from starloom module rather than from horizons submodule.
+
+## TODOs
+[X] Create a new file in the starloom module for the Planet class
+[X] Copy the Planet enum implementation from horizons.planet
+[X] Update imports in all files that use horizons.planet.Planet
+[X] Ensure backwards compatibility if needed
+[X] Update tests if any
+[X] Remove the original Planet class from horizons.planet if it's no longer needed
+
+## Implementation Plan
+1. Created src/starloom/planet.py with the Planet enum
+2. Updated imports in:
+   - weft/ephemeris_weft_generator.py
+   - cli/horizons.py
+   - cli/ephemeris.py
+   - horizons/ephemeris.py
+   - horizons/request.py
+   - horizons/__init__.py
+3. Added deprecation warning in the original location to maintain backward compatibility
+4. The original file now imports from the new location
+
+## Issues Encountered and Fixed
+1. Missing `default_location` in location.py - Added the variable definition
+2. Missing `HorizonsRequestVectorQuantities` and `HorizonsRequestElementsQuantities` enums - Added them as placeholders
+3. Confirmed backward compatibility works with the deprecation warning

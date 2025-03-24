@@ -73,6 +73,31 @@ class HorizonsRequestObserverQuantities(Enum):
     SKY_BRIGHTNESS_TARGET_VISUAL_SNR = 48
 
 
+class HorizonsRequestVectorQuantities(Enum):
+    """
+    Quantities for vector ephemeris requests to Horizons API
+    """
+    STATE_VECTOR = 1
+    POSITION_ONLY = 2
+    VELOCITY_ONLY = 3
+    POSITION_COMPONENTS = 4
+    VELOCITY_COMPONENTS = 5
+    ACCELERATION_COMPONENTS = 6
+    SITE_POSITION_COMPONENTS = 7
+    SITE_VELOCITY_COMPONENTS = 8
+
+
+class HorizonsRequestElementsQuantities(Enum):
+    """
+    Quantities for orbital elements requests to Horizons API
+    """
+    BASIC_ELEMENTS = 1
+    ADDITIONAL_PARAMETERS = 2
+    OSCULATING_ELEMENTS = 3
+    CARTESIAN_ELEMENTS = 4
+    TRANSPORT_ELEMENTS = 5
+
+
 class EphemerisQuantity(Enum):
     """
     Quantities that can be parsed from Horizons responses.

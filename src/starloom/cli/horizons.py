@@ -4,7 +4,7 @@ import click
 from datetime import datetime, timezone
 from typing import Optional, cast, Union
 
-from ..horizons.planet import Planet
+from ..planet import Planet
 from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
 from ..horizons.request import HorizonsRequest
 from ..horizons.time_spec import TimeSpec

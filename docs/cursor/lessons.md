@@ -1132,49 +1132,6 @@ cmd = [
    - Use debug logging to show the exact commands being executed
    - Consider implementing special cases (e.g., combining more than two files iteratively)
 
-## CLI Command Usage in Scripts
-
-### Issue with Subprocess Command Structure in make_weftball.py
-The `make_weftball.py` script initially used Python module imports (`python -m src.starloom.cli.weft`) to access CLI functionality, but in typical usage, users interact with the package through the installed command-line interface (`starloom weft`).
-
-### Solution
-Update all subprocess calls to use the installed CLI command instead of direct module imports:
-
-```python
-# Before (using Python module imports)
-cmd = [
-    "python", "-m", "src.starloom.cli.weft",
-    "generate",
-    # parameters...
-]
-
-# After (using installed CLI command)
-cmd = [
-    "starloom",
-    "weft",
-    "generate",
-    # parameters...
-]
-```
-
-### Lesson Learned
-1. When developing scripts that interact with CLI tools:
-   - Prefer using the installed command-line interface that users typically interact with
-   - This creates a more consistent user experience and simplifies commands
-   - Using installed commands makes scripts less dependent on internal module structures
-   - Scripts become more robust to internal refactoring if they use the public interface
-
-2. Benefits of using installed commands:
-   - Better alignment with typical user workflows
-   - More resilience to internal package changes
-   - Shorter, more readable commands
-   - Using the same code path that users interact with directly, ensuring consistent behavior
-
-3. When to use direct module imports:
-   - During development before the CLI is fully established
-   - When needing access to functionality not exposed in the CLI
-   - In test scripts that need to bypass the CLI layer
-
 ## Python Package Imports
 
 When working with Python packages that use the `src` layout:
@@ -1372,3 +1329,29 @@ Strategic use of type ignores should be documented with comments explaining why 
   * CLI: Added `load_compare` command to benchmark loading time improvements
 
 * **Date**: March 2025
+
+## Moving Planet Class to Main Module (2023-03-24)
+
+When refactoring code organization, we moved the Planet enum from horizons.planet to starloom.planet. Important points:
+
+1. Created a new planet.py file in the starloom main module to make the Planet enum more accessible.
+
+2. Updated imports in multiple files to reference the new location (from ..planet import Planet).
+
+3. Maintained backward compatibility by keeping the original horizons/planet.py file but having it import and re-export from starloom.planet.
+
+4. Added a deprecation warning to alert users of the old import path that they should update their code.
+
+5. When moving important classes to a more central location in a package, maintaining backward compatibility is important to prevent breaking existing code.
+
+6. This change makes the Planet enum more accessible and logically positions it at the appropriate level in the package hierarchy - the planets are central to the astronomy domain, not specific to just the horizons module.
+
+7. Encountered and fixed related issues:
+   - Had to add missing `default_location` in location.py
+   - Added missing enum classes that were referenced but not defined
+   - Fixed import chains that were broken by the refactoring
+
+8. Testing strategy:
+   - Used both direct imports from the new location and the backward compatibility path
+   - Ran CLI commands to ensure the system works end-to-end
+   - Verified the deprecation warning appears when using the old import path

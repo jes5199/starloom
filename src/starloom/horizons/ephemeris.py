@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from starloom.ephemeris import Ephemeris, Quantity
 from .request import HorizonsRequest
-from .planet import Planet
+from ..planet import Planet
 from .location import Location
 from .time_spec import TimeSpec
 from .ephem_type import EphemType

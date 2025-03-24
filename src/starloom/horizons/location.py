@@ -37,3 +37,7 @@ class Location:
             str: Location in format "lat,lon,elev" with elevation optional
         """
         return self.to_horizons_format()
+
+
+# Default geocentric location
+default_location = Location(latitude=0.0, longitude=0.0, elevation=0.0, name="Geocentric")
