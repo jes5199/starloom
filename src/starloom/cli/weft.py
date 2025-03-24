@@ -261,16 +261,19 @@ def info(file_path: str) -> None:
         logger.debug(f"File size: {size_str}")
         print(f"{size_str}", end=": ")
 
-        # Display block counts
+        # Count forty-eight hour blocks from section headers
         multi_year_blocks = [
             b for b in weft_file.blocks if isinstance(b, MultiYearBlock)
         ]
         monthly_blocks = [b for b in weft_file.blocks if isinstance(b, MonthlyBlock)]
-        forty_eight_hour_blocks = [
-            b for b in weft_file.blocks if isinstance(b, FortyEightHourBlock)
+        forty_eight_hour_headers = [
+            b for b in weft_file.blocks if isinstance(b, FortyEightHourSectionHeader)
         ]
+        
+        # Calculate total 48-hour blocks from headers
+        total_48h_blocks = sum(header.block_count for header in forty_eight_hour_headers)
 
-        block_counts = f"{len(weft_file.blocks)} blocks ({len(multi_year_blocks)} large, {len(monthly_blocks)} monthly, {len(forty_eight_hour_blocks)} days)"
+        block_counts = f"{len(weft_file.blocks) + total_48h_blocks - len(forty_eight_hour_headers)} blocks ({len(multi_year_blocks)} large, {len(monthly_blocks)} monthly, {total_48h_blocks} days)"
         logger.debug(f"Block counts: {block_counts}")
         print(block_counts)
 
@@ -278,16 +281,31 @@ def info(file_path: str) -> None:
         for block in weft_file.blocks:
             if isinstance(block, MultiYearBlock):
                 block_info = f"Multi-year block: {block.start_year} +{block.duration} ({len(block.coeffs)} coefficients)"
+                logger.debug(f"Block info: {block_info}")
+                print(block_info)
             elif isinstance(block, MonthlyBlock):
                 block_info = f"Monthly block: {block.year}-{block.month:02d} ({len(block.coeffs)} coefficients)"
-            elif isinstance(block, FortyEightHourBlock):
-                block_info = f"48-hour block: {block.center_date} ({len(block.coefficients)} coefficients)"
+                logger.debug(f"Block info: {block_info}")
+                print(block_info)
             elif isinstance(block, FortyEightHourSectionHeader):
                 block_info = (
-                    f"48-hour section header: {block.start_day} to {block.end_day}"
+                    f"48-hour section header: {block.start_day} to {block.end_day} ({block.block_count} blocks)"
                 )
-            logger.debug(f"Block info: {block_info}")
-            print(block_info)
+                logger.debug(f"Block info: {block_info}")
+                print(block_info)
+                
+                # For info command, load and display the section blocks
+                try:
+                    section_blocks = weft_file.get_blocks_in_section(block)
+                    for i, section_block in enumerate(section_blocks):
+                        if i < 2 or i >= len(section_blocks) - 2:  # Show first 2 and last 2 blocks
+                            block_info = f"  48-hour block: {section_block.center_date} ({len(section_block.coefficients)} coefficients)"
+                            logger.debug(f"Block info: {block_info}")
+                            print(block_info)
+                        elif i == 2 and len(section_blocks) > 4:
+                            print(f"  ... {len(section_blocks) - 4} more blocks ...")
+                except Exception as e:
+                    print(f"  Error loading section blocks: {e}")
     except Exception as e:
         logger.error(f"Error reading .weft file: {e}", exc_info=True)
         raise click.ClickException(f"Error reading .weft file: {e}")

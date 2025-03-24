@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, Optional, Union, cast
 import time
 from .weft_file import (
     WeftFile,
+    LazyWeftFile,
     MultiYearBlock,
     MonthlyBlock,
     FortyEightHourBlock,
@@ -34,11 +35,11 @@ class WeftReader:
         Args:
             file_path: Optional path to a .weft file to load
         """
-        self.file: Optional[WeftFile] = None
+        self.file: Optional[LazyWeftFile] = None
         if file_path is not None:
             self.load_file(file_path)
 
-    def load_file(self, file_path: str) -> WeftFile:
+    def load_file(self, file_path: str) -> LazyWeftFile:
         """
         Load a .weft file.
 
@@ -46,14 +47,14 @@ class WeftReader:
             file_path: Path to the .weft file
 
         Returns:
-            The loaded WeftFile instance
+            The loaded LazyWeftFile instance
         """
         start_time = time.time()
         with open(file_path, "rb") as f:
             data = f.read()
         read_time = time.time()
 
-        self.file = WeftFile.from_bytes(data)
+        self.file = LazyWeftFile.from_bytes(data)
         parse_time = time.time()
 
         if self.file is not None:
@@ -151,11 +152,11 @@ class WeftReader:
         else:
             dt = dt.astimezone(timezone.utc)
 
-        # Find all forty-eight hour blocks that contain this datetime
-        forty_eight_hour_blocks = []
-        for block in self.file.blocks:
-            if isinstance(block, FortyEightHourBlock) and block.contains(dt):
-                forty_eight_hour_blocks.append(block)
+        # Get blocks containing this datetime (lazy-loads 48-hour blocks as needed)
+        relevant_blocks = self.file.get_blocks_for_datetime(dt)
+        
+        # Find all forty-eight hour blocks
+        forty_eight_hour_blocks = [b for b in relevant_blocks if isinstance(b, FortyEightHourBlock)]
 
         # If we have forty-eight hour blocks, check if they're in the same section
         if forty_eight_hour_blocks:
@@ -183,22 +184,22 @@ class WeftReader:
             return self.apply_value_behavior(value)
 
         # Try monthly blocks next
-        for block in self.file.blocks:
-            if isinstance(block, MonthlyBlock) and block.contains(dt):
-                value = block.evaluate(dt)
-                self.file.logger.debug(
-                    f"Value {value} from MonthlyBlock for {dt.isoformat()}"
-                )
-                return self.apply_value_behavior(value)
+        monthly_blocks = [b for b in relevant_blocks if isinstance(b, MonthlyBlock)]
+        if monthly_blocks:
+            value = monthly_blocks[0].evaluate(dt)
+            self.file.logger.debug(
+                f"Value {value} from MonthlyBlock for {dt.isoformat()}"
+            )
+            return self.apply_value_behavior(value)
 
         # Finally, try multi-year blocks
-        for block in self.file.blocks:
-            if isinstance(block, MultiYearBlock) and block.contains(dt):
-                value = block.evaluate(dt)
-                self.file.logger.debug(
-                    f"Value {value} from MultiYearBlock for {dt.isoformat()}"
-                )
-                return self.apply_value_behavior(value)
+        multi_year_blocks = [b for b in relevant_blocks if isinstance(b, MultiYearBlock)]
+        if multi_year_blocks:
+            value = multi_year_blocks[0].evaluate(dt)
+            self.file.logger.debug(
+                f"Value {value} from MultiYearBlock for {dt.isoformat()}"
+            )
+            return self.apply_value_behavior(value)
 
         raise ValueError(f"No block found for datetime: {dt}")
 

@@ -22,6 +22,7 @@ from .logging import get_logger
 
 __all__ = [
     "WeftFile",
+    "LazyWeftFile",
     "BlockType",
     "RangedBehavior",
     "UnboundedBehavior",
@@ -361,3 +362,199 @@ class WeftFile:
             blocks=final_blocks,
             value_behavior=file1.value_behavior,
         )
+
+class LazyWeftFile(WeftFile):
+    """
+    A WeftFile implementation that lazily loads FortyEightHourBlocks.
+    
+    This implementation improves performance by:
+    1. Reading and parsing MultiYearBlocks and MonthlyBlocks immediately
+    2. Reading FortyEightHourSectionHeaders immediately
+    3. Deferring reading of FortyEightHourBlocks until they are needed
+    
+    When a FortyEightHourBlock is requested, it will be loaded from the original file data
+    based on its section header information.
+    """
+    
+    def __init__(
+        self,
+        preamble: str,
+        blocks: Sequence[BlockType],
+        value_behavior: ValueBehavior = UnboundedBehavior(type="unbounded"),
+        file_data: Optional[bytes] = None,
+        section_positions: Optional[Dict[FortyEightHourSectionHeader, int]] = None
+    ):
+        """
+        Initialize a LazyWeftFile.
+        
+        Args:
+            preamble: The file preamble
+            blocks: List of data blocks (excluding FortyEightHourBlocks)
+            value_behavior: The value behavior
+            file_data: Original binary file data
+            section_positions: Dict mapping section headers to file positions
+        """
+        super().__init__(preamble, blocks, value_behavior)
+        self.file_data = file_data
+        self.section_positions = section_positions or {}
+        
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "LazyWeftFile":
+        """
+        Create a LazyWeftFile from binary data.
+        
+        Args:
+            data: Binary data to read from
+            
+        Returns:
+            A LazyWeftFile instance with lazily loaded FortyEightHourBlocks
+            
+        Raises:
+            ValueError: If the data format is invalid
+        """
+        # Read preamble
+        stream = BytesIO(data)
+        preamble = ""
+        while True:
+            char = stream.read(1).decode("utf-8")
+            preamble += char
+            if preamble.endswith("\n\n"):
+                break
+            if len(preamble) > 1000:  # Reasonable maximum preamble size
+                raise ValueError("Invalid preamble format")
+                
+        blocks: list[BlockType] = []
+        current_header: Optional[FortyEightHourSectionHeader] = None
+        section_positions: Dict[FortyEightHourSectionHeader, int] = {}
+        
+        while True:
+            # Save current position before marker
+            marker_position = stream.tell()
+            
+            # Try to read marker
+            marker = stream.read(2)
+            if not marker:  # End of file
+                break
+                
+            # Determine block type and read
+            if marker == MultiYearBlock.marker:
+                blocks.append(MultiYearBlock.from_stream(stream))
+            elif marker == MonthlyBlock.marker:
+                blocks.append(MonthlyBlock.from_stream(stream))
+            elif marker == FortyEightHourSectionHeader.marker:
+                # Read the new header
+                header = FortyEightHourSectionHeader.from_stream(stream)
+                blocks.append(header)
+                
+                # Store the position right after the header
+                section_positions[header] = stream.tell()
+                current_header = header
+                
+                # Skip all the blocks in this section instead of reading them
+                section_size = header.block_size * header.block_count
+                stream.seek(section_size, 1)  # Seek relative to current position
+            elif marker == FortyEightHourBlock.marker:
+                # We shouldn't reach here with lazy loading, but if we do:
+                if current_header is None:
+                    raise ValueError("FortyEightHourBlock without a preceding header")
+                    
+                # Skip the block
+                stream.seek(current_header.block_size - 2, 1)  # -2 for the marker already read
+            else:
+                raise ValueError(f"Unknown block type marker: {marker!r}")
+                
+        # Return the LazyWeftFile with information needed for lazy loading
+        return cls(
+            preamble=preamble,
+            blocks=blocks,
+            file_data=data,
+            section_positions=section_positions
+        )
+        
+    def get_blocks_in_section(self, header: FortyEightHourSectionHeader) -> List[FortyEightHourBlock]:
+        """
+        Load FortyEightHourBlocks for a specific section header.
+        
+        Args:
+            header: The section header to load blocks for
+            
+        Returns:
+            List of FortyEightHourBlocks in the section
+            
+        Raises:
+            ValueError: If the section cannot be loaded
+        """
+        if self.file_data is None or header not in self.section_positions:
+            raise ValueError("Section not found or file data not available")
+            
+        # Create stream from file data
+        stream = BytesIO(self.file_data)
+        
+        # Seek to the position right after the header
+        stream.seek(self.section_positions[header])
+        
+        # Read all blocks in this section
+        blocks = []
+        for _ in range(header.block_count):
+            marker = stream.read(2)
+            if marker != FortyEightHourBlock.marker:
+                raise ValueError(f"Expected FortyEightHourBlock marker, got {marker!r}")
+                
+            block = FortyEightHourBlock.from_stream(stream, header)
+            blocks.append(block)
+            
+        return blocks
+        
+    def get_forty_eight_hour_section_for_datetime(self, dt: datetime) -> Optional[FortyEightHourSectionHeader]:
+        """
+        Find the FortyEightHourSectionHeader containing the given datetime.
+        
+        Args:
+            dt: The datetime to find a section for
+            
+        Returns:
+            FortyEightHourSectionHeader if found, None otherwise
+        """
+        # Convert to UTC if timezone-aware, or assume UTC if naive
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+            
+        # Find section header containing the datetime
+        for block in self.blocks:
+            if isinstance(block, FortyEightHourSectionHeader) and block.contains_datetime(dt):
+                return block
+                
+        return None
+        
+    def get_blocks_for_datetime(self, dt: datetime) -> List[BlockType]:
+        """
+        Get all blocks that contain the given datetime.
+        Lazily loads FortyEightHourBlocks as needed.
+        
+        Args:
+            dt: The datetime to get blocks for
+            
+        Returns:
+            List of blocks containing the datetime
+        """
+        result = []
+        
+        # Check all loaded blocks first
+        for block in self.blocks:
+            if isinstance(block, (MultiYearBlock, MonthlyBlock)) and block.contains(dt):
+                result.append(block)
+        
+        # Check for and load forty-eight hour blocks
+        section_header = self.get_forty_eight_hour_section_for_datetime(dt)
+        if section_header is not None:
+            # Lazy-load 48-hour blocks for this section
+            section_blocks = self.get_blocks_in_section(section_header)
+            
+            # Add only those that contain the datetime
+            for section_block in section_blocks:
+                if section_block.contains(dt):
+                    result.append(section_block)
+                    
+        return result

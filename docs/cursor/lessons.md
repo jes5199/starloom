@@ -1323,3 +1323,20 @@ Effective Use of Type Ignores:
 3. For complex operations where runtime checks exist: `# type: ignore[arg-type,index]`
 
 Strategic use of type ignores should be documented with comments explaining why the ignore is necessary and how safety is ensured at runtime.
+
+## WeftFile Optimization
+
+* **Issue**: Performance bottleneck identified in WeftReader because it always loads all blocks in memory, including numerous 48-hour blocks.
+* **Solution**: Implemented lazy loading for FortyEightHourBlocks using LazyWeftFile:
+  * Only parses MultiYearBlocks, MonthlyBlocks, and FortyEightHourSectionHeaders upfront
+  * Keeps original file data in memory
+  * Records stream positions for each FortyEightHourSectionHeader
+  * Only loads FortyEightHourBlocks when specifically needed for a datetime lookup
+  * Improves memory usage and initial load time when dealing with files containing many 48-hour blocks
+
+* **Updated classes**:
+  * `LazyWeftFile`: Extends `WeftFile` with lazy loading capability
+  * `WeftReader`: Updated to use `LazyWeftFile` and efficient block filtering
+  * CLI: Adapted `info` command to work with lazily loaded blocks
+
+* **Date**: March 2025

@@ -279,3 +279,27 @@ Implement URL caching for Horizons API requests to avoid redundant API calls.
 ## Next Steps
 [ ] Test profiling with actual commands
 [ ] Consider adding more detailed profiling options (e.g., line-by-line profiling)
+
+# Current Task: Optimize WeftReader for Large Files
+
+## Problem
+The WeftReader had performance issues when parsing large files because it was loading all blocks into memory, especially numerous 48-hour blocks.
+
+## Solution: Implement Lazy Loading
+- [X] Create a LazyWeftFile class that extends WeftFile
+- [X] Implement lazy loading for FortyEightHourBlocks
+- [X] Keep track of section positions to read blocks on demand
+- [X] Update WeftReader to use LazyWeftFile
+- [X] Modify the get_value method to load blocks lazily
+- [X] Update the CLI 'info' command to handle lazy loading
+- [X] Add documentation in docs/cursor/lessons.md
+
+## Results
+The optimization should significantly improve:
+- Initial load time for large files
+- Memory usage when many blocks aren't needed
+- Performance when reading a single value
+
+Future improvements could include:
+- Caching frequently accessed blocks
+- File format modifications to better support random access
