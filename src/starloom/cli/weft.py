@@ -349,11 +349,11 @@ def combine(file1: str, file2: str, output_file: str, timespan: str) -> None:
         # Read both files
         reader1 = WeftReader()
         reader2 = WeftReader()
-        weft1 = reader1.load_file(file1)
-        weft2 = reader2.load_file(file2)
+        weftA = reader1.load_file(file1)
+        weftB = reader2.load_file(file2)
 
         # Combine the files
-        combined = WeftFile.combine(weft1, weft2, timespan)
+        combined = WeftFile.combine(weftA, weftB, timespan)
 
         # Write the combined file
         combined.write_to_file(output_file)
