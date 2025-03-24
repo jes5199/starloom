@@ -16,7 +16,6 @@ from starloom.weft.blocks.forty_eight_hour_section_header import (
 )
 
 from ..weft import generate_weft_file
-from ..horizons.quantities import EphemerisQuantity
 from .horizons import parse_date_input
 from ..weft import WeftReader
 from ..weft.weft_file import (
@@ -90,8 +89,8 @@ def weft(verbose: int, debug: bool, quiet: bool) -> None:
 @click.argument(
     "quantity",
     required=True,
-    type=click.Choice([q.name for q in EphemerisQuantity]),
-    default=EphemerisQuantity.ECLIPTIC_LONGITUDE.name,
+    type=click.Choice(["latitude", "longitude", "distance"]),
+    default="longitude",
 )
 @click.option(
     "--start", "-s", help="Start date (YYYY-MM-DD or Julian date)", required=True
@@ -182,12 +181,15 @@ def generate(
         logger.debug("Looking up ephemeris quantity")
         print("Looking up ephemeris quantity...")
         ephemeris_quantity = None
-        for eq in EphemerisQuantity:
-            if eq.name == quantity:
-                ephemeris_quantity = eq
-                break
 
-        if ephemeris_quantity is None:
+        from starloom.horizons.quantities import EphemerisQuantity
+        if quantity == "latitude":
+            ephemeris_quantity = EphemerisQuantity.ECLIPTIC_LATITUDE
+        elif quantity == "longitude":
+            ephemeris_quantity = EphemerisQuantity.ECLIPTIC_LONGITUDE
+        elif quantity == "distance":
+            ephemeris_quantity = EphemerisQuantity.DISTANCE
+        else:
             raise click.BadParameter(f"Unknown quantity: {quantity}")
         logger.debug(f"Found ephemeris quantity: {ephemeris_quantity}")
         print(f"Found ephemeris quantity: {ephemeris_quantity}")

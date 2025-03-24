@@ -6,12 +6,13 @@ data fetching and filtering for different Weft block types.
 """
 
 from datetime import datetime, timedelta
-from typing import List, Tuple, Optional, Union, Dict, Any, cast
+from typing import TYPE_CHECKING, List, Tuple, Optional, Union, Dict, Any, cast
 
 from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris import Quantity
-from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
-from ..horizons.parsers import OrbitalElementsQuantity
+if TYPE_CHECKING:
+    from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
+    from ..horizons.parsers import OrbitalElementsQuantity
 from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import datetime_from_julian
 from .logging import get_logger
@@ -32,7 +33,7 @@ class EphemerisDataSource:
         self,
         ephemeris: Ephemeris,
         planet_id: str,
-        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
+        quantity: Union["EphemerisQuantity", "OrbitalElementsQuantity"],
         start_date: datetime,
         end_date: datetime,
         step_hours: Union[int, str] = "24h",
@@ -73,6 +74,7 @@ class EphemerisDataSource:
         else:
             self.step_hours = float(step_hours)
 
+        from ..horizons.quantities import EphemerisQuantity
         # Convert EphemerisQuantity to Quantity for data access
         if isinstance(quantity, EphemerisQuantity):
             self.standard_quantity = EphemerisQuantityToQuantity[quantity]

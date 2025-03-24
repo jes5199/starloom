@@ -23,13 +23,14 @@ from .weft_file import (
     RangedBehavior,
     UnboundedBehavior,
 )
-from ..horizons.quantities import (
-    EphemerisQuantity,
-)
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..horizons.parsers import OrbitalElementsQuantity
+    from ..horizons.quantities import (
+        EphemerisQuantity,
+    )
+
 from .ephemeris_data_source import EphemerisDataSource
 from .block_selection import (
     should_include_multi_year_block,
@@ -52,12 +53,14 @@ class WeftWriter:
     This class can create files with century, year, month, and daily blocks.
     """
 
-    def __init__(self, quantity: EphemerisQuantity):
+    def __init__(self, quantity: "EphemerisQuantity"):
         """Initialize the WeftWriter.
 
         Args:
             quantity: The type of quantity to generate
         """
+        from ..horizons.quantities import EphemerisQuantity
+
         self.quantity = quantity
         self.wrapping_behavior = (
             "wrapping"
@@ -462,7 +465,7 @@ class WeftWriter:
     def create_multi_precision_file(
         self,
         data_source: EphemerisDataSource,
-        quantity: Union[EphemerisQuantity, "OrbitalElementsQuantity"],
+        quantity: Union["EphemerisQuantity", "OrbitalElementsQuantity"],
         start_date: datetime,
         end_date: datetime,
         config: Dict[str, Any],
@@ -570,7 +573,7 @@ class WeftWriter:
     def _create_preamble(
         self,
         data_source: EphemerisDataSource,
-        quantity: Union[EphemerisQuantity, "OrbitalElementsQuantity"],
+        quantity: Union["EphemerisQuantity", "OrbitalElementsQuantity"],
         start_date: datetime,
         end_date: datetime,
         config: Dict[str, Any],

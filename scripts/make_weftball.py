@@ -27,11 +27,7 @@ from src.starloom.weft.logging import get_logger
 from src.starloom.cli.common import setup_arg_parser, configure_logging
 
 # Define the quantities we want to generate
-QUANTITIES = {
-    "ECLIPTIC_LONGITUDE": "longitude",
-    "ECLIPTIC_LATITUDE": "latitude",
-    "DISTANCE": "distance",
-}
+QUANTITIES = ["latitude", "longitude", "distance"]
 
 # Define the decades to generate (20th and 21st centuries)
 DECADES = [
@@ -89,15 +85,14 @@ def generate_weft_files(planet, temp_dir):
 
     logger.debug(f"Generating weftball for {planet}")
 
-    for quantity, file_name in QUANTITIES.items():
+    for quantity in QUANTITIES:
         logger.info(f"Generating {quantity} data for {planet}")
 
         current_decade_files = []
         for decade_start, decade_end in DECADES:
             decade_range = get_decade_range(decade_start)
-            decade_file = os.path.join(
-                temp_dir, f"{planet}_{file_name}_{decade_range}.weft"
-            )
+            file_name = f"{planet}_{quantity}_{decade_range}.weft"
+            decade_file = os.path.join(temp_dir, file_name)
 
             # Build command using starloom CLI
             cmd = [

@@ -23,12 +23,3 @@ __all__ = [
     "TimeSpec",
     "EphemType",
 ]
-# print a stack trace, I want to see where this file is being imported from
-import traceback
-
-def print_formatted_stack():
-    stack = traceback.format_stack()
-    for line in stack:
-        print(line.strip())
-
-print_formatted_stack()

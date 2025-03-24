@@ -6,15 +6,17 @@ uses an ephemeris source to generate .weft files.
 """
 
 from datetime import datetime
-from typing import Dict, Any, Optional, Union
+from typing import TYPE_CHECKING, Dict, Any, Optional, Union
 import os
 
-from starloom.horizons.ephemeris import HorizonsEphemeris
 
 from ..planet import Planet
 from ..ephemeris.quantities import Quantity
-from ..horizons.quantities import EphemerisQuantity
-from ..horizons.parsers import OrbitalElementsQuantity
+
+if TYPE_CHECKING:
+    from ..horizons.quantities import EphemerisQuantity
+    from ..horizons.parsers import OrbitalElementsQuantity
+
 from .weft_writer import WeftWriter
 from ..ephemeris.ephemeris import Ephemeris
 from .ephemeris_data_source import EphemerisDataSource
@@ -27,7 +29,7 @@ logger = get_logger(__name__)
 
 def generate_weft_file(
     planet: Union[str, Planet],
-    quantity: Union[Quantity, EphemerisQuantity, OrbitalElementsQuantity],
+    quantity: Union["Quantity", "EphemerisQuantity", "OrbitalElementsQuantity"],
     start_date: datetime,
     end_date: datetime,
     output_path: str,
@@ -102,6 +104,7 @@ def generate_weft_file(
     if ephemeris_quantity is None:
         raise ValueError(f"Unsupported quantity: {quantity}")
 
+    from starloom.horizons.ephemeris import HorizonsEphemeris
     # Create or use provided ephemeris client
     if ephemeris is None:
         ephemeris = HorizonsEphemeris()
