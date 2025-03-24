@@ -1,3 +1,4 @@
+import time
 from typing import Dict, Optional, Union, List
 from urllib.parse import urlencode
 import hashlib
@@ -155,10 +156,6 @@ class HorizonsRequest:
             return urlencode({"": x}, safe="'")[1:]
 
         url = f"{self.base_url}?{urlencode(params, quote_via=quote_except_quotes)}"
-        if len(url) > self.max_url_length:
-            print(f"POST url: {self.post_url}")
-        else:
-            print(f"Request URL: {url}")  # Debug logging
         return url
 
     def _get_base_params(self) -> Dict[str, str]:
@@ -202,12 +199,21 @@ class HorizonsRequest:
             str: Response text
         """
         url = self.get_url()
+
+        if len(url) > self.max_url_length:
+            print(f"POST url: {self.post_url}")
+        else:
+            print(f"Request URL: {url}")  # Debug logging
+
         if len(url) > self.max_url_length:
             return self._make_post_request()
+
+        start_time = time.time()
 
         # Check cache first
         cached_response = self._get_cached_response(url)
         if cached_response is not None:
+            print("Cache hit")
             return cached_response
 
         # lazy import requests library
@@ -217,6 +223,8 @@ class HorizonsRequest:
         response = requests.get(url)
         response.raise_for_status()
         response_text = response.text
+
+        print(f"Request complete in {time.time() - start_time:.2f} seconds")
 
         # Cache the response
         self._cache_response(url, response_text)
