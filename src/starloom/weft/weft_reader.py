@@ -206,6 +206,73 @@ class WeftReader:
 
         raise ValueError(f"No block found for datetime: {dt}")
 
+    def get_all_values(self, dt: datetime) -> List[Tuple[str, float]]:
+        """
+        Get values from all applicable blocks for a specific datetime.
+
+        Args:
+            dt: The datetime to get values for (timezone-aware or naive)
+
+        Returns:
+            List of tuples containing (block_type, value) for each applicable block
+
+        Raises:
+            ValueError: If no file is loaded
+        """
+        if self.file is None:
+            raise ValueError("No file loaded")
+
+        # Convert to UTC if timezone-aware, or assume UTC if naive
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+
+        # Get blocks containing this datetime (lazy-loads 48-hour blocks as needed)
+        relevant_blocks = self.file.get_blocks_for_datetime(dt)
+        results = []
+
+        # Process forty-eight hour blocks
+        forty_eight_hour_blocks = [
+            b for b in relevant_blocks if isinstance(b, FortyEightHourBlock)
+        ]
+        if forty_eight_hour_blocks:
+            # Group blocks by their header
+            blocks_by_header: Dict[Tuple[date, date], List[FortyEightHourBlock]] = {}
+            for block in forty_eight_hour_blocks:
+                header_key = (block.header.start_day, block.header.end_day)
+                if header_key not in blocks_by_header:
+                    blocks_by_header[header_key] = []
+                blocks_by_header[header_key].append(block)
+
+            # Process each section
+            for blocks in blocks_by_header.values():
+                if len(blocks) > 1:
+                    # If we have multiple blocks in the same section, interpolate
+                    value = self._interpolate_blocks(blocks, dt)
+                    results.append(("48h_interpolated", value))
+                else:
+                    # Otherwise, just use the single block's value
+                    value = blocks[0].evaluate(dt)
+                    results.append(("48h", value))
+
+        # Process monthly blocks
+        monthly_blocks = [b for b in relevant_blocks if isinstance(b, MonthlyBlock)]
+        for block in monthly_blocks:
+            value = block.evaluate(dt)
+            results.append(("monthly", value))
+
+        # Process multi-year blocks
+        multi_year_blocks = [
+            b for b in relevant_blocks if isinstance(b, MultiYearBlock)
+        ]
+        for block in multi_year_blocks:
+            value = block.evaluate(dt)
+            results.append(("multi_year", value))
+
+        # Apply value behavior to all results
+        return [(block_type, self.apply_value_behavior(value)) for block_type, value in results]
+
     def _interpolate_blocks(
         self, blocks: List[FortyEightHourBlock], dt: datetime
     ) -> float:

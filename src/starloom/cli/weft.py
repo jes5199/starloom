@@ -373,6 +373,64 @@ def lookup(file_path: str, date: str) -> None:
 
 
 @weft.command()
+@click.argument("file_path", required=True, type=click.Path(exists=True))
+@click.argument("dates", nargs=-1, required=True)
+def lookup_all(file_path: str, dates: tuple[str, ...]) -> None:
+    """Look up values from all applicable blocks in a .weft file for specific dates."""
+    logger.debug(f"Looking up all values for dates {dates} in file {file_path}")
+    from ..weft import WeftReader
+
+    try:
+        # Read the file once for all dates
+        print(f"Loading file {file_path}...")
+        start_time = time.time()
+        reader = WeftReader()
+        reader.load_file(file_path)
+        load_time = time.time()
+        print(f"File loaded in {load_time - start_time:.3f}s (lazy loading enabled)")
+
+        # Process each date
+        for d in dates:
+            try:
+                # Parse the date
+                dt = parse_date_input(d)
+
+                # Convert to datetime if it's a Julian date
+                if isinstance(dt, float):
+                    from ..space_time.julian import datetime_from_julian
+
+                    logger.debug("Converting date from Julian")
+                    dt = datetime_from_julian(dt)
+
+                # Show information about parsing
+                print(f"\nLooking up all values for {dt}...")
+
+                # Look up all values
+                lookup_start = time.time()
+                values = reader.get_all_values(dt)
+                lookup_time = time.time()
+
+                # Display the values
+                logger.debug(f"Found values: {values}")
+                click.echo(f"Date: {dt}")
+                click.echo("Values from each applicable block:")
+                for block_type, value in values:
+                    click.echo(f"  {block_type}: {value}")
+                click.echo(f"Lookup completed in {lookup_time - lookup_start:.3f}s")
+
+            except Exception as e:
+                logger.error(f"Error looking up values for date {d}: {e}", exc_info=True)
+                click.echo(f"Error looking up values for date {d}: {e}", err=True)
+                continue
+
+        click.echo(f"\nTotal time: {time.time() - start_time:.3f}s")
+
+    except Exception as e:
+        logger.error(f"Error loading file: {e}", exc_info=True)
+        raise click.ClickException(f"Error loading file: {e}")
+
+
+@weft.command()
 @click.argument("file1", type=click.Path(exists=True))
 @click.argument("file2", type=click.Path(exists=True))
 @click.argument("output_file", type=click.Path())
