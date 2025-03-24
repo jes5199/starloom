@@ -410,16 +410,10 @@ class WeftWriter:
 
         current_date = start_date
 
-        # Create a single header for the entire range
-        header = FortyEightHourSectionHeader(
-            start_day=start_date.date(),
-            end_day=end_date.date(),
-            block_size=0,  # Will be updated after blocks are created
-            block_count=0,  # Will be updated after blocks are created
-        )
-
-        # Store all blocks for this header
+        # Create a temporary list to store blocks before creating the header
         all_blocks = []
+        min_block_date = None
+        max_block_date = None
 
         # Process each day in the range
         while current_date <= end_date:
@@ -429,6 +423,12 @@ class WeftWriter:
                 block_date = date(
                     current_date.year, current_date.month, current_date.day
                 )
+                
+                # Track min/max dates from actual included blocks
+                if min_block_date is None or block_date < min_block_date:
+                    min_block_date = block_date
+                if max_block_date is None or block_date > max_block_date:
+                    max_block_date = block_date
 
                 # Define the 48-hour window centered at current_date,
                 # adjusting for boundaries.
@@ -439,28 +439,43 @@ class WeftWriter:
                     data_source, block_start, block_end, degree
                 )
 
-                all_blocks.append(
-                    FortyEightHourBlock(
-                        header=header, coeffs=coeffs_list, center_date=block_date
-                    )
-                )
+                all_blocks.append((block_date, coeffs_list))
 
             current_date += timedelta(days=1)
 
         # Skip if no blocks were created
         if all_blocks:
+            # Create header using actual min/max dates from included blocks
+            header = FortyEightHourSectionHeader(
+                start_day=min_block_date,
+                end_day=max_block_date,
+                block_size=0,  # Will be updated after blocks are created
+                block_count=0,  # Will be updated after blocks are created
+            )
+
+            # Create the actual blocks with the header
+            final_blocks = []
+            for block_date, coeffs_list in all_blocks:
+                final_blocks.append(
+                    FortyEightHourBlock(
+                        header=header,
+                        coeffs=coeffs_list,
+                        center_date=block_date
+                    )
+                )
+
             # Calculate block size from the first block
-            sample_block = all_blocks[0]
+            sample_block = final_blocks[0]
             sample_bytes = sample_block.to_bytes()
             block_size = len(sample_bytes)
 
             # Update the header with actual block size and count
             header.block_size = block_size
-            header.block_count = len(all_blocks)
+            header.block_count = len(final_blocks)
 
             # Add the header and all blocks to the result
             blocks.append(header)
-            blocks.extend(all_blocks)
+            blocks.extend(final_blocks)
 
         return blocks
 
