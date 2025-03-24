@@ -370,17 +370,15 @@ class WeftWriter:
                 next_month = datetime(year + 1, 1, 1, tzinfo=start_date.tzinfo)
             else:
                 next_month = datetime(year, month + 1, 1, tzinfo=start_date.tzinfo)
-            month_end = next_month - timedelta(days=1)
+            next_month - timedelta(days=1)
 
             # Adjust boundaries for the overall range
-            block_start = max(start_date, month_start)
-            block_end = min(end_date, month_end)
-            day_count = (block_end - block_start).days + 1
+            day_count = (next_month - month_start).days
 
             # Only include if the month meets the criteria
             if should_include_monthly_block(data_source, year, month):
                 coeffs_list = self._generate_chebyshev_coefficients(
-                    data_source, block_start, block_end, degree
+                    data_source, month_start, next_month, degree
                 )
                 blocks.append(
                     MonthlyBlock(

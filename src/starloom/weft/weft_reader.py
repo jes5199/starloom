@@ -275,7 +275,10 @@ class WeftReader:
             results.append((block_type, value))
 
         # Apply value behavior to all results
-        return [(block_type, self.apply_value_behavior(value)) for block_type, value in results]
+        return [
+            (block_type, self.apply_value_behavior(value))
+            for block_type, value in results
+        ]
 
     def _interpolate_blocks(
         self, blocks: List[FortyEightHourBlock], dt: datetime

@@ -106,9 +106,11 @@ class WeftFile:
                 start_idx = behavior_str.find("[") + 1
                 end_idx = behavior_str.find("]")
                 if start_idx == -1 or end_idx == -1:
-                    raise ValueError(f"Invalid range format in behavior string: {behavior_str}")
+                    raise ValueError(
+                        f"Invalid range format in behavior string: {behavior_str}"
+                    )
                 range_str = behavior_str[start_idx:end_idx]
-                
+
                 # Split by comma and convert each part to float
                 min_str, max_str = range_str.split(",")
                 min_val = float(min_str.strip())
@@ -126,9 +128,11 @@ class WeftFile:
                 start_idx = behavior_str.find("[") + 1
                 end_idx = behavior_str.find("]")
                 if start_idx == -1 or end_idx == -1:
-                    raise ValueError(f"Invalid range format in behavior string: {behavior_str}")
+                    raise ValueError(
+                        f"Invalid range format in behavior string: {behavior_str}"
+                    )
                 range_str = behavior_str[start_idx:end_idx]
-                
+
                 # Split by comma and convert each part to float
                 min_str, max_str = range_str.split(",")
                 min_val = float(min_str.strip())
@@ -167,11 +171,11 @@ class WeftFile:
 
         self.preamble = preamble
         self.blocks = list(blocks)
-        
+
         # Parse value behavior from preamble if not provided
         if value_behavior is None:
             value_behavior = self._parse_value_behavior(preamble)
-            
+
         self.value_behavior = value_behavior
         self.logger = get_logger(__name__)
 
