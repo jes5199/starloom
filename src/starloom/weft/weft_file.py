@@ -242,121 +242,172 @@ class WeftFile:
         Raises:
             ValueError: If the files have incompatible preambles or block types
         """
-        # Check that the preambles match (except for timespan and generated@)
-        parts1 = file1.preamble.strip().split(" ")
-        parts2 = file2.preamble.strip().split(" ")
+        # -- 1) Compare essential parts of the preambles to ensure compatibility
+        parts1 = file1.preamble.strip().split()
+        parts2 = file2.preamble.strip().split()
 
-        # Extract the fields we want to compare (skip timespan and generation timestamp)
-        # Expected preamble format:
-        # #weft! v0.02 planet data_source timespan precision quantity behavior chebychevs generated@timestamp
+        # Both files must have at least 8 parts in the preamble
         if len(parts1) < 8 or len(parts2) < 8:
-            raise ValueError("Invalid preamble format: too few parts")
+            raise ValueError("Invalid preamble format in one of the files")
 
-        # Compare essential fields: format version, planet, data source, precision, quantity, behavior
-        if (
-            parts1[0:3] != parts2[0:3]  # #weft!, version, planet
-            or parts1[3] != parts2[3]  # data_source
-            or parts1[5] != parts2[5]  # precision
-            or parts1[6] != parts2[6]  # quantity
-            or parts1[7] != parts2[7]
-        ):  # behavior
-            # Provide more specific error message
-            if parts1[2] != parts2[2]:
-                raise ValueError(
-                    f"Files are for different planets: {parts1[2]} vs {parts2[2]}"
-                )
-            elif parts1[5] != parts2[5]:
-                raise ValueError(
-                    f"Files have different precision specifications: {parts1[5]} vs {parts2[5]}"
-                )
-            elif parts1[6] != parts2[6]:
-                raise ValueError(
-                    f"Files contain different quantities: {parts1[6]} vs {parts2[6]}"
-                )
-            elif parts1[7] != parts2[7]:
-                raise ValueError(
-                    f"Files have different value behaviors: {parts1[7]} vs {parts2[7]}"
-                )
-            else:
-                raise ValueError(
-                    "Files have incompatible preambles and cannot be combined"
-                )
+        # Check planet, data source, precision, quantity, behavior, etc.
+        # (Skipping timespan and generation timestamp in the comparison.)
+        # Format reference for indexing:
+        # 0: #weft!
+        # 1: v0.02
+        # 2: planet
+        # 3: data_source
+        # 4: timespan
+        # 5: precision
+        # 6: quantity
+        # 7: behavior
+        # 8: chebychevs
+        # 9: generated@...
+        def err(msg: str) -> None:
+            raise ValueError(msg)
 
-        # Separate forty-eight hour blocks and their headers
-        headers: List[FortyEightHourSectionHeader] = []
-        header_to_blocks: Dict[
-            FortyEightHourSectionHeader, List[FortyEightHourBlock]
-        ] = {}
-        non_48h_blocks: List[Union[MultiYearBlock, MonthlyBlock]] = []
+        if parts1[0] != parts2[0] or parts1[1] != parts2[1]:
+            err("Weft format/version mismatch")
+        if parts1[2] != parts2[2]:
+            err(f"Files are for different objects/planets: {parts1[2]} vs {parts2[2]}")
+        if parts1[3] != parts2[3]:
+            err(f"Different data sources: {parts1[3]} vs {parts2[3]}")
+        if parts1[5] != parts2[5]:
+            err(f"Files have different precision: {parts1[5]} vs {parts2[5]}")
+        if parts1[6] != parts2[6]:
+            err(f"Files contain different quantities: {parts1[6]} vs {parts2[6]}")
+        if parts1[7] != parts2[7]:
+            err(f"Files have different value behaviors: {parts1[7]} vs {parts2[7]}")
 
-        # Define block sorting function
-        def get_block_sort_key(
-            block: Union[MultiYearBlock, MonthlyBlock],
-        ) -> Tuple[int, int, datetime]:
-            if isinstance(block, MultiYearBlock):
-                # Use negative duration to sort longer periods first
-                return (
-                    0,
-                    -block.duration,
-                    datetime(block.start_year, 1, 1, tzinfo=timezone.utc),
-                )
-            else:  # Must be MonthlyBlock based on the type hint
-                return (1, 0, datetime(block.year, block.month, 1, tzinfo=timezone.utc))
+        # -- 2) Force load all 48-hour blocks in both files to ensure correct binary structure
+        from .blocks.forty_eight_hour_section_header import FortyEightHourSectionHeader
+        from .blocks.forty_eight_hour_block import FortyEightHourBlock
+        from .blocks.monthly_block import MonthlyBlock
+        from .blocks.multi_year_block import MultiYearBlock
 
-        for block in file1.blocks + file2.blocks:
-            if isinstance(block, FortyEightHourSectionHeader):
-                # Only add unique headers
-                if block not in headers:
-                    headers.append(block)
-            elif isinstance(block, FortyEightHourBlock):
-                header = block.header
-                if header not in header_to_blocks:
-                    header_to_blocks[header] = []
-                header_to_blocks[header].append(block)
-            elif isinstance(block, (MultiYearBlock, MonthlyBlock)):
-                non_48h_blocks.append(block)
+        def force_load_48h_blocks(file: "WeftFile") -> list[BlockType]:
+            """Force load all 48-hour blocks in a file."""
+            new_blocks = []
+            for block in file.blocks:
+                if isinstance(block, FortyEightHourSectionHeader):
+                    # Force load the entire section
+                    section_blocks = file.get_blocks_in_section(block)
+                    new_blocks.append(block)
+                    new_blocks.extend(section_blocks)
+                else:
+                    new_blocks.append(block)
+            return new_blocks
 
-        # Sort headers by date
-        headers.sort(key=lambda h: h.start_day)
+        # Force load blocks in both files
+        file1.blocks = force_load_48h_blocks(file1)
+        file2.blocks = force_load_48h_blocks(file2)
 
-        # Sort non-48h blocks by date
-        non_48h_blocks.sort(key=get_block_sort_key)
+        # -- 3) Gather blocks from each file, separating 48-hour sections from the rest
+        def is_48h_section(b) -> bool:
+            return isinstance(b, (FortyEightHourSectionHeader, FortyEightHourBlock))
 
-        # Create the final block list
-        final_blocks: List[BlockType] = []
+        def is_non_48h_block(b) -> bool:
+            return isinstance(b, (MultiYearBlock, MonthlyBlock))
 
-        # First add all non-48h blocks
-        for block in non_48h_blocks:
-            final_blocks.append(block)
+        # We keep track of each file's 48-hour sections as they appear
+        # so we can re-inject them in chronological order as entire units.
+        file1_sections: list[list] = []
+        file2_sections: list[list] = []
 
-        # Then add headers and their blocks in chronological order
-        for header in headers:
-            if header not in header_to_blocks or not header_to_blocks[header]:
-                raise ValueError(f"No 48-hour blocks found for header {header}")
+        file1_non48 = []
+        file2_non48 = []
 
-            # Add header
-            final_blocks.append(header)
+        # Helper: walk a file's blocks, grouping each header plus its blocks
+        # into a single sublist
+        def split_sections(file_blocks):
+            sections = []
+            current_section = []
+            for block in file_blocks:
+                if isinstance(block, FortyEightHourSectionHeader):
+                    # Once we hit a new header, push the old section if it has anything
+                    if current_section:
+                        sections.append(current_section)
+                    current_section = [block]
+                elif isinstance(block, FortyEightHourBlock):
+                    # Belongs to the current header's section
+                    if not current_section:
+                        raise ValueError("Found a 48-hour block with no preceding header.")
+                    current_section.append(block)
+                else:
+                    # This is a non-48h block, not part of any section
+                    if current_section:
+                        sections.append(current_section)
+                        current_section = []
+                    # Return it as separate
+                    yield None, block  # signal a non-48h block
+            # End loop: if we had an open section, push it
+            if current_section:
+                sections.append(current_section)
+            # Now yield all sections
+            for sec in sections:
+                yield sec, None
 
-            # Sort blocks by center date
-            header_blocks = header_to_blocks[header]
-            header_blocks.sort(key=lambda b: b.center_date)
+        # Fill file1_non48, file1_sections
+        for sec, block in split_sections(file1.blocks):
+            if sec is not None:
+                file1_sections.append(sec)
+            elif block is not None:
+                file1_non48.append(block)
 
-            # Then add all blocks for this header
-            final_blocks.extend(header_blocks)
+        # Fill file2_non48, file2_sections
+        for sec, block in split_sections(file2.blocks):
+            if sec is not None:
+                file2_sections.append(sec)
+            elif block is not None:
+                file2_non48.append(block)
 
-        # Create new preamble
+        # -- 4) Sort the non–48-hour blocks by date (multi-year or monthly) if desired
+        def block_sort_key(b):
+            if isinstance(b, MultiYearBlock):
+                # Sort by (start_year, duration)
+                return (b.start_year, b.duration)
+            elif isinstance(b, MonthlyBlock):
+                return (b.year, b.month)
+            return (999999, 0)  # fallback
+
+        file1_non48.sort(key=block_sort_key)
+        file2_non48.sort(key=block_sort_key)
+
+        # -- 5) Merge the two sets of non-48h blocks into a single sorted list
+        merged_non48 = sorted(file1_non48 + file2_non48, key=block_sort_key)
+
+        # -- 6) Construct the final block list
+        final_blocks = []
+        # First the non–48-hour blocks (lowest precision first)
+        for nb in merged_non48:
+            final_blocks.append(nb)
+        # Then all the 48-hour sections in their original order from each file
+        for sec in file1_sections:
+            final_blocks.extend(sec)
+        for sec in file2_sections:
+            final_blocks.extend(sec)
+
+        # -- 7) Build a new preamble with the updated timespan, newly generated@, etc.
         now = datetime.now(timezone.utc)
+        # Keep everything from parts1 except we replace the timespan token with the user-provided timespan
+        # parts1[4] is the old timespan
+        new_preamble_parts = list(parts1)
+        new_preamble_parts[4] = timespan  # replace with new combined timespan
+        # Example new preamble:
+        # #weft! v0.02 mercury jpl:xyz 1900s 32bit ecliptic_longitude wrapping[0,360] chebychevs generated@2025-03-24T...
+        # We'll reassemble it carefully.
         new_preamble = (
-            f"{parts1[0]} {parts1[1]} {parts1[2]} {parts1[3]} {timespan} "
-            f"{parts1[5]} {parts1[6]} {parts1[7]} chebychevs "
+            f"{new_preamble_parts[0]} {new_preamble_parts[1]} {new_preamble_parts[2]} "
+            f"{new_preamble_parts[3]} {new_preamble_parts[4]} {new_preamble_parts[5]} "
+            f"{new_preamble_parts[6]} {new_preamble_parts[7]} chebychevs "
             f"generated@{now.isoformat()}\n\n"
         )
 
-        # Create new file
+        # -- 8) Return a new WeftFile with the combined blocks
         return cls(
             preamble=new_preamble,
             blocks=final_blocks,
-            value_behavior=file1.value_behavior,
+            value_behavior=file1.value_behavior  # same as file2 by previous checks
         )
 
 
