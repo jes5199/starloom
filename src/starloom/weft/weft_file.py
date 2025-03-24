@@ -68,11 +68,87 @@ class WeftFile:
     belong to WeftReader.
     """
 
+    @property
+    def quantity(self) -> str:
+        """Get the quantity from the preamble.
+
+        Returns:
+            The quantity name (e.g., "ECLIPTIC_LONGITUDE")
+        """
+        # Split preamble into parts
+        parts = self.preamble.strip().split()
+        if len(parts) < 8:
+            raise ValueError("Invalid preamble format")
+        return parts[6]  # 7th part is the quantity
+
+    @staticmethod
+    def _parse_value_behavior(preamble: str) -> ValueBehavior:
+        """Parse value behavior from preamble.
+
+        Args:
+            preamble: The file preamble
+
+        Returns:
+            The parsed value behavior
+        """
+        # Split preamble into parts
+        parts = preamble.strip().split()
+        if len(parts) < 8:
+            raise ValueError("Invalid preamble format")
+
+        # Get the behavior part (7th part)
+        behavior_str = parts[7]
+
+        # Check if it's a wrapping or bounded behavior
+        if behavior_str.startswith("wrapping["):
+            try:
+                # Find the range part between [ and ]
+                start_idx = behavior_str.find("[") + 1
+                end_idx = behavior_str.find("]")
+                if start_idx == -1 or end_idx == -1:
+                    raise ValueError(f"Invalid range format in behavior string: {behavior_str}")
+                range_str = behavior_str[start_idx:end_idx]
+                
+                # Split by comma and convert each part to float
+                min_str, max_str = range_str.split(",")
+                min_val = float(min_str.strip())
+                max_val = float(max_str.strip())
+                return RangedBehavior(type="wrapping", range=(min_val, max_val))
+            except ValueError as e:
+                print(f"Debug: Error parsing range string: {e}")
+                print(f"Debug: behavior_str = {behavior_str}")
+                print(f"Debug: range_str = {range_str}")
+                print(f"Debug: min_str = {min_str}, max_str = {max_str}")
+                raise
+        elif behavior_str.startswith("bounded["):
+            try:
+                # Find the range part between [ and ]
+                start_idx = behavior_str.find("[") + 1
+                end_idx = behavior_str.find("]")
+                if start_idx == -1 or end_idx == -1:
+                    raise ValueError(f"Invalid range format in behavior string: {behavior_str}")
+                range_str = behavior_str[start_idx:end_idx]
+                
+                # Split by comma and convert each part to float
+                min_str, max_str = range_str.split(",")
+                min_val = float(min_str.strip())
+                max_val = float(max_str.strip())
+                return RangedBehavior(type="bounded", range=(min_val, max_val))
+            except ValueError as e:
+                print(f"Debug: Error parsing range string: {e}")
+                print(f"Debug: behavior_str = {behavior_str}")
+                print(f"Debug: range_str = {range_str}")
+                print(f"Debug: min_str = {min_str}, max_str = {max_str}")
+                raise
+        else:
+            # Default to unbounded
+            return UnboundedBehavior(type="unbounded")
+
     def __init__(
         self,
         preamble: str,
         blocks: Sequence[BlockType],
-        value_behavior: ValueBehavior = UnboundedBehavior(type="unbounded"),
+        value_behavior: Optional[ValueBehavior] = None,
     ):
         """
         Initialize a WeftFile.
@@ -80,7 +156,7 @@ class WeftFile:
         Args:
             preamble: The file preamble
             blocks: List of data blocks
-            value_behavior: The value behavior (wrapping, bounded, or unbounded)
+            value_behavior: Optional value behavior (if not provided, will be parsed from preamble)
         """
         if not preamble.startswith("#weft!"):
             raise ValueError("Invalid preamble: must start with #weft!")
@@ -91,6 +167,11 @@ class WeftFile:
 
         self.preamble = preamble
         self.blocks = list(blocks)
+        
+        # Parse value behavior from preamble if not provided
+        if value_behavior is None:
+            value_behavior = self._parse_value_behavior(preamble)
+            
         self.value_behavior = value_behavior
         self.logger = get_logger(__name__)
 
@@ -515,6 +596,9 @@ class LazyWeftFile(WeftFile):
             if len(preamble) > 1000:  # Reasonable maximum preamble size
                 raise ValueError("Invalid preamble format")
 
+        # Parse value behavior from preamble
+        value_behavior = WeftFile._parse_value_behavior(preamble)
+
         blocks: list[BlockType] = []
         current_header: Optional[FortyEightHourSectionHeader] = None
         section_positions: Dict[FortyEightHourSectionHeader, int] = {}
@@ -558,6 +642,7 @@ class LazyWeftFile(WeftFile):
         return cls(
             preamble=preamble,
             blocks=blocks,
+            value_behavior=value_behavior,  # Pass the parsed value behavior
             file_data=data,
             section_positions=section_positions,
         )

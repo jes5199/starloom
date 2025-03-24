@@ -363,7 +363,25 @@ def lookup(file_path: str, date: str) -> None:
         # Display the value
         logger.debug(f"Found value: {value}")
         click.echo(f"Date: {dt}")
-        click.echo(f"Value: {value}")
+
+        # Check if this is an angle quantity
+        if reader.file is not None and reader.file.value_behavior["type"] == "wrapping":
+            behavior = reader.file.value_behavior
+            min_val, max_val = behavior["range"]
+            range_size = max_val - min_val
+            
+            # Show both wrapped and normalized values
+            click.echo(f"Wrapped value: {value}")
+            normalized = min_val + ((value - min_val) % range_size)
+            click.echo(f"Normalized value: {normalized}")
+            
+            # For longitude, also show zodiac sign
+            if reader.file.quantity == "ECLIPTIC_LONGITUDE":
+                from ..ephemeris.util import get_zodiac_sign
+                click.echo(f"Zodiac sign: {get_zodiac_sign(normalized)}")
+        else:
+            click.echo(f"Value: {value}")
+            
         click.echo(f"Lookup completed in {lookup_time - load_time:.3f}s")
         click.echo(f"Total time: {lookup_time - start_time:.3f}s")
 
@@ -414,8 +432,29 @@ def lookup_all(file_path: str, dates: tuple[str, ...]) -> None:
                 logger.debug(f"Found values: {values}")
                 click.echo(f"Date: {dt}")
                 click.echo("Values from each applicable block:")
+                
+                # Check if this is an angle quantity
+                is_angle = reader.file is not None and reader.file.value_behavior["type"] == "wrapping"
+                if is_angle:
+                    behavior = reader.file.value_behavior
+                    min_val, max_val = behavior["range"]
+                    range_size = max_val - min_val
+                
                 for block_type, value in values:
-                    click.echo(f"  {block_type}: {value}")
+                    if is_angle:
+                        # Show both wrapped and normalized values
+                        click.echo(f"  {block_type}:")
+                        click.echo(f"    Wrapped value: {value}")
+                        normalized = min_val + ((value - min_val) % range_size)
+                        click.echo(f"    Normalized value: {normalized}")
+                        
+                        # For longitude, also show zodiac sign
+                        if reader.file.quantity == "ECLIPTIC_LONGITUDE":
+                            from ..ephemeris.util import get_zodiac_sign
+                            click.echo(f"    Zodiac sign: {get_zodiac_sign(normalized)}")
+                    else:
+                        click.echo(f"  {block_type}: {value}")
+                        
                 click.echo(f"Lookup completed in {lookup_time - lookup_start:.3f}s")
 
             except Exception as e:
