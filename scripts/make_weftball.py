@@ -27,7 +27,7 @@ from src.starloom.weft.logging import get_logger
 from src.starloom.cli.common import setup_arg_parser, configure_logging
 
 # Define the quantities we want to generate
-QUANTITIES = ["latitude", "longitude", "distance"]
+QUANTITIES = ["longitude", "distance", "latitude"]
 
 # Define the decades to generate (20th and 21st centuries)
 DECADES = [
@@ -141,7 +141,7 @@ def combine_weft_files(planet, temp_dir, generated_files):
     """
     combined_files = {}
 
-    for quantity, file_name in QUANTITIES.items():
+    for quantity in QUANTITIES():
         decade_files = generated_files.get(quantity, [])
         if not decade_files:
             logger.warning(f"No files found for {quantity}, skipping")
@@ -150,7 +150,7 @@ def combine_weft_files(planet, temp_dir, generated_files):
         logger.info(f"Combining {len(decade_files)} files for {quantity}")
 
         # Create the combined file name
-        combined_file = os.path.join(temp_dir, f"{planet}_{file_name}.weft")
+        combined_file = os.path.join(temp_dir, f"{planet}_{quantity}.weft")
 
         # Take the first two files to start with
         if len(decade_files) < 2:
