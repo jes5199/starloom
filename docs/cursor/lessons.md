@@ -1,5 +1,29 @@
 # Starloom Development Lessons
 
+## Weft Module Refactoring (2024 Update)
+
+When updating tests after the Weft module refactoring, we learned several important lessons:
+
+1. **Class Responsibility Changes**: The WeftFile class was refactored with more clear responsibilities:
+   - Regular `WeftFile` now handles only file structure, serialization, and basic block storage
+   - A new `LazyWeftFile` subclass was added for efficient block loading and finding blocks for a given datetime
+   - The `WeftReader` class now handles the evaluation logic that was previously in `WeftFile`
+
+2. **Method Relocation**: The `get_blocks_for_datetime` method was moved from `WeftFile` to `LazyWeftFile`, which broke existing tests.
+
+3. **Test Strategies**: When testing code after a refactoring:
+   - Either update the tests to work with the new architecture (using `LazyWeftFile` instead of `WeftFile`)
+   - Or create a mock/test class that implements the missing methods for testing purposes
+   - We chose to create a `MockWeftFile` class that extends `WeftFile` and adds a simple `get_blocks_for_datetime` method
+
+4. **Method Implementation Requirements**: The `LazyWeftFile.get_blocks_for_datetime` requires file data and section positions to work properly, which makes it harder to use directly in tests.
+
+5. **Type Annotations**: Always keep imports consistent with type annotations, especially when interfaces change.
+
+6. **Explicit File Type Handling**: The `WeftReader` expects a `LazyWeftFile`, not a regular `WeftFile`, and this should be documented in method signatures and docstrings.
+
+7. **Backwards Compatibility**: Consider adding compatibility methods/interfaces when refactoring to avoid breaking existing code.
+
 ## Weft Test Fixes (2023-03-23)
 
 When fixing the failing tests in the weft module, we discovered several important lessons:
@@ -1355,3 +1379,24 @@ When refactoring code organization, we moved the Planet enum from horizons.plane
    - Used both direct imports from the new location and the backward compatibility path
    - Ran CLI commands to ensure the system works end-to-end
    - Verified the deprecation warning appears when using the old import path
+
+## Test Caching in HorizonsRequest
+
+When testing HTTP requests in HorizonsRequest:
+
+1. The HorizonsRequest class implements caching of HTTP responses to avoid redundant API calls:
+   - Responses are cached in the `data/http_cache` directory
+   - The cache key is a hash of the request URL
+   - The cache is limited to 256 entries with oldest entries removed first
+
+2. When writing tests for methods that make HTTP requests:
+   - Mock the `_get_cached_response` method to return None to ensure the request goes through
+   - Use `@patch.object(HorizonsRequest, "_get_cached_response", return_value=None)` to bypass the cache
+   - Always mock the actual HTTP request (`requests.get` or `requests.post`) to avoid real external calls
+   - Ensure the mocked request methods are properly called and assertions verify expected behaviors
+
+3. Common issues with test failures:
+   - Test failures due to assertions that HTTP methods were called when they weren't
+   - Cache hits preventing the actual request from being made
+   - Tests passing locally but failing in CI due to different cache states
+   - Missing mock for cache-related methods causing sporadic test failures

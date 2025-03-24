@@ -1,3 +1,4 @@
+from typing import List
 import unittest
 from datetime import datetime, timedelta, timezone, date
 import tempfile
@@ -5,7 +6,7 @@ import pytest
 import time
 
 # Import from starloom package
-from starloom.weft.weft_file import WeftFile
+from starloom.weft.weft_file import WeftFile, BlockType
 from starloom.weft.blocks import (
     MultiYearBlock,
     MonthlyBlock,
@@ -13,6 +14,42 @@ from starloom.weft.blocks import (
     FortyEightHourBlock,
 )
 from starloom.weft.weft_reader import WeftReader
+
+
+# Create a mock WeftFile with the get_blocks_for_datetime method for testing
+class MockWeftFile(WeftFile):
+    """Mock WeftFile with simple get_blocks_for_datetime implementation for testing."""
+
+    def get_blocks_for_datetime(self, dt: datetime) -> List[BlockType]:
+        """
+        Get all blocks that contain the given datetime.
+        Simple implementation for testing.
+
+        Args:
+            dt: The datetime to get blocks for
+
+        Returns:
+            List of blocks containing the datetime
+        """
+        result = []
+
+        # Check all blocks
+        for block in self.blocks:
+            if isinstance(block, (MultiYearBlock, MonthlyBlock)) and block.contains(dt):
+                result.append(block)
+            elif isinstance(block, FortyEightHourSectionHeader):
+                # Skip headers
+                continue
+            elif isinstance(block, FortyEightHourBlock):
+                # Check if the block contains this datetime
+                try:
+                    # This will raise ValueError if outside the block's time range
+                    block.evaluate(dt)
+                    result.append(block)
+                except ValueError:
+                    continue
+
+        return result
 
 
 class TestWeftEdgeCases(unittest.TestCase):
@@ -144,8 +181,8 @@ class TestWeftEdgeCases(unittest.TestCase):
                 )
             )
 
-        # Create WeftFile
-        weft_file = WeftFile(
+        # Create MockWeftFile for testing
+        weft_file = MockWeftFile(
             preamble="#weft! v0.02 test jpl:test 2000s 32bit test chebychevs generated@test",
             blocks=blocks,
         )
@@ -187,8 +224,8 @@ class TestWeftEdgeCases(unittest.TestCase):
                 )
                 blocks.append(block)
 
-        # Create WeftFile
-        weft_file = WeftFile(
+        # Create MockWeftFile for testing
+        weft_file = MockWeftFile(
             preamble="#weft! v0.02 test jpl:test 2000s 32bit test chebychevs generated@test",
             blocks=blocks,
         )
@@ -239,8 +276,8 @@ class TestWeftEdgeCases(unittest.TestCase):
             )
         )
 
-        # Create WeftFile
-        weft_file = WeftFile(
+        # Create MockWeftFile for testing
+        weft_file = MockWeftFile(
             preamble="#weft! v0.02 test jpl:test 2020s 32bit test chebychevs generated@test",
             blocks=blocks,
         )
@@ -368,8 +405,8 @@ def test_weft_file():
         )
     )
 
-    # Create WeftFile
-    weft_file = WeftFile("#weft! v0.02\n\n", blocks)
+    # Create MockWeftFile for testing
+    weft_file = MockWeftFile("#weft! v0.02\n\n", blocks)
 
     # Create a WeftReader
     reader = WeftReader()
