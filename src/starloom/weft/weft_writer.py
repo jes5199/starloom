@@ -26,7 +26,10 @@ from .weft_file import (
 from ..horizons.quantities import (
     EphemerisQuantity,
 )
-from ..horizons.parsers import OrbitalElementsQuantity
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..horizons.parsers import OrbitalElementsQuantity
 from .ephemeris_data_source import EphemerisDataSource
 from .block_selection import (
     should_include_multi_year_block,
@@ -459,7 +462,7 @@ class WeftWriter:
     def create_multi_precision_file(
         self,
         data_source: EphemerisDataSource,
-        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
+        quantity: Union[EphemerisQuantity, "OrbitalElementsQuantity"],
         start_date: datetime,
         end_date: datetime,
         config: Dict[str, Any],
@@ -567,7 +570,7 @@ class WeftWriter:
     def _create_preamble(
         self,
         data_source: EphemerisDataSource,
-        quantity: Union[EphemerisQuantity, OrbitalElementsQuantity],
+        quantity: Union[EphemerisQuantity, "OrbitalElementsQuantity"],
         start_date: datetime,
         end_date: datetime,
         config: Dict[str, Any],
