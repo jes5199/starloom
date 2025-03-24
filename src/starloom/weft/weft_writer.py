@@ -423,7 +423,7 @@ class WeftWriter:
                 block_date = date(
                     current_date.year, current_date.month, current_date.day
                 )
-                
+
                 # Track min/max dates from actual included blocks
                 if min_block_date is None or block_date < min_block_date:
                     min_block_date = block_date
@@ -458,9 +458,7 @@ class WeftWriter:
             for block_date, coeffs_list in all_blocks:
                 final_blocks.append(
                     FortyEightHourBlock(
-                        header=header,
-                        coeffs=coeffs_list,
-                        center_date=block_date
+                        header=header, coeffs=coeffs_list, center_date=block_date
                     )
                 )
 

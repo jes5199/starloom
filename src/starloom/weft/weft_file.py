@@ -269,7 +269,7 @@ class WeftFile:
         if parts1[0] != parts2[0] or parts1[1] != parts2[1]:
             err("Weft format/version mismatch")
         if parts1[2] != parts2[2]:
-            err(f"Files are for different objects/planets: {parts1[2]} vs {parts2[2]}")
+            err(f"Files are for different planets: {parts1[2]} vs {parts2[2]}")
         if parts1[3] != parts2[3]:
             err(f"Different data sources: {parts1[3]} vs {parts2[3]}")
         if parts1[5] != parts2[5]:
@@ -288,14 +288,37 @@ class WeftFile:
         def force_load_48h_blocks(file: "WeftFile") -> list[BlockType]:
             """Force load all 48-hour blocks in a file."""
             new_blocks = []
-            for block in file.blocks:
+            i = 0
+            while i < len(file.blocks):
+                block = file.blocks[i]
                 if isinstance(block, FortyEightHourSectionHeader):
-                    # Force load the entire section
-                    section_blocks = file.get_blocks_in_section(block)
-                    new_blocks.append(block)
-                    new_blocks.extend(section_blocks)
+                    # For regular WeftFile, blocks are already loaded
+                    if not hasattr(file, "get_blocks_in_section"):
+                        # The next block.block_count blocks should be FortyEightHourBlocks
+                        section_blocks = []
+                        for _ in range(block.block_count):
+                            i += 1
+                            if i >= len(file.blocks):
+                                raise ValueError(
+                                    f"Section block count mismatch: expected {block.block_count} blocks, but reached end of file"
+                                )
+                            next_block = file.blocks[i]
+                            if not isinstance(next_block, FortyEightHourBlock):
+                                raise ValueError(
+                                    f"Expected FortyEightHourBlock after header, got {type(next_block)}"
+                                )
+                            section_blocks.append(next_block)
+                        new_blocks.append(block)
+                        new_blocks.extend(section_blocks)
+                    else:
+                        # For LazyWeftFile, force load the blocks
+                        section_blocks = file.get_blocks_in_section(block)
+                        new_blocks.append(block)
+                        new_blocks.extend(section_blocks)
+                        i += block.block_count  # Skip the blocks we just loaded
                 else:
                     new_blocks.append(block)
+                i += 1
             return new_blocks
 
         # Force load blocks in both files
@@ -331,7 +354,9 @@ class WeftFile:
                 elif isinstance(block, FortyEightHourBlock):
                     # Belongs to the current header's section
                     if not current_section:
-                        raise ValueError("Found a 48-hour block with no preceding header.")
+                        raise ValueError(
+                            "Found a 48-hour block with no preceding header."
+                        )
                     current_section.append(block)
                 else:
                     # This is a non-48h block, not part of any section
@@ -378,10 +403,29 @@ class WeftFile:
 
         # -- 6) Construct the final block list
         final_blocks = []
-        # First the non–48-hour blocks (lowest precision first)
+
+        # First, collect all blocks by type
+        multi_year_blocks = []
+        monthly_blocks = []
+
+        # Sort non-48h blocks by type and date
         for nb in merged_non48:
-            final_blocks.append(nb)
-        # Then all the 48-hour sections in their original order from each file
+            if isinstance(nb, MultiYearBlock):
+                multi_year_blocks.append(nb)
+            elif isinstance(nb, MonthlyBlock):
+                monthly_blocks.append(nb)
+
+        # Sort multi-year blocks by start year and duration
+        multi_year_blocks.sort(key=lambda b: (b.start_year, -b.duration))
+
+        # Sort monthly blocks by date
+        monthly_blocks.sort(key=lambda b: (b.year, b.month))
+
+        # Add blocks in the correct order
+        final_blocks.extend(multi_year_blocks)  # Multi-year blocks first
+        final_blocks.extend(monthly_blocks)  # Then monthly blocks
+
+        # Finally, add 48-hour sections in their original order from each file
         for sec in file1_sections:
             final_blocks.extend(sec)
         for sec in file2_sections:
@@ -407,7 +451,7 @@ class WeftFile:
         return cls(
             preamble=new_preamble,
             blocks=final_blocks,
-            value_behavior=file1.value_behavior  # same as file2 by previous checks
+            value_behavior=file1.value_behavior,  # same as file2 by previous checks
         )
 
 

@@ -113,7 +113,7 @@ def generate_weft_files(planet, temp_dir):
 
             # Print the command
             print(f"Running command: {' '.join(cmd)}")
-            
+
             # Log the command at debug level
             logger.debug(f"Running: {' '.join(cmd)}")
 
@@ -177,7 +177,7 @@ def combine_weft_files(planet, temp_dir, generated_files):
 
         # Print the command
         print(f"Running command: {' '.join(cmd)}")
-        
+
         # Log the command at debug level
         logger.debug(f"Running initial combine: {' '.join(cmd)}")
 
@@ -205,7 +205,7 @@ def combine_weft_files(planet, temp_dir, generated_files):
 
                 # Print the command
                 print(f"Running command: {' '.join(cmd)}")
-                
+
                 logger.debug(f"Running additional combine: {' '.join(cmd)}")
                 subprocess.run(cmd, check=True, capture_output=False, text=True)
 
