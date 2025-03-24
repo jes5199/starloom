@@ -16,7 +16,7 @@ class HorizonsRequest:
     """A request to the JPL Horizons API."""
 
     CACHE_DIR = Path("data/http_cache")
-    MAX_CACHE_ENTRIES = 100
+    MAX_CACHE_ENTRIES = 256
 
     def __init__(
         self,

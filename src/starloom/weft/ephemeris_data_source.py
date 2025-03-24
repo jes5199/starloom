@@ -12,7 +12,7 @@ from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris import Quantity
 
 if TYPE_CHECKING:
-    from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
+    from ..horizons.quantities import EphemerisQuantity
     from ..horizons.parsers import OrbitalElementsQuantity
 from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import datetime_from_julian
