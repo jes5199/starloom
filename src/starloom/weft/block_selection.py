@@ -221,11 +221,11 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
     config = {
         "multi_year": {
             "enabled": False,
-            "polynomial_degree": 127,  # 128 coefficients
+            "polynomial_degree": 511,  # 512 coefficients
         },
         "monthly": {
             "enabled": False,
-            "polynomial_degree": 47,  # 48 coefficients
+            "polynomial_degree": 63,  # 64 coefficients
         },
         "forty_eight_hour": {
             "enabled": False,
