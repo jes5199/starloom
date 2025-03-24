@@ -82,6 +82,8 @@ class WeftWriter:
         Returns:
             A RangedBehavior or UnboundedBehavior instance depending on the quantity
         """
+        from ..horizons.quantities import EphemerisQuantity
+
         if self.wrapping_behavior == "wrapping":
             if self.quantity == EphemerisQuantity.RIGHT_ASCENSION:
                 # Right ascension is in hours [0, 24)

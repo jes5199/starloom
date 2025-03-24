@@ -75,7 +75,7 @@ class EphemerisDataSource:
         else:
             self.step_hours = float(step_hours)
 
-        from ..horizons.quantities import EphemerisQuantity
+        from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
 
         # Convert EphemerisQuantity to Quantity for data access
         if isinstance(quantity, EphemerisQuantity):
