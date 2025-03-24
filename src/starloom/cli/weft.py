@@ -441,6 +441,15 @@ def lookup_all(file_path: str, dates: tuple[str, ...]) -> None:
                     range_size = max_val - min_val
                 
                 for block_type, value in values:
+                    if "multi-year" in block_type.lower():
+                        # Extract duration from block type string (e.g., "Multi-year block (2000-2009)" -> 10 years)
+                        try:
+                            years = block_type.split("(")[1].split(")")[0].split("-")
+                            duration = int(years[1]) - int(years[0]) + 1
+                            block_type = f"{block_type} ({duration} years)"
+                        except:
+                            pass
+                            
                     if is_angle:
                         # Show both wrapped and normalized values
                         click.echo(f"  {block_type}:")

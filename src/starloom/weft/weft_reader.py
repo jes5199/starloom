@@ -250,17 +250,20 @@ class WeftReader:
                 if len(blocks) > 1:
                     # If we have multiple blocks in the same section, interpolate
                     value = self._interpolate_blocks(blocks, dt)
-                    results.append(("48h_interpolated", value))
+                    block_type = f"48h interpolated ({blocks[0].header.start_day} to {blocks[-1].header.end_day})"
+                    results.append((block_type, value))
                 else:
                     # Otherwise, just use the single block's value
                     value = blocks[0].evaluate(dt)
-                    results.append(("48h", value))
+                    block_type = f"48h ({blocks[0].header.start_day} to {blocks[0].header.end_day})"
+                    results.append((block_type, value))
 
         # Process monthly blocks
         monthly_blocks = [b for b in relevant_blocks if isinstance(b, MonthlyBlock)]
         for block in monthly_blocks:
             value = block.evaluate(dt)
-            results.append(("monthly", value))
+            block_type = f"Monthly block ({block.year}-{block.month:02d})"
+            results.append((block_type, value))
 
         # Process multi-year blocks
         multi_year_blocks = [
@@ -268,7 +271,8 @@ class WeftReader:
         ]
         for block in multi_year_blocks:
             value = block.evaluate(dt)
-            results.append(("multi_year", value))
+            block_type = f"Multi-year block ({block.start_year}-{block.start_year + block.duration - 1})"
+            results.append((block_type, value))
 
         # Apply value behavior to all results
         return [(block_type, self.apply_value_behavior(value)) for block_type, value in results]
