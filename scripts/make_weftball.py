@@ -297,6 +297,7 @@ def main():
     temp_dir = create_temp_dir(planet)
     logger.info(f"Using temporary directory: {temp_dir}")
 
+    success = False
     try:
         # Generate the weft files
         generated_files = generate_weft_files(planet, temp_dir)
@@ -309,12 +310,13 @@ def main():
 
         if tarball:
             logger.info(f"Successfully created {tarball}")
+            success = True
         else:
             logger.error("Failed to create tarball")
             return 1
     finally:
-        # Clean up
-        if not args.no_cleanup:
+        # Clean up only if successful and --no-cleanup was not specified
+        if success and not args.no_cleanup:
             cleanup(temp_dir)
         else:
             logger.info(f"Temporary files kept at {temp_dir}")
