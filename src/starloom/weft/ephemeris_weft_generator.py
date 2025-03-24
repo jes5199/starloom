@@ -105,6 +105,7 @@ def generate_weft_file(
         raise ValueError(f"Unsupported quantity: {quantity}")
 
     from starloom.horizons.ephemeris import HorizonsEphemeris
+
     # Create or use provided ephemeris client
     if ephemeris is None:
         ephemeris = HorizonsEphemeris()

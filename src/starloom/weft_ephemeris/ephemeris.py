@@ -189,7 +189,7 @@ class WeftEphemeris(Ephemeris):
             # First try .tar.gz
             tar_gz_path = os.path.join(self.data_dir, f"{planet}_weftball.tar.gz")
             tar_path = os.path.join(self.data_dir, f"{planet}_weftball.tar")
-            
+
             if os.path.exists(tar_gz_path):
                 weftball_path = tar_gz_path
             elif os.path.exists(tar_path):

@@ -183,6 +183,7 @@ def generate(
         ephemeris_quantity = None
 
         from starloom.horizons.quantities import EphemerisQuantity
+
         if quantity == "latitude":
             ephemeris_quantity = EphemerisQuantity.ECLIPTIC_LATITUDE
         elif quantity == "longitude":

@@ -77,6 +77,7 @@ class HorizonsRequestVectorQuantities(Enum):
     """
     Quantities for vector ephemeris requests to Horizons API
     """
+
     STATE_VECTOR = 1
     POSITION_ONLY = 2
     VELOCITY_ONLY = 3
@@ -91,6 +92,7 @@ class HorizonsRequestElementsQuantities(Enum):
     """
     Quantities for orbital elements requests to Horizons API
     """
+
     BASIC_ELEMENTS = 1
     ADDITIONAL_PARAMETERS = 2
     OSCULATING_ELEMENTS = 3

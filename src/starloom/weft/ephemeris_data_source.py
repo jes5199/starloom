@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, List, Tuple, Optional, Union, Dict, Any, cast
 
 from ..ephemeris.ephemeris import Ephemeris
 from ..ephemeris import Quantity
+
 if TYPE_CHECKING:
     from ..horizons.quantities import EphemerisQuantity, EphemerisQuantityToQuantity
     from ..horizons.parsers import OrbitalElementsQuantity
@@ -75,6 +76,7 @@ class EphemerisDataSource:
             self.step_hours = float(step_hours)
 
         from ..horizons.quantities import EphemerisQuantity
+
         # Convert EphemerisQuantity to Quantity for data access
         if isinstance(quantity, EphemerisQuantity):
             self.standard_quantity = EphemerisQuantityToQuantity[quantity]

@@ -4,6 +4,7 @@ import click
 from datetime import datetime, timezone
 from typing import Optional, cast, Union
 
+
 def parse_date_input(date_str: str) -> Union[datetime, float]:
     """Parse date input in various formats.
 
@@ -97,9 +98,8 @@ def ecliptic(
     from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
     from ..horizons.request import HorizonsRequest
     from ..horizons.time_spec import TimeSpec
-    from ..horizons.ephem_type import EphemType
     from ..horizons.location import Location
-    
+
     # Convert planet name to enum
     try:
         planet_enum = Planet[planet.upper()]
@@ -224,7 +224,7 @@ def elements(
     from ..horizons.request import HorizonsRequest
     from ..horizons.time_spec import TimeSpec
     from ..horizons.ephem_type import EphemType
-    
+
     # Convert planet name to enum
     try:
         planet_enum = Planet[planet.upper()]

@@ -104,4 +104,4 @@ class Planet(Enum):
     OKYRHOE = "52872;"
     HYLONOME = "10370;"
     BIENOR = "54598;"
-    ECHECLUS = "60558;" 
+    ECHECLUS = "60558;"

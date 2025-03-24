@@ -40,4 +40,6 @@ class Location:
 
 
 # Default geocentric location
-default_location = Location(latitude=0.0, longitude=0.0, elevation=0.0, name="Geocentric")
+default_location = Location(
+    latitude=0.0, longitude=0.0, elevation=0.0, name="Geocentric"
+)

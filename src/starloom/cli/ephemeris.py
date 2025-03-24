@@ -22,24 +22,36 @@ class EphemerisProtocol(Protocol):
 def get_ephemeris_factory(source: str) -> Callable[[Optional[str]], EphemerisProtocol]:
     """Get factory function for the requested ephemeris source."""
     if source == "sqlite":
+
         def factory(data_dir: Optional[str] = None) -> EphemerisProtocol:
             from ..local_horizons.ephemeris import LocalHorizonsEphemeris
+
             return LocalHorizonsEphemeris(data_dir=data_dir)
+
         return factory
     elif source == "cached_horizons":
+
         def factory(data_dir: Optional[str] = None) -> EphemerisProtocol:
             from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
+
             return CachedHorizonsEphemeris(data_dir=data_dir)
+
         return factory
     elif source == "weft":
+
         def factory(data_dir: Optional[str] = None) -> EphemerisProtocol:
             from ..weft_ephemeris.ephemeris import WeftEphemeris
+
             return WeftEphemeris(data_dir=data_dir)
+
         return factory
     elif source == "horizons":
+
         def factory(data_dir: Optional[str] = None) -> EphemerisProtocol:
             from ..horizons.ephemeris import HorizonsEphemeris
+
             return HorizonsEphemeris()
+
         return factory
     else:
         raise ValueError(f"Unknown ephemeris source: {source}")
