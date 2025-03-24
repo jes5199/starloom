@@ -265,10 +265,6 @@ class WeftFile:
                 raise ValueError(
                     f"Files are for different planets: {parts1[2]} vs {parts2[2]}"
                 )
-            elif parts1[3] != parts2[3]:
-                raise ValueError(
-                    f"Files use different data sources: {parts1[3]} vs {parts2[3]}"
-                )
             elif parts1[5] != parts2[5]:
                 raise ValueError(
                     f"Files have different precision specifications: {parts1[5]} vs {parts2[5]}"
