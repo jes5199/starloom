@@ -2,7 +2,7 @@
 Weft-based ephemeris implementation.
 
 This module provides an implementation of the Ephemeris interface
-that reads position data from weftball archives (tar.gz files).
+that reads position data from weftball archives (tar.gz or tar files).
 """
 
 import os
@@ -20,7 +20,7 @@ class WeftEphemeris(Ephemeris):
     """
     Implements the Ephemeris interface using weftball archives.
 
-    This class reads weft files from a tar.gz archive (weftball) without
+    This class reads weft files from a tar.gz or tar archive (weftball) without
     extracting them to disk, and provides ephemeris data from them.
     """
 
@@ -184,15 +184,26 @@ class WeftEphemeris(Ephemeris):
 
         # Check if data_dir is a directory or a specific file
         weftball_path = self.data_dir
-        if not weftball_path.endswith(".tar.gz"):
+        if not (weftball_path.endswith(".tar.gz") or weftball_path.endswith(".tar")):
             # Assume it's a directory containing a weftball for this planet
-            weftball_path = os.path.join(self.data_dir, f"{planet}_weftball.tar.gz")
+            # First try .tar.gz
+            tar_gz_path = os.path.join(self.data_dir, f"{planet}_weftball.tar.gz")
+            tar_path = os.path.join(self.data_dir, f"{planet}_weftball.tar")
+            
+            if os.path.exists(tar_gz_path):
+                weftball_path = tar_gz_path
+            elif os.path.exists(tar_path):
+                weftball_path = tar_path
+            else:
+                raise FileNotFoundError(
+                    f"Weftball not found: neither {tar_gz_path} nor {tar_path} exists"
+                )
 
         if not os.path.exists(weftball_path):
             raise FileNotFoundError(f"Weftball not found: {weftball_path}")
 
-        # Open the tar.gz file
-        with tarfile.open(weftball_path, "r:gz") as tar:
+        # Open the tar file (auto-detect format)
+        with tarfile.open(weftball_path, "r") as tar:
             # Expected filenames within the archive
             expected_files = [
                 f"{planet}_longitude.weft",

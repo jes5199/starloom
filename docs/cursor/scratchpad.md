@@ -319,3 +319,32 @@ Future improvements could include:
 - Caching frequently accessed blocks
 - File format modifications to better support random access
 - Adding timestamp-based index to the file format for even faster lookups
+
+# Support for Non-Zipped Tar Files in WeftEphemeris
+
+## Task
+Modify the WeftEphemeris class to accept non-zipped tar files (.tar) in addition to existing support for zipped tar files (.tar.gz).
+
+## Goal
+Enable the ephemeris to read from both compressed (.tar.gz) and uncompressed (.tar) tar archives.
+
+## TODOs
+[X] Identify code that currently handles tar.gz files
+[X] Update file path logic to handle .tar extension
+[X] Modify tarfile.open() calls to detect file type automatically
+[X] Update docstrings to reflect new supported format
+[ ] Test with both .tar and .tar.gz files
+
+## Implementation Plan
+1. Update file path checking in _ensure_planet_readers to check for both .tar.gz and .tar extensions
+2. Use tarfile.open() with appropriate mode for each file type
+3. Update docstrings to mention both formats
+4. Make sure error messages reflect support for both formats
+
+## Implementation Details
+- The following changes were made:
+  - Updated docstrings to mention support for both .tar.gz and .tar files
+  - Modified file path checking to look for both .tar.gz and .tar extensions
+  - Changed tarfile.open() to use auto-detection mode ("r") instead of specific mode ("r:gz")
+  - Improved error messages to mention both supported formats
+  - When checking directories, the code now tries .tar.gz first, then falls back to .tar if needed

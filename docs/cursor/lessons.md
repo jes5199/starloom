@@ -50,6 +50,30 @@ When fixing the failing tests in the weft module, we discovered several importan
    - Handle naming conventions more flexibly rather than assuming exact filenames
    - Normalize angle values (longitude) to ensure consistent ranges
 
+## Supporting Multiple Archive Formats in WeftEphemeris
+
+When working with archive files (.tar.gz and .tar):
+
+1. The `tarfile` module in Python supports handling both compressed and uncompressed tar archives:
+   - Use `tarfile.open(file, "r:gz")` for specifically working with gzipped archives
+   - Use `tarfile.open(file, "r")` for auto-detection of the archive format
+   - Auto-detection mode is more flexible and can handle both .tar and .tar.gz files
+
+2. When modifying file path handling:
+   - Check for multiple file extensions, e.g., `if file.endswith(".tar.gz") or file.endswith(".tar")`
+   - Provide clear error messages that mention all supported formats
+   - Use a priority order when searching for files (e.g., try .tar.gz first, then .tar)
+
+3. For backward compatibility:
+   - Keep the existing API unchanged
+   - Add support for new formats while maintaining support for old ones
+   - Update docstrings to reflect the expanded capabilities
+
+4. When looking for files in a directory:
+   - Try each supported format in order of preference
+   - Provide a clear error message when none of the formats are found
+   - Combine error messages to include all attempted paths
+
 # Lessons Learned
 
 ## Project Structure
