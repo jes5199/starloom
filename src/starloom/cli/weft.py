@@ -282,7 +282,7 @@ def info(file_path: str) -> None:
         logger.debug(f"Block counts: {block_counts}")
         print(block_counts)
 
-        # Display block details
+        # Display block details and validate 48-hour sections
         for block in weft_file.blocks:
             if isinstance(block, MultiYearBlock):
                 block_info = f"Multi-year block: {block.start_year} +{block.duration} ({len(block.coeffs)} coefficients)"
@@ -300,6 +300,13 @@ def info(file_path: str) -> None:
                 # For info command, load and display the section blocks
                 try:
                     section_blocks = weft_file.get_blocks_in_section(block)
+                    actual_block_count = len(section_blocks)
+                    
+                    # Validate block count
+                    if actual_block_count != block.block_count:
+                        print(f"  WARNING: Section has incorrect number of blocks!")
+                        print(f"  Expected: {block.block_count}, Found: {actual_block_count}")
+                    
                     for i, section_block in enumerate(section_blocks):
                         if (
                             i < 2 or i >= len(section_blocks) - 2
