@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, time, date
 from typing import Dict, List, Tuple, Optional, Union, cast
+import time
 from .weft_file import (
     WeftFile,
     MultiYearBlock,
@@ -47,9 +48,21 @@ class WeftReader:
         Returns:
             The loaded WeftFile instance
         """
+        start_time = time.time()
         with open(file_path, "rb") as f:
             data = f.read()
+        read_time = time.time()
+        
         self.file = WeftFile.from_bytes(data)
+        parse_time = time.time()
+        
+        if self.file is not None:
+            self.file.logger.info(
+                f"File load timing: {read_time - start_time:.3f}s to read, "
+                f"{parse_time - read_time:.3f}s to parse, "
+                f"total {parse_time - start_time:.3f}s"
+            )
+        
         return self.file
 
     def get_info(self) -> dict[str, Union[str, list[BlockType], int]]:
