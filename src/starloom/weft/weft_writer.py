@@ -377,6 +377,9 @@ class WeftWriter:
 
             # Only include if the month meets the criteria
             if should_include_monthly_block(data_source, year, month):
+                # TODO: It's error-prone that the start/end to _generate_chebyshev_coefficients
+                # are not the same logic as evaluate on the block class
+                # we should unify these
                 coeffs_list = self._generate_chebyshev_coefficients(
                     data_source, month_start, next_month, degree
                 )
