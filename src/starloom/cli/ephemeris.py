@@ -2,17 +2,13 @@
 
 import click
 from datetime import datetime, timezone
-from typing import Optional, Union, Dict, Type, cast, Protocol, Any
+from typing import Optional, Union, Dict, Type, cast, Protocol, Any, Callable
 
-from ..horizons.ephemeris import HorizonsEphemeris
-from ..horizons.planet import Planet
 from ..ephemeris.quantities import Quantity
 from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance
-from ..local_horizons.ephemeris import LocalHorizonsEphemeris
-from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
-from ..weft_ephemeris.ephemeris import WeftEphemeris
 from ..ephemeris.time_spec import TimeSpec
 from ..space_time.julian import julian_to_datetime
+from ..horizons.planet import Planet
 
 
 class EphemerisProtocol(Protocol):
@@ -22,13 +18,35 @@ class EphemerisProtocol(Protocol):
     ) -> Dict[float, Dict[str, float]]: ...
 
 
-# Define available ephemeris sources
-EPHEMERIS_SOURCES: Dict[str, Type[EphemerisProtocol]] = {
-    "sqlite": LocalHorizonsEphemeris,
-    "cached_horizons": CachedHorizonsEphemeris,
-    "weft": WeftEphemeris,
-    "horizons": HorizonsEphemeris,
-}
+# Define factory functions for lazy loading ephemeris implementations
+def get_ephemeris_factory(source: str) -> Callable[[Optional[str]], EphemerisProtocol]:
+    """Get factory function for the requested ephemeris source."""
+    if source == "sqlite":
+        def factory(data_dir: Optional[str] = None) -> EphemerisProtocol:
+            from ..local_horizons.ephemeris import LocalHorizonsEphemeris
+            return LocalHorizonsEphemeris(data_dir=data_dir)
+        return factory
+    elif source == "cached_horizons":
+        def factory(data_dir: Optional[str] = None) -> EphemerisProtocol:
+            from ..cached_horizons.ephemeris import CachedHorizonsEphemeris
+            return CachedHorizonsEphemeris(data_dir=data_dir)
+        return factory
+    elif source == "weft":
+        def factory(data_dir: Optional[str] = None) -> EphemerisProtocol:
+            from ..weft_ephemeris.ephemeris import WeftEphemeris
+            return WeftEphemeris(data_dir=data_dir)
+        return factory
+    elif source == "horizons":
+        def factory(data_dir: Optional[str] = None) -> EphemerisProtocol:
+            from ..horizons.ephemeris import HorizonsEphemeris
+            return HorizonsEphemeris()
+        return factory
+    else:
+        raise ValueError(f"Unknown ephemeris source: {source}")
+
+
+# Available ephemeris sources
+EPHEMERIS_SOURCES = ["sqlite", "cached_horizons", "weft", "horizons"]
 
 # Default ephemeris source
 DEFAULT_SOURCE = "horizons"
@@ -90,7 +108,7 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
 )
 @click.option(
     "--source",
-    type=click.Choice(list(EPHEMERIS_SOURCES.keys())),
+    type=click.Choice(EPHEMERIS_SOURCES),
     default=DEFAULT_SOURCE,
     help=f"Ephemeris data source to use. Defaults to {DEFAULT_SOURCE}.",
 )
@@ -163,18 +181,11 @@ def ephemeris(
                 "Must specify either --date or all of --start, --stop, and --step"
             )
 
-    # Create appropriate ephemeris instance based on source
-    ephemeris_class = EPHEMERIS_SOURCES.get(source)
-    if not ephemeris_class:
-        raise click.BadParameter(f"Invalid source: {source}")
-
-    # Create instance based on class type
-    if source in ("sqlite", "cached_horizons", "weft"):
-        ephemeris_instance = ephemeris_class(data_dir=data)
-    else:
-        ephemeris_instance = ephemeris_class()
-
     try:
+        # Create appropriate ephemeris instance based on source
+        factory = get_ephemeris_factory(source)
+        ephemeris_instance = factory(data_dir=data)
+
         # Get positions for all requested times
         results = ephemeris_instance.get_planet_positions(planet_enum.name, time_spec)
 
