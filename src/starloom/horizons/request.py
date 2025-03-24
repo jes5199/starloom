@@ -2,22 +2,14 @@ from typing import Dict, Optional, Union, List
 from urllib.parse import urlencode
 import hashlib
 from pathlib import Path
-import logging
-import re
 import requests
-from datetime import datetime
 
 from ..planet import Planet
 from .quantities import Quantities
-from .location import Location, default_location
+from .location import Location
 from .time_spec import TimeSpec
 from .time_spec_param import HorizonsTimeSpecParam
 from .ephem_type import EphemType
-from .quantities import (
-    HorizonsRequestObserverQuantities,
-    HorizonsRequestVectorQuantities,
-    HorizonsRequestElementsQuantities,
-)
 
 
 class HorizonsRequest:

@@ -2,7 +2,7 @@
 
 import click
 from datetime import datetime, timezone
-from typing import Optional, Union, Dict, Type, cast, Protocol, Any, Callable
+from typing import Optional, Union, Dict, cast, Protocol, Any, Callable
 
 from ..ephemeris.quantities import Quantity
 from ..ephemeris.util import get_zodiac_sign, format_latitude, format_distance

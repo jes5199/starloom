@@ -4,14 +4,6 @@ import click
 from datetime import datetime, timezone
 from typing import Optional, cast, Union
 
-from ..planet import Planet
-from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
-from ..horizons.request import HorizonsRequest
-from ..horizons.time_spec import TimeSpec
-from ..horizons.ephem_type import EphemType
-from ..horizons.location import Location
-
-
 def parse_date_input(date_str: str) -> Union[datetime, float]:
     """Parse date input in various formats.
 
@@ -100,6 +92,14 @@ def ecliptic(
     Multiple time points or range query:
        starloom horizons ecliptic venus --start 2025-03-19T20:00:00 --stop 2025-03-19T22:00:00 --step 1h
     """
+    # Import here to avoid loading dependencies unless this command is called
+    from ..planet import Planet
+    from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
+    from ..horizons.request import HorizonsRequest
+    from ..horizons.time_spec import TimeSpec
+    from ..horizons.ephem_type import EphemType
+    from ..horizons.location import Location
+    
     # Convert planet name to enum
     try:
         planet_enum = Planet[planet.upper()]
@@ -218,6 +218,13 @@ def elements(
     Multiple time points or range query:
        starloom horizons elements mars --start 2025-03-19T20:00:00 --stop 2025-03-19T22:00:00 --step 1h
     """
+    # Import here to avoid loading dependencies unless this command is called
+    from ..planet import Planet
+    from ..horizons.quantities import Quantities, HorizonsRequestObserverQuantities
+    from ..horizons.request import HorizonsRequest
+    from ..horizons.time_spec import TimeSpec
+    from ..horizons.ephem_type import EphemType
+    
     # Convert planet name to enum
     try:
         planet_enum = Planet[planet.upper()]

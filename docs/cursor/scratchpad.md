@@ -381,3 +381,30 @@ Restructure the code to access Planet enum directly from starloom module rather 
 1. Missing `default_location` in location.py - Added the variable definition
 2. Missing `HorizonsRequestVectorQuantities` and `HorizonsRequestElementsQuantities` enums - Added them as placeholders
 3. Confirmed backward compatibility works with the deprecation warning
+
+# Move Additional Modules from horizons to starloom
+
+## Task
+Move additional core modules from the horizons subdirectory to the main starloom module:
+- starloom.horizons.quantities → starloom.quantities
+- starloom.horizons.location → starloom.location
+- starloom.horizons.time_spec → starloom.time_spec
+
+## Goal
+Move core astronomy concepts and data structures to the main package level for better organization and easier access.
+
+## TODOs
+[ ] Create new files in the starloom module:
+  [ ] quantities.py
+  [ ] location.py
+  [ ] time_spec.py
+[ ] Copy the implementations from horizons subdirectory
+[ ] Update imports in all affected files
+[ ] Add backward compatibility in original locations
+[ ] Test the changes
+
+## Implementation Plan
+1. Create src/starloom/quantities.py, location.py, and time_spec.py
+2. Update all import references across the codebase
+3. Add deprecation warnings and re-exports in the original locations
+4. Test the changes to ensure everything still works
