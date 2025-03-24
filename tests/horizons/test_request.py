@@ -97,7 +97,8 @@ def test_request_url_generation():
 
 
 @patch("requests.get")
-def test_request_making(mock_get):
+@patch.object(HorizonsRequest, "_get_cached_response", return_value=None)
+def test_request_making(mock_get_cached, mock_get):
     """Test making requests."""
     # Mock successful response
     mock_response = MagicMock()
