@@ -232,47 +232,21 @@ class WeftReader:
         relevant_blocks = self.file.get_blocks_for_datetime(dt)
         results = []
 
-        # Process forty-eight hour blocks
-        forty_eight_hour_blocks = [
-            b for b in relevant_blocks if isinstance(b, FortyEightHourBlock)
-        ]
-        if forty_eight_hour_blocks:
-            # Group blocks by their header
-            blocks_by_header: Dict[Tuple[date, date], List[FortyEightHourBlock]] = {}
-            for block in forty_eight_hour_blocks:
-                header_key = (block.header.start_day, block.header.end_day)
-                if header_key not in blocks_by_header:
-                    blocks_by_header[header_key] = []
-                blocks_by_header[header_key].append(block)
-
-            # Process each section
-            for blocks in blocks_by_header.values():
-                if len(blocks) > 1:
-                    # If we have multiple blocks in the same section, interpolate
-                    value = self._interpolate_blocks(blocks, dt)
-                    block_type = f"48h interpolated ({blocks[0].header.start_day} to {blocks[-1].header.end_day})"
-                    results.append((block_type, value))
-                else:
-                    # Otherwise, just use the single block's value
-                    value = blocks[0].evaluate(dt)
-                    block_type = f"48h ({blocks[0].header.start_day} to {blocks[0].header.end_day})"
-                    results.append((block_type, value))
-
-        # Process monthly blocks
-        monthly_blocks = [b for b in relevant_blocks if isinstance(b, MonthlyBlock)]
-        for block in monthly_blocks:
-            value = block.evaluate(dt)
-            block_type = f"Monthly block ({block.year}-{block.month:02d})"
-            results.append((block_type, value))
-
-        # Process multi-year blocks
-        multi_year_blocks = [
-            b for b in relevant_blocks if isinstance(b, MultiYearBlock)
-        ]
-        for block in multi_year_blocks:
-            value = block.evaluate(dt)
-            block_type = f"Multi-year block ({block.start_year}-{block.start_year + block.duration - 1})"
-            results.append((block_type, value))
+        # Process blocks in the order they appear in the file
+        for block in relevant_blocks:
+            if isinstance(block, FortyEightHourBlock):
+                # For 48-hour blocks, we need to handle interpolation if multiple blocks are in the same section
+                value = block.evaluate(dt)
+                block_type = f"48h {block.center_date} (within {block.header.start_day} to {block.header.end_day})"
+                results.append((block_type, value))
+            elif isinstance(block, MonthlyBlock):
+                value = block.evaluate(dt)
+                block_type = f"Monthly block ({block.year}-{block.month:02d})"
+                results.append((block_type, value))
+            elif isinstance(block, MultiYearBlock):
+                value = block.evaluate(dt)
+                block_type = f"Multi-year block ({block.start_year}-{block.start_year + block.duration - 1})"
+                results.append((block_type, value))
 
         # Apply value behavior to all results
         return [

@@ -221,7 +221,7 @@ def get_recommended_blocks(data_source: Any) -> Dict[str, Dict[str, Any]]:
     config = {
         "multi_year": {
             "enabled": False,
-            "polynomial_degree": 511,  # 512 coefficients
+            "polynomial_degree": 255,  # 256 coefficients
         },
         "monthly": {
             "enabled": False,
