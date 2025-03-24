@@ -33,24 +33,24 @@ QUANTITIES = ["longitude", "distance", "latitude"]
 DECADES = [
     ("1899-12-31", "1910-01-02"),
     ("1909-12-31", "1920-01-02"),
-    ("1919-12-31", "1930-01-02"),
-    ("1929-12-31", "1940-01-02"),
-    ("1939-12-31", "1950-01-02"),
-    ("1949-12-31", "1960-01-02"),
-    ("1959-12-31", "1970-01-02"),
-    ("1969-12-31", "1980-01-02"),
-    ("1979-12-31", "1990-01-02"),
-    ("1989-12-31", "2000-01-02"),
-    ("1999-12-31", "2010-01-02"),
-    ("2009-12-31", "2020-01-02"),
-    ("2019-12-31", "2030-01-02"),
-    ("2029-12-31", "2040-01-02"),
-    ("2039-12-31", "2050-01-02"),
-    ("2049-12-31", "2060-01-02"),
-    ("2059-12-31", "2070-01-02"),
-    ("2069-12-31", "2080-01-02"),
-    ("2079-12-31", "2090-01-02"),
-    ("2089-12-31", "2100-01-02"),
+    # ("1919-12-31", "1930-01-02"),
+    # ("1929-12-31", "1940-01-02"),
+    # ("1939-12-31", "1950-01-02"),
+    # ("1949-12-31", "1960-01-02"),
+    # ("1959-12-31", "1970-01-02"),
+    # ("1969-12-31", "1980-01-02"),
+    # ("1979-12-31", "1990-01-02"),
+    # ("1989-12-31", "2000-01-02"),
+    # ("1999-12-31", "2010-01-02"),
+    # ("2009-12-31", "2020-01-02"),
+    # ("2019-12-31", "2030-01-02"),
+    # ("2029-12-31", "2040-01-02"),
+    # ("2039-12-31", "2050-01-02"),
+    # ("2049-12-31", "2060-01-02"),
+    # ("2059-12-31", "2070-01-02"),
+    # ("2069-12-31", "2080-01-02"),
+    # ("2079-12-31", "2090-01-02"),
+    # ("2089-12-31", "2100-01-02"),
 ]
 
 
@@ -111,6 +111,9 @@ def generate_weft_files(planet, temp_dir):
                 decade_file,
             ]
 
+            # Print the command
+            print(f"Running command: {' '.join(cmd)}")
+            
             # Log the command at debug level
             logger.debug(f"Running: {' '.join(cmd)}")
 
@@ -141,7 +144,7 @@ def combine_weft_files(planet, temp_dir, generated_files):
     """
     combined_files = {}
 
-    for quantity in QUANTITIES():
+    for quantity in QUANTITIES:
         decade_files = generated_files.get(quantity, [])
         if not decade_files:
             logger.warning(f"No files found for {quantity}, skipping")
@@ -172,6 +175,9 @@ def combine_weft_files(planet, temp_dir, generated_files):
             "1900-2100",  # Use a wide timespan for combined file
         ]
 
+        # Print the command
+        print(f"Running command: {' '.join(cmd)}")
+        
         # Log the command at debug level
         logger.debug(f"Running initial combine: {' '.join(cmd)}")
 
@@ -197,6 +203,9 @@ def combine_weft_files(planet, temp_dir, generated_files):
                     "1900-2100",  # Use a wide timespan for combined file
                 ]
 
+                # Print the command
+                print(f"Running command: {' '.join(cmd)}")
+                
                 logger.debug(f"Running additional combine: {' '.join(cmd)}")
                 subprocess.run(cmd, check=True, capture_output=False, text=True)
 
