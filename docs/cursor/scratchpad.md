@@ -255,7 +255,8 @@ Implement URL caching for Horizons API requests to avoid redundant API calls.
 
 ## Notes
 - CLI entry point is configured in pyproject.toml as `starloom = "starloom.cli:cli"`
-- Typer instance in cli.py must match this name (changed from `app` to `cli`)
+- Removed unused Typer-based CLI implementation (cli.py)
+- Actual CLI implementation is in cli/__init__.py using Click
 - Added profiling wrapper in profile.py
 
 ## Profiling Options
@@ -271,6 +272,7 @@ Implement URL caching for Horizons API requests to avoid redundant API calls.
 
 ## Completed
 [X] Fixed CLI entry point naming
+[X] Removed unused Typer-based CLI implementation
 [X] Created profiling wrapper
 [X] Documented profiling options
 
