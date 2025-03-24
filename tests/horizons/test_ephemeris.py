@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import os
 
 from starloom.horizons.ephemeris import HorizonsEphemeris
-from starloom.horizons.planet import Planet
+from starloom.planet import Planet
 from starloom.horizons.location import Location
 from starloom.horizons.quantities import EphemerisQuantity
 from starloom.ephemeris import Quantity
