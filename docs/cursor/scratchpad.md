@@ -250,3 +250,30 @@ Implement URL caching for Horizons API requests to avoid redundant API calls.
 
 ## Status
 ✅ All tasks completed. The caching system is now implemented and ready to use.
+
+# Current Task: CLI Entry Point and Profiling Setup
+
+## Notes
+- CLI entry point is configured in pyproject.toml as `starloom = "starloom.cli:cli"`
+- Typer instance in cli.py must match this name (changed from `app` to `cli`)
+- Added profiling wrapper in profile.py
+
+## Profiling Options
+1. Direct cProfile:
+   ```bash
+   python -m cProfile -o profile.stats $(which starloom) [args]
+   ```
+
+2. Using wrapper:
+   ```bash
+   python -m starloom.profile [args]
+   ```
+
+## Completed
+[X] Fixed CLI entry point naming
+[X] Created profiling wrapper
+[X] Documented profiling options
+
+## Next Steps
+[ ] Test profiling with actual commands
+[ ] Consider adding more detailed profiling options (e.g., line-by-line profiling)
