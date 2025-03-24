@@ -1,5 +1,4 @@
 from typing import Dict, Optional, Union, List
-import requests
 from urllib.parse import urlencode
 import hashlib
 from pathlib import Path
@@ -209,6 +208,9 @@ class HorizonsRequest:
         cached_response = self._get_cached_response(url)
         if cached_response is not None:
             return cached_response
+
+        # lazy import requests library
+        import requests
 
         # If not in cache, make the request
         response = requests.get(url)
