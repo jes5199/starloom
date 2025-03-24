@@ -22,7 +22,6 @@ from ..weft import WeftReader
 from ..weft.weft_file import (
     MultiYearBlock,
     MonthlyBlock,
-    FortyEightHourBlock,
 )
 from . import common
 from ..weft.logging import get_logger
@@ -270,9 +269,11 @@ def info(file_path: str) -> None:
         forty_eight_hour_headers = [
             b for b in weft_file.blocks if isinstance(b, FortyEightHourSectionHeader)
         ]
-        
+
         # Calculate total 48-hour blocks from headers
-        total_48h_blocks = sum(header.block_count for header in forty_eight_hour_headers)
+        total_48h_blocks = sum(
+            header.block_count for header in forty_eight_hour_headers
+        )
 
         block_counts = f"{len(weft_file.blocks) + total_48h_blocks - len(forty_eight_hour_headers)} blocks ({len(multi_year_blocks)} large, {len(monthly_blocks)} monthly, {total_48h_blocks} days)"
         logger.debug(f"Block counts: {block_counts}")
@@ -289,17 +290,17 @@ def info(file_path: str) -> None:
                 logger.debug(f"Block info: {block_info}")
                 print(block_info)
             elif isinstance(block, FortyEightHourSectionHeader):
-                block_info = (
-                    f"48-hour section header: {block.start_day} to {block.end_day} ({block.block_count} blocks)"
-                )
+                block_info = f"48-hour section header: {block.start_day} to {block.end_day} ({block.block_count} blocks)"
                 logger.debug(f"Block info: {block_info}")
                 print(block_info)
-                
+
                 # For info command, load and display the section blocks
                 try:
                     section_blocks = weft_file.get_blocks_in_section(block)
                     for i, section_block in enumerate(section_blocks):
-                        if i < 2 or i >= len(section_blocks) - 2:  # Show first 2 and last 2 blocks
+                        if (
+                            i < 2 or i >= len(section_blocks) - 2
+                        ):  # Show first 2 and last 2 blocks
                             block_info = f"  48-hour block: {section_block.center_date} ({len(section_block.coefficients)} coefficients)"
                             logger.debug(f"Block info: {block_info}")
                             print(block_info)
@@ -333,20 +334,20 @@ def lookup(file_path: str, date: str) -> None:
 
         # Show information about parsing
         print(f"Looking up value for {dt} using lazy loading...")
-        
+
         start_time = time.time()
-        
+
         # Read the file
         reader = WeftReader()
         reader.load_file(file_path)
-        
+
         load_time = time.time()
         print(f"File loaded in {load_time - start_time:.3f}s (lazy loading enabled)")
 
         # Look up the value
         value = reader.get_value(dt)
         lookup_time = time.time()
-        
+
         # Display the value
         logger.debug(f"Found value: {value}")
         click.echo(f"Date: {dt}")
@@ -397,8 +398,14 @@ def combine(file1: str, file2: str, output_file: str, timespan: str) -> None:
 
 @weft.command()
 @click.argument("file_path", type=click.Path(exists=True))
-def load_compare(file_path: str) -> None:
-    """Compare lazy loading vs regular loading of a .weft file."""
+@click.option(
+    "--lookup-date",
+    "-d",
+    help="Date to use for lookup benchmark (YYYY-MM-DD)",
+    type=str,
+)
+def load_compare(file_path: str, lookup_date: Optional[str] = None) -> None:
+    """Compare lazy loading vs regular loading of a .weft file, and benchmark lookup operations."""
     logger.debug(f"Comparing loading methods for file: {file_path}")
     from ..weft import WeftFile, LazyWeftFile
 
@@ -413,48 +420,126 @@ def load_compare(file_path: str) -> None:
             size_str = f"{file_size_bytes / (1024 * 1024):.1f} MB"
         else:
             size_str = f"{file_size_bytes / (1024 * 1024 * 1024):.1f} GB"
-        
+
         click.echo(f"Testing file: {file_path} ({size_str})")
-        
+
         # Read the file data once
         with open(file_path, "rb") as f:
             data = f.read()
-        
-        click.echo(f"File read into memory. Running performance tests...")
-        
+
+        click.echo("File read into memory. Running performance tests...")
+
         # Test lazy loading
         lazy_start = time.time()
         lazy_file = LazyWeftFile.from_bytes(data)
         lazy_end = time.time()
         lazy_time = lazy_end - lazy_start
-        
+
         # Count blocks for comparison
-        multi_year_blocks = [b for b in lazy_file.blocks if isinstance(b, MultiYearBlock)]
+        multi_year_blocks = [
+            b for b in lazy_file.blocks if isinstance(b, MultiYearBlock)
+        ]
         monthly_blocks = [b for b in lazy_file.blocks if isinstance(b, MonthlyBlock)]
         forty_eight_hour_headers = [
             b for b in lazy_file.blocks if isinstance(b, FortyEightHourSectionHeader)
         ]
-        total_48h_blocks = sum(header.block_count for header in forty_eight_hour_headers)
-        
+        total_48h_blocks = sum(
+            header.block_count for header in forty_eight_hour_headers
+        )
+
         # Test regular loading
         regular_start = time.time()
         regular_file = WeftFile.from_bytes(data)
         regular_end = time.time()
         regular_time = regular_end - regular_start
-        
-        # Report results
+
+        # Report loading results
         improvement = (regular_time - lazy_time) / regular_time * 100
-        
-        click.echo(f"\nResults:")
-        click.echo(f"File contains: {len(multi_year_blocks)} multi-year blocks, {len(monthly_blocks)} monthly blocks, {total_48h_blocks} forty-eight hour blocks")
+
+        click.echo("\nLoading Performance Results:")
+        click.echo(
+            f"File contains: {len(multi_year_blocks)} multi-year blocks, {len(monthly_blocks)} monthly blocks, {total_48h_blocks} forty-eight hour blocks"
+        )
         click.echo(f"Lazy loading time:    {lazy_time:.6f}s")
         click.echo(f"Regular loading time: {regular_time:.6f}s")
         click.echo(f"Improvement: {improvement:.2f}%")
-        
+
         if improvement > 0:
-            click.echo("\nLazy loading is faster! This will be especially noticeable for large files with many 48-hour blocks.")
+            click.echo(
+                "\nLazy loading is faster! This will be especially noticeable for large files with many 48-hour blocks."
+            )
         else:
-            click.echo("\nRegular loading was faster in this case. This can happen with small files or files with few 48-hour blocks.")
+            click.echo(
+                "\nRegular loading was faster in this case. This can happen with small files or files with few 48-hour blocks."
+            )
+
+        # If lookup date is provided, benchmark lookup operations
+        if lookup_date:
+            # Parse the lookup date
+            try:
+                dt = parse_date_input(lookup_date)
+                if isinstance(dt, float):
+                    from ..space_time.julian import datetime_from_julian
+
+                    dt = datetime_from_julian(dt)
+
+                click.echo(f"\nBenchmarking lookup for date: {dt}")
+
+                # Create WeftReader using the regular file (loads all blocks)
+                from ..weft import WeftReader
+
+                reader_regular = WeftReader()
+                reader_regular.file = regular_file  # Use the already loaded file
+
+                # Time a lookup using the regular file
+                regular_lookup_start = time.time()
+                value_regular = reader_regular.get_value(dt)
+                regular_lookup_end = time.time()
+                regular_lookup_time = regular_lookup_end - regular_lookup_start
+
+                # Create WeftReader using the lazy file (uses binary search)
+                reader_lazy = WeftReader()
+                reader_lazy.file = lazy_file  # Use the already loaded file
+
+                # Time a lookup using the lazy file with binary search
+                lazy_lookup_start = time.time()
+                value_lazy = reader_lazy.get_value(dt)
+                lazy_lookup_end = time.time()
+                lazy_lookup_time = lazy_lookup_end - lazy_lookup_start
+
+                # Report lookup results
+                lookup_improvement = (
+                    (regular_lookup_time - lazy_lookup_time) / regular_lookup_time * 100
+                )
+                click.echo("\nLookup Performance Results:")
+                click.echo(f"Value from regular lookup: {value_regular}")
+                click.echo(f"Value from binary search lookup: {value_lazy}")
+                click.echo(f"Regular lookup time: {regular_lookup_time:.6f}s")
+                click.echo(f"Binary search lookup time: {lazy_lookup_time:.6f}s")
+                click.echo(f"Lookup improvement: {lookup_improvement:.2f}%")
+
+                if lookup_improvement > 0:
+                    click.echo(
+                        "\nBinary search lookup is faster! This improvement will be more significant for files with many 48-hour blocks."
+                    )
+                else:
+                    click.echo(
+                        "\nRegular lookup was faster in this case. This can happen with small files or if binary search overhead exceeds benefits."
+                    )
+
+                # Verify binary search produces the same value as regular lookup
+                if abs(value_lazy - value_regular) > 1e-10:
+                    click.echo(
+                        f"\nWarning: Values differ between lookup methods: {value_lazy} vs {value_regular}"
+                    )
+                    click.echo(f"Difference: {abs(value_lazy - value_regular)}")
+                else:
+                    click.echo(
+                        "\nVerification: Both methods produced the same value (within floating-point precision)."
+                    )
+
+            except Exception as e:
+                click.echo(f"\nError during lookup benchmark: {e}")
 
     except Exception as e:
         logger.error(f"Error comparing loading methods: {e}", exc_info=True)

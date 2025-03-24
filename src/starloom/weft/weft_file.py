@@ -363,30 +363,31 @@ class WeftFile:
             value_behavior=file1.value_behavior,
         )
 
+
 class LazyWeftFile(WeftFile):
     """
     A WeftFile implementation that lazily loads FortyEightHourBlocks.
-    
+
     This implementation improves performance by:
     1. Reading and parsing MultiYearBlocks and MonthlyBlocks immediately
     2. Reading FortyEightHourSectionHeaders immediately
     3. Deferring reading of FortyEightHourBlocks until they are needed
-    
+
     When a FortyEightHourBlock is requested, it will be loaded from the original file data
     based on its section header information.
     """
-    
+
     def __init__(
         self,
         preamble: str,
         blocks: Sequence[BlockType],
         value_behavior: ValueBehavior = UnboundedBehavior(type="unbounded"),
         file_data: Optional[bytes] = None,
-        section_positions: Optional[Dict[FortyEightHourSectionHeader, int]] = None
+        section_positions: Optional[Dict[FortyEightHourSectionHeader, int]] = None,
     ):
         """
         Initialize a LazyWeftFile.
-        
+
         Args:
             preamble: The file preamble
             blocks: List of data blocks (excluding FortyEightHourBlocks)
@@ -397,18 +398,18 @@ class LazyWeftFile(WeftFile):
         super().__init__(preamble, blocks, value_behavior)
         self.file_data = file_data
         self.section_positions = section_positions or {}
-        
+
     @classmethod
     def from_bytes(cls, data: bytes) -> "LazyWeftFile":
         """
         Create a LazyWeftFile from binary data.
-        
+
         Args:
             data: Binary data to read from
-            
+
         Returns:
             A LazyWeftFile instance with lazily loaded FortyEightHourBlocks
-            
+
         Raises:
             ValueError: If the data format is invalid
         """
@@ -422,20 +423,17 @@ class LazyWeftFile(WeftFile):
                 break
             if len(preamble) > 1000:  # Reasonable maximum preamble size
                 raise ValueError("Invalid preamble format")
-                
+
         blocks: list[BlockType] = []
         current_header: Optional[FortyEightHourSectionHeader] = None
         section_positions: Dict[FortyEightHourSectionHeader, int] = {}
-        
+
         while True:
-            # Save current position before marker
-            marker_position = stream.tell()
-            
             # Try to read marker
             marker = stream.read(2)
             if not marker:  # End of file
                 break
-                
+
             # Determine block type and read
             if marker == MultiYearBlock.marker:
                 blocks.append(MultiYearBlock.from_stream(stream))
@@ -445,11 +443,11 @@ class LazyWeftFile(WeftFile):
                 # Read the new header
                 header = FortyEightHourSectionHeader.from_stream(stream)
                 blocks.append(header)
-                
+
                 # Store the position right after the header
                 section_positions[header] = stream.tell()
                 current_header = header
-                
+
                 # Skip all the blocks in this section instead of reading them
                 section_size = header.block_size * header.block_count
                 stream.seek(section_size, 1)  # Seek relative to current position
@@ -457,61 +455,180 @@ class LazyWeftFile(WeftFile):
                 # We shouldn't reach here with lazy loading, but if we do:
                 if current_header is None:
                     raise ValueError("FortyEightHourBlock without a preceding header")
-                    
+
                 # Skip the block
-                stream.seek(current_header.block_size - 2, 1)  # -2 for the marker already read
+                stream.seek(
+                    current_header.block_size - 2, 1
+                )  # -2 for the marker already read
             else:
                 raise ValueError(f"Unknown block type marker: {marker!r}")
-                
+
         # Return the LazyWeftFile with information needed for lazy loading
         return cls(
             preamble=preamble,
             blocks=blocks,
             file_data=data,
-            section_positions=section_positions
+            section_positions=section_positions,
         )
-        
-    def get_blocks_in_section(self, header: FortyEightHourSectionHeader) -> List[FortyEightHourBlock]:
+
+    def get_blocks_in_section(
+        self, header: FortyEightHourSectionHeader
+    ) -> List[FortyEightHourBlock]:
         """
         Load FortyEightHourBlocks for a specific section header.
-        
+
         Args:
             header: The section header to load blocks for
-            
+
         Returns:
             List of FortyEightHourBlocks in the section
-            
+
         Raises:
             ValueError: If the section cannot be loaded
         """
         if self.file_data is None or header not in self.section_positions:
             raise ValueError("Section not found or file data not available")
-            
+
         # Create stream from file data
         stream = BytesIO(self.file_data)
-        
+
         # Seek to the position right after the header
         stream.seek(self.section_positions[header])
-        
+
         # Read all blocks in this section
         blocks = []
         for _ in range(header.block_count):
             marker = stream.read(2)
             if marker != FortyEightHourBlock.marker:
                 raise ValueError(f"Expected FortyEightHourBlock marker, got {marker!r}")
-                
+
             block = FortyEightHourBlock.from_stream(stream, header)
             blocks.append(block)
-            
+
         return blocks
-        
-    def get_forty_eight_hour_section_for_datetime(self, dt: datetime) -> Optional[FortyEightHourSectionHeader]:
+
+    def get_forty_eight_hour_block_at_index(
+        self, header: FortyEightHourSectionHeader, index: int
+    ) -> FortyEightHourBlock:
+        """
+        Load a specific FortyEightHourBlock by its index in the section.
+
+        Args:
+            header: The section header
+            index: The 0-based index of the block within the section
+
+        Returns:
+            The FortyEightHourBlock at the specified index
+
+        Raises:
+            ValueError: If the index is out of range or section cannot be loaded
+        """
+        if self.file_data is None or header not in self.section_positions:
+            raise ValueError("Section not found or file data not available")
+
+        if index < 0 or index >= header.block_count:
+            raise ValueError(
+                f"Block index {index} out of range (0-{header.block_count - 1})"
+            )
+
+        # Create stream from file data
+        stream = BytesIO(self.file_data)
+
+        # Calculate position of the specific block
+        section_start = self.section_positions[header]
+        block_position = section_start + (index * header.block_size)
+
+        # Seek to the position of the block
+        stream.seek(block_position)
+
+        # Read the marker
+        marker = stream.read(2)
+        if marker != FortyEightHourBlock.marker:
+            raise ValueError(
+                f"Expected FortyEightHourBlock marker at index {index}, got {marker!r}"
+            )
+
+        # Read the block
+        block = FortyEightHourBlock.from_stream(stream, header)
+        return block
+
+    def find_blocks_for_datetime_in_section(
+        self, header: FortyEightHourSectionHeader, dt: datetime
+    ) -> List[FortyEightHourBlock]:
+        """
+        Find FortyEightHourBlocks in a section that might contain the given datetime using binary search.
+
+        Args:
+            header: The section header
+            dt: The datetime to find blocks for
+
+        Returns:
+            List of FortyEightHourBlocks that might contain the datetime
+
+        Raises:
+            ValueError: If the section cannot be loaded
+        """
+        if self.file_data is None or header not in self.section_positions:
+            raise ValueError("Section not found or file data not available")
+
+        if header.block_count == 0:
+            return []
+
+        # If there are only a few blocks, just load and check them all
+        if header.block_count <= 5:
+            blocks = []
+            for i in range(header.block_count):
+                block = self.get_forty_eight_hour_block_at_index(header, i)
+                if block.contains(dt):
+                    blocks.append(block)
+            return blocks
+
+        # Binary search to find potential blocks
+        # Since 48-hour blocks have overlapping coverage (±24 hours),
+        # we may need to check multiple blocks around our target
+        low = 0
+        high = header.block_count - 1
+        target_date = dt.date()
+
+        # First binary search to find a block closest to our target date
+        while low <= high:
+            mid = (low + high) // 2
+            block = self.get_forty_eight_hour_block_at_index(header, mid)
+
+            if block.center_date < target_date:
+                low = mid + 1
+            elif block.center_date > target_date:
+                high = mid - 1
+            else:
+                # Exact match on date
+                break
+
+        # The loop exited, so mid is our best guess
+        # Now check this block and potentially adjacent blocks
+        potential_blocks = []
+
+        # Get the range of blocks to check (at most 3 blocks)
+        # This handles the 48-hour coverage overlap
+        start_idx = max(0, mid - 1)
+        end_idx = min(header.block_count - 1, mid + 1)
+
+        # Check all potential blocks in range
+        for i in range(start_idx, end_idx + 1):
+            block = self.get_forty_eight_hour_block_at_index(header, i)
+            if block.contains(dt):
+                potential_blocks.append(block)
+
+        return potential_blocks
+
+    def get_forty_eight_hour_section_for_datetime(
+        self, dt: datetime
+    ) -> Optional[FortyEightHourSectionHeader]:
         """
         Find the FortyEightHourSectionHeader containing the given datetime.
-        
+
         Args:
             dt: The datetime to find a section for
-            
+
         Returns:
             FortyEightHourSectionHeader if found, None otherwise
         """
@@ -520,41 +637,41 @@ class LazyWeftFile(WeftFile):
             dt = dt.replace(tzinfo=timezone.utc)
         else:
             dt = dt.astimezone(timezone.utc)
-            
+
         # Find section header containing the datetime
         for block in self.blocks:
-            if isinstance(block, FortyEightHourSectionHeader) and block.contains_datetime(dt):
+            if isinstance(
+                block, FortyEightHourSectionHeader
+            ) and block.contains_datetime(dt):
                 return block
-                
+
         return None
-        
+
     def get_blocks_for_datetime(self, dt: datetime) -> List[BlockType]:
         """
         Get all blocks that contain the given datetime.
-        Lazily loads FortyEightHourBlocks as needed.
-        
+        Lazily loads FortyEightHourBlocks as needed, using binary search for efficiency.
+
         Args:
             dt: The datetime to get blocks for
-            
+
         Returns:
             List of blocks containing the datetime
         """
         result = []
-        
+
         # Check all loaded blocks first
         for block in self.blocks:
             if isinstance(block, (MultiYearBlock, MonthlyBlock)) and block.contains(dt):
                 result.append(block)
-        
+
         # Check for and load forty-eight hour blocks
         section_header = self.get_forty_eight_hour_section_for_datetime(dt)
         if section_header is not None:
-            # Lazy-load 48-hour blocks for this section
-            section_blocks = self.get_blocks_in_section(section_header)
-            
-            # Add only those that contain the datetime
-            for section_block in section_blocks:
-                if section_block.contains(dt):
-                    result.append(section_block)
-                    
+            # Use binary search to find relevant blocks efficiently
+            section_blocks = self.find_blocks_for_datetime_in_section(
+                section_header, dt
+            )
+            result.extend(section_blocks)
+
         return result

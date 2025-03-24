@@ -2,7 +2,6 @@ from datetime import datetime, timezone, date
 from typing import Dict, List, Tuple, Optional, Union, cast
 import time
 from .weft_file import (
-    WeftFile,
     LazyWeftFile,
     MultiYearBlock,
     MonthlyBlock,
@@ -154,9 +153,11 @@ class WeftReader:
 
         # Get blocks containing this datetime (lazy-loads 48-hour blocks as needed)
         relevant_blocks = self.file.get_blocks_for_datetime(dt)
-        
+
         # Find all forty-eight hour blocks
-        forty_eight_hour_blocks = [b for b in relevant_blocks if isinstance(b, FortyEightHourBlock)]
+        forty_eight_hour_blocks = [
+            b for b in relevant_blocks if isinstance(b, FortyEightHourBlock)
+        ]
 
         # If we have forty-eight hour blocks, check if they're in the same section
         if forty_eight_hour_blocks:
@@ -193,7 +194,9 @@ class WeftReader:
             return self.apply_value_behavior(value)
 
         # Finally, try multi-year blocks
-        multi_year_blocks = [b for b in relevant_blocks if isinstance(b, MultiYearBlock)]
+        multi_year_blocks = [
+            b for b in relevant_blocks if isinstance(b, MultiYearBlock)
+        ]
         if multi_year_blocks:
             value = multi_year_blocks[0].evaluate(dt)
             self.file.logger.debug(

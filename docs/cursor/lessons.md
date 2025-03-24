@@ -1334,9 +1334,17 @@ Strategic use of type ignores should be documented with comments explaining why 
   * Only loads FortyEightHourBlocks when specifically needed for a datetime lookup
   * Improves memory usage and initial load time when dealing with files containing many 48-hour blocks
 
+* **Further Optimization**: Added binary search for 48-hour blocks:
+  * Takes advantage of fixed-size blocks within a section
+  * Uses binary search to quickly locate blocks by date
+  * Directly seeks to specific blocks without loading all blocks in a section
+  * Only loads 2-3 potentially relevant blocks instead of all blocks (which could be thousands)
+  * Makes lookups O(log n) instead of O(n) for large sections
+
 * **Updated classes**:
   * `LazyWeftFile`: Extends `WeftFile` with lazy loading capability
   * `WeftReader`: Updated to use `LazyWeftFile` and efficient block filtering
   * CLI: Adapted `info` command to work with lazily loaded blocks
+  * CLI: Added `load_compare` command to benchmark loading time improvements
 
 * **Date**: March 2025

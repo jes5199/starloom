@@ -296,11 +296,19 @@ The WeftReader had performance issues when parsing large files because it was lo
 - [X] Update the CLI lookup command with timing information
 - [X] Add a load_compare command to benchmark lazy vs regular loading
 
+## Further Optimization: Binary Search for 48-Hour Blocks
+- [X] Implement method to load a specific block by index
+- [X] Use binary search to efficiently find blocks by date
+- [X] Only load necessary blocks (2-3 blocks) instead of all blocks in a section
+- [X] Update get_blocks_for_datetime to use the binary search approach
+- [X] Update documentation in lessons.md
+
 ## Results
 The optimization should significantly improve:
 - Initial load time for large files
 - Memory usage when many blocks aren't needed
 - Performance when reading a single value
+- Lookup speed within large sections (from O(n) to O(log n))
 
 The new CLI commands provide:
 - Detailed timing information for lookup operations
@@ -310,3 +318,4 @@ The new CLI commands provide:
 Future improvements could include:
 - Caching frequently accessed blocks
 - File format modifications to better support random access
+- Adding timestamp-based index to the file format for even faster lookups
