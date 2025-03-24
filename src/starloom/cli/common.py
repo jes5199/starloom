@@ -76,9 +76,6 @@ def configure_logging(args: Union[Dict[str, Any], Namespace]) -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
 
-    # Remove any existing handlers
-    root_logger.handlers = []
-
     # Create a console handler
     handler = logging.StreamHandler()
     handler.setLevel(log_level)
@@ -87,22 +84,6 @@ def configure_logging(args: Union[Dict[str, Any], Namespace]) -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
-
-    # Also explicitly configure the starloom and weft loggers
-    starloom_logger = logging.getLogger("starloom")
-    starloom_logger.setLevel(log_level)
-    starloom_logger.propagate = True  # Ensure messages propagate to root
-
-    # Explicitly set the weft module loggers
-    weft_logger = logging.getLogger("starloom.weft")
-    weft_logger.setLevel(log_level)
-    weft_logger.propagate = True
-
-    cli_logger = logging.getLogger("starloom.cli")
-    cli_logger.setLevel(log_level)
-    cli_logger.propagate = True
-
     # Apply log level to all starloom loggers
     set_log_level(log_level)
 

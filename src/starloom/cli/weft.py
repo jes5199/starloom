@@ -81,7 +81,7 @@ def weft(verbose: int, debug: bool, quiet: bool) -> None:
             "verbose": verbose,
         }
     )
-    logger.debug("Debug logging enabled")
+    logger.debug("Debug logging enabled!")
     logger.debug(f"Verbosity: {verbose}, Debug: {debug}, Quiet: {quiet}")
 
 
