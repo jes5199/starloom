@@ -42,43 +42,49 @@ class RetrogradePeriod:
 
     def to_dict(self) -> Dict:
         """Convert the retrograde period to a dictionary for JSON serialization."""
-        result = {
-            "planet": self.planet.name,
-            "station_retrograde": {
-                "date": julian_to_datetime(self.station_retrograde[0]).isoformat(),
-                "julian_date": self.station_retrograde[0],
-                "longitude": self.station_retrograde[1],
-            },
-            "station_direct": {
-                "date": julian_to_datetime(self.station_direct[0]).isoformat(),
-                "julian_date": self.station_direct[0],
-                "longitude": self.station_direct[1],
-            },
-            "pre_shadow_start": None,
-            "post_shadow_end": None,
-            "sun_aspect": None
-        }
+        # Create all possible events with their dates
+        events = []
         
         if self.pre_shadow_start:
-            result["pre_shadow_start"] = {
+            events.append(("pre_shadow_start", {
                 "date": julian_to_datetime(self.pre_shadow_start[0]).isoformat(),
                 "julian_date": self.pre_shadow_start[0],
                 "longitude": self.pre_shadow_start[1],
-            }
+            }))
             
-        if self.post_shadow_end:
-            result["post_shadow_end"] = {
-                "date": julian_to_datetime(self.post_shadow_end[0]).isoformat(),
-                "julian_date": self.post_shadow_end[0],
-                "longitude": self.post_shadow_end[1],
-            }
-            
+        events.append(("station_retrograde", {
+            "date": julian_to_datetime(self.station_retrograde[0]).isoformat(),
+            "julian_date": self.station_retrograde[0],
+            "longitude": self.station_retrograde[1],
+        }))
+        
         if self.sun_aspect:
-            result["sun_aspect"] = {
+            events.append(("sun_aspect", {
                 "date": julian_to_datetime(self.sun_aspect[0]).isoformat(),
                 "julian_date": self.sun_aspect[0],
                 "longitude": self.sun_aspect[1],
-            }
+            }))
+            
+        events.append(("station_direct", {
+            "date": julian_to_datetime(self.station_direct[0]).isoformat(),
+            "julian_date": self.station_direct[0],
+            "longitude": self.station_direct[1],
+        }))
+        
+        if self.post_shadow_end:
+            events.append(("post_shadow_end", {
+                "date": julian_to_datetime(self.post_shadow_end[0]).isoformat(),
+                "julian_date": self.post_shadow_end[0],
+                "longitude": self.post_shadow_end[1],
+            }))
+            
+        # Sort events by julian_date
+        events.sort(key=lambda x: x[1]["julian_date"])
+        
+        # Create the result dictionary with sorted events
+        result = {"planet": self.planet.name}
+        for event_name, event_data in events:
+            result[event_name] = event_data
             
         return result
 
