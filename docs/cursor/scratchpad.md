@@ -408,3 +408,43 @@ Move core astronomy concepts and data structures to the main package level for b
 2. Update all import references across the codebase
 3. Add deprecation warnings and re-exports in the original locations
 4. Test the changes to ensure everything still works
+
+# Current Task: Create Graphics CLI Module
+
+## Task Description
+Create a new CLI module for generating SVG visualizations of planetary positions over time.
+
+## Requirements
+- New CLI module: `starloom/cli/graphics.py`
+- New module: `starloom/graphics/painter.py`
+- Use ephemeris data to plot planetary positions
+- Generate SVG output
+- Support time range with configurable step size
+- Default to weft ephemeris source
+
+## Implementation Plan
+[X] Create new directory structure for graphics module
+[X] Implement SVG painter class
+[X] Create CLI command with similar interface to ephemeris command
+[X] Add SVG generation functionality
+[ ] Add tests
+[ ] Update documentation
+
+## Dependencies to Consider
+- SVG generation library (svgwrite recommended)
+- Reuse existing ephemeris infrastructure
+- Time handling utilities
+
+## Progress Notes
+- Created `starloom/graphics/painter.py` with `PlanetaryPainter` class
+- Created `starloom/cli/graphics.py` with CLI command
+- Added `__init__.py` to make graphics a proper package
+- Implemented both dot and path visualization modes
+- Added support for custom styling (colors, dimensions, etc.)
+- Reused existing ephemeris infrastructure
+- Added comprehensive command-line options
+
+## Next Steps
+1. Add tests for the new modules
+2. Update documentation with examples and usage instructions
+3. Consider adding more visualization options (e.g., zodiac labels, grid lines)

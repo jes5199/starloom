@@ -2,11 +2,14 @@
 
 import click
 
+
 from .horizons import horizons
 from .ephemeris import ephemeris
 from .weft import weft
+from .graphics import graphics
 from . import common as common
 from ..weft.logging import get_logger
+
 
 # Create a logger for this module
 logger = get_logger(__name__)
@@ -45,6 +48,7 @@ def cli(verbose: int, debug: bool, quiet: bool) -> None:
 cli.add_command(horizons)
 cli.add_command(ephemeris)
 cli.add_command(weft)
+cli.add_command(graphics)
 
 if __name__ == "__main__":
     cli()
