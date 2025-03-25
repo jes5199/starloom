@@ -459,24 +459,28 @@ Create a CLI module and supporting code to find retrograde periods for planets.
   - Calculate shadow periods
   - Calculate cazimi/opposition points
   - JSON output format
+  - Support separate ephemeris sources for planet and sun ✓
 
 [X] Create `starloom/cli/retrograde.py` module
   - CLI interface similar to existing ephemeris command
   - Parameters for planet, date range
   - Output file handling
+  - Support for separate weftball files ✓
 
 ## Technical Considerations:
 - Need to detect velocity changes (longitude delta) to find stations ✓
 - Pre/post shadow periods typically start when planet is at the degree of eventual station ✓
 - Will need Sun ephemeris for cazimi/opposition calculations ✓
 - JSON structure should include all key dates and positions ✓
+- Support loading separate weftball files for planet and sun positions ✓
 
 ## Implementation Status:
 1. [X] Implemented retrograde detection logic
 2. [X] Added shadow period calculations
 3. [X] Added cazimi/opposition points
 4. [X] Created CLI interface
-5. [ ] Add tests and documentation
+5. [X] Added support for separate planet and sun weftball files
+6. [ ] Add tests and documentation
 
 ## Next Steps:
 1. Create tests for the RetrogradeFinder class
@@ -490,3 +494,5 @@ Create a CLI module and supporting code to find retrograde periods for planets.
 - For inner planets (Mercury/Venus), we find cazimi points
 - For outer planets, we find opposition points
 - The JSON output includes both human-readable dates and Julian dates
+- When using weft source, can now specify separate files for planet and sun data
+- For non-weft sources, uses the same ephemeris for both planet and sun positions

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 import json
 
 from ..ephemeris.quantities import Quantity
@@ -57,13 +57,16 @@ class RetrogradePeriod:
 class RetrogradeFinder:
     """Class for finding retrograde periods of planets."""
 
-    def __init__(self, ephemeris):
+    def __init__(self, planet_ephemeris, sun_ephemeris=None):
         """Initialize the retrograde finder.
         
         Args:
-            ephemeris: An ephemeris instance conforming to EphemerisProtocol
+            planet_ephemeris: An ephemeris instance for the planet
+            sun_ephemeris: Optional separate ephemeris instance for the Sun.
+                          If not provided, planet_ephemeris will be used for Sun positions.
         """
-        self.ephemeris = ephemeris
+        self.planet_ephemeris = planet_ephemeris
+        self.sun_ephemeris = sun_ephemeris or planet_ephemeris
 
     def _calculate_velocity(
         self, positions: Dict[float, Dict[str, float]], jd: float
@@ -122,11 +125,11 @@ class RetrogradeFinder:
         time_spec = TimeSpec.from_range(start_date, end_date, step)
         
         # Get planet positions
-        positions = self.ephemeris.get_planet_positions(planet.name, time_spec)
+        positions = self.planet_ephemeris.get_planet_positions(planet.name, time_spec)
         
         # Also get Sun positions if needed for cazimi/opposition
         if planet != Planet.SUN:
-            sun_positions = self.ephemeris.get_planet_positions("SUN", time_spec)
+            sun_positions = self.sun_ephemeris.get_planet_positions("SUN", time_spec)
         
         # Calculate velocities for each point
         velocities = {

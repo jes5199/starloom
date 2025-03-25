@@ -39,8 +39,11 @@ from .ephemeris import parse_date_input, get_ephemeris_factory, EPHEMERIS_SOURCE
 )
 @click.option(
     "--data",
-    default="./data",
-    help="Data source path: directory for local data (sqlite/cached_horizons) or direct path to weftball file (weft).",
+    help="Data source path: directory for local data (sqlite/cached_horizons) or direct path to planet weftball file (weft).",
+)
+@click.option(
+    "--sun-data",
+    help="Path to Sun weftball file when using weft source. If not provided, will use --data for Sun positions.",
 )
 def retrograde(
     planet: str,
@@ -49,20 +52,25 @@ def retrograde(
     step: str,
     output: str,
     source: str = DEFAULT_SOURCE,
-    data: str = "./data",
+    data: Optional[str] = None,
+    sun_data: Optional[str] = None,
 ) -> None:
     """Find retrograde periods for a planet within a date range.
     
     Examples:
     
-    Find Mercury retrogrades in 2024:
-        starloom retrograde mercury --start 2024-01-01 --stop 2024-12-31 --output mercury_2024.json
+    Find Mercury retrogrades in 2024 using separate weftballs:
+        starloom retrograde mercury --start 2024-01-01 --stop 2024-12-31 
+            --source weft --data mercury.tar.gz --sun-data sun.tar.gz 
+            --output mercury_2024.json
     
     Find Mars retrogrades with higher precision:
-        starloom retrograde mars --start 2024-01-01 --stop 2025-12-31 --step 6h --output mars_retro.json
+        starloom retrograde mars --start 2024-01-01 --stop 2025-12-31 
+            --step 6h --output mars_retro.json
     
     Using a specific data source:
-        starloom retrograde venus --start 2024-01-01 --stop 2024-12-31 --source sqlite --data ./data --output venus_retro.json
+        starloom retrograde venus --start 2024-01-01 --stop 2024-12-31 
+            --source sqlite --data ./data --output venus_retro.json
     """
     try:
         # Convert planet name to enum
@@ -83,12 +91,27 @@ def retrograde(
             from ..space_time.julian import julian_to_datetime
             stop_date = julian_to_datetime(stop_date)
             
-        # Create appropriate ephemeris instance
+        # Create appropriate ephemeris instances
         factory = get_ephemeris_factory(source)
-        ephemeris = factory(data_dir=data)
+        
+        # For weft source, we need to handle the data paths differently
+        if source == "weft":
+            if not data:
+                raise click.BadParameter("--data is required when using weft source")
+            planet_ephemeris = factory(data_dir=data)
+            
+            # Create separate sun ephemeris if sun-data is provided
+            sun_ephemeris = factory(data_dir=sun_data) if sun_data else None
+        else:
+            # For other sources, use the same data directory for both
+            planet_ephemeris = factory(data_dir=data)
+            sun_ephemeris = None  # Will use planet_ephemeris for sun positions
         
         # Create retrograde finder
-        finder = RetrogradeFinder(ephemeris)
+        finder = RetrogradeFinder(
+            planet_ephemeris=planet_ephemeris,
+            sun_ephemeris=sun_ephemeris
+        )
         
         # Find retrograde periods
         periods = finder.find_retrograde_periods(
