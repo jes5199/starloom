@@ -803,26 +803,36 @@ class RetrogradeFinder:
             
             # If we couldn't find pre-shadow, try extending search earlier
             if not pre_shadow_start:
-                extended_start = julian_to_datetime(station_retro_jd - 60)
-                if extended_start >= start_date:
-                    try:
-                        ext_time_spec = TimeSpec.from_range(
-                            extended_start,
-                            julian_to_datetime(station_retro_jd),
-                            fine_step
-                        )
-                        ext_positions = self.planet_ephemeris.get_planet_positions(
-                            planet.name, ext_time_spec
-                        )
-                        ext_dates = sorted(ext_positions.keys())
-                        
-                        pre_shadow_start = self._find_zero_crossing(
-                            ext_dates, ext_positions,
-                            target_angle=station_direct_lon,
-                            precision_seconds=30
-                        )
-                    except Exception:
-                        pass
+                # Use a longer search window for slower moving outer planets
+                lookback_days = 60
+                if planet in [Planet.JUPITER, Planet.SATURN, Planet.URANUS, Planet.NEPTUNE, Planet.PLUTO]:
+                    lookback_days = 120  # Outer planets move more slowly
+                elif planet == Planet.MARS:
+                    lookback_days = 90   # Mars needs a longer window too
+                
+                extended_start = julian_to_datetime(station_retro_jd - lookback_days)
+                
+                # Don't limit by start_date - for historical periods we need to look back 
+                # far enough to find the shadow entry, even if it's before requested start
+                try:
+                    ext_time_spec = TimeSpec.from_range(
+                        extended_start,
+                        julian_to_datetime(station_retro_jd),
+                        fine_step
+                    )
+                    ext_positions = self.planet_ephemeris.get_planet_positions(
+                        planet.name, ext_time_spec
+                    )
+                    ext_dates = sorted(ext_positions.keys())
+                    
+                    pre_shadow_start = self._find_zero_crossing(
+                        ext_dates, ext_positions,
+                        target_angle=station_direct_lon,
+                        precision_seconds=30
+                    )
+                except Exception as e:
+                    logging.debug(f"Error finding pre-shadow start: {e}")
+                    # Continue without pre-shadow start
             
             # Find post-shadow end (when planet crosses retrograde station longitude)
             # This happens after station direct
@@ -839,26 +849,36 @@ class RetrogradeFinder:
             
             # If we couldn't find post-shadow, try extending search later
             if not post_shadow_end:
-                extended_end = julian_to_datetime(station_direct_jd + 60)
-                if extended_end <= end_date:
-                    try:
-                        ext_time_spec = TimeSpec.from_range(
-                            julian_to_datetime(station_direct_jd),
-                            extended_end,
-                            fine_step
-                        )
-                        ext_positions = self.planet_ephemeris.get_planet_positions(
-                            planet.name, ext_time_spec
-                        )
-                        ext_dates = sorted(ext_positions.keys())
-                        
-                        post_shadow_end = self._find_zero_crossing(
-                            ext_dates, ext_positions,
-                            target_angle=station_retro_lon,
-                            precision_seconds=30
-                        )
-                    except Exception:
-                        pass
+                # Use a longer search window for slower moving outer planets
+                lookahead_days = 60
+                if planet in [Planet.JUPITER, Planet.SATURN, Planet.URANUS, Planet.NEPTUNE, Planet.PLUTO]:
+                    lookahead_days = 120  # Outer planets move more slowly
+                elif planet == Planet.MARS:
+                    lookahead_days = 90   # Mars needs a longer window too
+                
+                extended_end = julian_to_datetime(station_direct_jd + lookahead_days)
+                
+                # Don't limit by end_date - for historical periods we need to look ahead
+                # far enough to find the shadow exit, even if it's after requested end
+                try:
+                    ext_time_spec = TimeSpec.from_range(
+                        julian_to_datetime(station_direct_jd),
+                        extended_end,
+                        fine_step
+                    )
+                    ext_positions = self.planet_ephemeris.get_planet_positions(
+                        planet.name, ext_time_spec
+                    )
+                    ext_dates = sorted(ext_positions.keys())
+                    
+                    post_shadow_end = self._find_zero_crossing(
+                        ext_dates, ext_positions,
+                        target_angle=station_retro_lon,
+                        precision_seconds=30
+                    )
+                except Exception as e:
+                    logging.debug(f"Error finding post-shadow end: {e}")
+                    # Continue without post-shadow end
                         
             # For cazimi detection (inner planets) or opposition (outer planets)
             # Use high-precision aspect finder with 30-second accuracy
