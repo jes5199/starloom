@@ -28,8 +28,13 @@ from .ephemeris import parse_date_input, get_ephemeris_factory, EPHEMERIS_SOURCE
 )
 @click.option(
     "--output",
-    required=True,
-    help="Output JSON file path",
+    help="Output file path. If not specified, outputs to stdout.",
+)
+@click.option(
+    "--format",
+    type=click.Choice(["json", "text"]),
+    default="text",
+    help="Output format: 'json' for machine-readable data, 'text' for human-readable summary. Defaults to 'text'.",
 )
 @click.option(
     "--source",
@@ -50,7 +55,8 @@ def retrograde(
     start: str,
     stop: str,
     step: str,
-    output: str,
+    output: Optional[str],
+    format: str,
     source: str = DEFAULT_SOURCE,
     data: Optional[str] = None,
     sun_data: Optional[str] = None,
@@ -121,23 +127,58 @@ def retrograde(
             step=step
         )
         
-        # Save results
-        finder.save_to_json(periods, output)
-        
-        # Print summary
-        click.echo(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}")
-        for i, period in enumerate(periods, 1):
-            station_r_date = julian_to_datetime(period.station_retrograde[0])
-            station_d_date = julian_to_datetime(period.station_direct[0])
-            click.echo(f"\nPeriod {i}:")
-            click.echo(f"  Stations retrograde at: {station_r_date.isoformat()}")
-            click.echo(f"  Stations direct at: {station_d_date.isoformat()}")
+        # Output results based on format
+        if format == "json":
+            # Convert periods to serializable format
+            serializable_periods = [
+                {
+                    "station_retrograde": period.station_retrograde,
+                    "station_direct": period.station_direct,
+                    "sun_aspect": period.sun_aspect,
+                    "planet": period.planet.name
+                }
+                for period in periods
+            ]
             
-            if period.sun_aspect:
-                aspect_date = julian_to_datetime(period.sun_aspect[0])
-                aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
-                click.echo(f"  {aspect_type} occurs at: {aspect_date.isoformat()}")
-                
+            # Output JSON
+            if output:
+                import json
+                with open(output, 'w') as f:
+                    json.dump(serializable_periods, f, indent=2)
+            else:
+                json.dump(serializable_periods, click.get_text_stream('stdout'), indent=2)
+                click.echo()  # Add newline after JSON
+        else:  # text format
+            # Print summary
+            from ..space_time.julian import julian_to_datetime
+            if output:
+                with open(output, 'w') as f:
+                    f.write(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}\n")
+                    for i, period in enumerate(periods, 1):
+                        station_r_date = julian_to_datetime(period.station_retrograde[0])
+                        station_d_date = julian_to_datetime(period.station_direct[0])
+                        f.write(f"\nPeriod {i}:\n")
+                        f.write(f"  Stations retrograde at: {station_r_date.isoformat()}\n")
+                        f.write(f"  Stations direct at: {station_d_date.isoformat()}\n")
+                        
+                        if period.sun_aspect:
+                            aspect_date = julian_to_datetime(period.sun_aspect[0])
+                            aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
+                            f.write(f"  {aspect_type} occurs at: {aspect_date.isoformat()}\n")
+            else:
+                click.echo(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}")
+                for i, period in enumerate(periods, 1):
+                    station_r_date = julian_to_datetime(period.station_retrograde[0])
+                    station_d_date = julian_to_datetime(period.station_direct[0])
+                    click.echo(f"\nPeriod {i}:")
+                    click.echo(f"  Stations retrograde at: {station_r_date.isoformat()}")
+                    click.echo(f"  Stations direct at: {station_d_date.isoformat()}")
+                    
+                    if period.sun_aspect:
+                        aspect_date = julian_to_datetime(period.sun_aspect[0])
+                        aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
+                        click.echo(f"  {aspect_type} occurs at: {aspect_date.isoformat()}")
+        
     except ValueError as e:
         click.echo(f"Error: {str(e)}", err=True)
         click.echo(
