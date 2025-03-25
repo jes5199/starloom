@@ -1,6 +1,7 @@
 """CLI command for finding planetary retrograde periods."""
 
 import click
+import traceback
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -135,7 +136,8 @@ def retrograde(
         # This represents the entry (or ingress) into the retrograde zone.
         serializable_periods = [period.to_dict() for period in periods]
         for period in serializable_periods:
-            period["pre_shadow_start"]["longitude"] = period["station_direct"]["longitude"]
+            if period["pre_shadow_start"] is not None:
+                period["pre_shadow_start"]["longitude"] = period["station_direct"]["longitude"]
         
         # Output results based on format
         if format == "json":
@@ -152,11 +154,13 @@ def retrograde(
                     f.write(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}\n")
                     for i, period in enumerate(serializable_periods, 1):
                         f.write(f"\nPeriod {i}:\n")
-                        f.write(f"  Ingress (pre-shadow start) at: {period['pre_shadow_start']['date']} (longitude: {period['pre_shadow_start']['longitude']:.2f}°)\n")
+                        if period.get('pre_shadow_start'):
+                            f.write(f"  Ingress (pre-shadow start) at: {period['pre_shadow_start']['date']} (longitude: {period['pre_shadow_start']['longitude']:.2f}°)\n")
                         f.write(f"  Stations retrograde at: {period['station_retrograde']['date']} (longitude: {period['station_retrograde']['longitude']:.2f}°)\n")
                         f.write(f"  Stations direct at: {period['station_direct']['date']} (longitude: {period['station_direct']['longitude']:.2f}°)\n")
-                        f.write(f"  Egress (post-shadow end) at: {period['post_shadow_end']['date']} (longitude: {period['post_shadow_end']['longitude']:.2f}°)\n")
-                        if period['sun_aspect']:
+                        if period.get('post_shadow_end'):
+                            f.write(f"  Egress (post-shadow end) at: {period['post_shadow_end']['date']} (longitude: {period['post_shadow_end']['longitude']:.2f}°)\n")
+                        if period.get('sun_aspect'):
                             # Note: For Mercury and Venus, this is typically the cazimi moment.
                             # For higher precision, ensure the calculation does not default to midnight.
                             aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
@@ -165,18 +169,24 @@ def retrograde(
                 click.echo(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}")
                 for i, period in enumerate(serializable_periods, 1):
                     click.echo(f"\nPeriod {i}:")
-                    click.echo(f"  Ingress (pre-shadow start) at: {period['pre_shadow_start']['date']} (longitude: {period['pre_shadow_start']['longitude']:.2f}°)")
+                    if period.get('pre_shadow_start'):
+                        click.echo(f"  Ingress (pre-shadow start) at: {period['pre_shadow_start']['date']} (longitude: {period['pre_shadow_start']['longitude']:.2f}°)")
                     click.echo(f"  Stations retrograde at: {period['station_retrograde']['date']} (longitude: {period['station_retrograde']['longitude']:.2f}°)")
                     click.echo(f"  Stations direct at: {period['station_direct']['date']} (longitude: {period['station_direct']['longitude']:.2f}°)")
-                    click.echo(f"  Egress (post-shadow end) at: {period['post_shadow_end']['date']} (longitude: {period['post_shadow_end']['longitude']:.2f}°)")
-                    if period['sun_aspect']:
+                    if period.get('post_shadow_end'):
+                        click.echo(f"  Egress (post-shadow end) at: {period['post_shadow_end']['date']} (longitude: {period['post_shadow_end']['longitude']:.2f}°)")
+                    if period.get('sun_aspect'):
                         aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
                         click.echo(f"  {aspect_type} occurs at: {period['sun_aspect']['date']} (longitude: {period['sun_aspect']['longitude']:.2f}°)")
         
     except ValueError as e:
         click.echo(f"Error: {str(e)}", err=True)
         click.echo("The API request failed. Check your internet connection or try again later.", err=True)
+        click.echo("\nStack trace:", err=True)
+        click.echo(traceback.format_exc(), err=True)
         exit(1)
     except Exception as e:
         click.echo(f"Unexpected error: {str(e)}", err=True)
+        click.echo("\nStack trace:", err=True)
+        click.echo(traceback.format_exc(), err=True)
         exit(1) 
