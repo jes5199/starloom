@@ -274,7 +274,9 @@ def retrograde(
 
         # Create retrograde finder
         finder = RetrogradeFinder(
-            planet_ephemeris=planet_ephemeris, sun_ephemeris=sun_ephemeris
+            planet=planet_enum,
+            planet_ephemeris=planet_ephemeris,
+            sun_ephemeris=sun_ephemeris,
         )
 
         # Open output file or use stdout

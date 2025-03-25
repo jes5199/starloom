@@ -125,7 +125,7 @@ class RetrogradePeriod:
 class RetrogradeFinder:
     """Class for finding retrograde periods of planets."""
 
-    def __init__(self, planet_ephemeris, sun_ephemeris=None):
+    def __init__(self, planet: Planet, planet_ephemeris, sun_ephemeris=None):
         """Initialize the retrograde finder.
 
         Args:
@@ -133,6 +133,7 @@ class RetrogradeFinder:
             sun_ephemeris: Optional separate ephemeris instance for the Sun.
                           If not provided, planet_ephemeris will be used for Sun positions.
         """
+        self.planet = planet
         self.planet_ephemeris = planet_ephemeris
         self.sun_ephemeris = sun_ephemeris or planet_ephemeris
 
@@ -221,9 +222,7 @@ class RetrogradeFinder:
                 # and calculate velocity if needed
                 if is_velocity:
                     # For velocity calculation, we need positions right before and after
-                    time_offset = (
-                        0.01  # ~14.4 minutes, small enough for accurate velocity
-                    )
+                    time_offset = 0.01  # ~14.4 minutes, small enough for accurate velocity
 
                     # Use TimeSpec.from_dates to get positions at these specific times
                     from ..ephemeris.time_spec import TimeSpec
@@ -231,41 +230,14 @@ class RetrogradeFinder:
                     jd_before = jd - time_offset
                     jd_after = jd + time_offset
 
-                    # Get planet identifier from existing positions (assume all from same planet)
-                    # This is a bit hacky but works for our use case
-                    planet_identifier = None
-                    for existing_jd in positions:
-                        if is_velocity:
-                            # We don't have a way to determine planet from velocity dict
-                            # So we'll use a dummy value and handle specially below
-                            planet_identifier = "_velocity_mode_"
-                            break
-                        else:
-                            # For regular positions, we can determine planet
-                            # by checking one of the existing entries
-                            for key in positions[existing_jd]:
-                                # Just need to get the planet identifier from the first position
-                                if hasattr(self, "planet") and hasattr(
-                                    self.planet, "name"
-                                ):
-                                    planet_identifier = self.planet.name
-                                    break
-                            break
+                    # When we're in velocity mode, first try linear interpolation
+                    nearest_dates = sorted(positions.keys())
 
-                    # Special handling for velocity mode
-                    if planet_identifier == "_velocity_mode_":
-                        # When we're in velocity mode, we already have velocities calculated
-                        # We'll use linear interpolation between nearest points
-                        nearest_dates = sorted(positions.keys())
+                    # Find the nearest points before and after our target JD
+                    dates_before = [d for d in nearest_dates if d < jd]
+                    dates_after = [d for d in nearest_dates if d > jd]
 
-                        # Find the nearest points before and after our target JD
-                        dates_before = [d for d in nearest_dates if d < jd]
-                        dates_after = [d for d in nearest_dates if d > jd]
-
-                        if not dates_before or not dates_after:
-                            # If we're at the boundary, can't interpolate
-                            return 0.0
-
+                    if dates_before and dates_after:
                         jd_before = max(dates_before)
                         jd_after = min(dates_after)
 
@@ -276,28 +248,16 @@ class RetrogradeFinder:
                         range_frac = (jd - jd_before) / (jd_after - jd_before)
                         return val_before + (val_after - val_before) * range_frac
 
-                    # Handle case where we're looking for position crossing
-                    # with a target_lon but need to get a new position
-                    # Getting one position rather than calculating velocity
-                    if not is_velocity:
-                        time_spec = TimeSpec.from_dates([jd])
-                        new_pos = self.planet_ephemeris.get_planet_positions(
-                            planet_identifier, time_spec
-                        )
-                        return new_pos[jd][Quantity.ECLIPTIC_LONGITUDE]
-
-                    # For velocity calculation
+                    # If interpolation not possible, calculate velocity from ephemeris
                     time_spec = TimeSpec.from_dates([jd_before, jd, jd_after])
 
                     try:
                         new_positions = self.planet_ephemeris.get_planet_positions(
-                            planet_identifier, time_spec
+                            self.planet.name, time_spec
                         )
 
                         # Calculate velocity at the center point
-                        pos_before = new_positions[jd_before][
-                            Quantity.ECLIPTIC_LONGITUDE
-                        ]
+                        pos_before = new_positions[jd_before][Quantity.ECLIPTIC_LONGITUDE]
                         pos_center = new_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
                         pos_after = new_positions[jd_after][Quantity.ECLIPTIC_LONGITUDE]
 
@@ -308,39 +268,16 @@ class RetrogradeFinder:
                         # Average the two velocities
                         return (forward_vel + backward_vel) / 2
                     except Exception:
-                        # If we can't calculate a new velocity, interpolate from existing data
+                        # If we can't calculate a new velocity, return 0
                         return 0.0
                 else:
                     # For non-velocity lookup, just get the position
                     from ..ephemeris.time_spec import TimeSpec
 
                     time_spec = TimeSpec.from_dates([jd])
-
-                    # Try to determine the planet identifier
-                    planet_identifier = None
-                    for existing_jd in positions:
-                        # Just use the first position to get planet info
-                        if Quantity.ECLIPTIC_LONGITUDE in positions[existing_jd]:
-                            # Try to extract planet from the RetrogradeFinder
-                            if hasattr(self, "planet_ephemeris"):
-                                # Need to figure out planet from context
-                                for key in self.planet_ephemeris.__dict__:
-                                    if key.lower().endswith("_name"):
-                                        planet_identifier = getattr(
-                                            self.planet_ephemeris, key
-                                        )
-                                        break
-                            break
-
-                    # If we couldn't determine planet, use a default
-                    if not planet_identifier:
-                        # Use a reasonable fallback - the result might not be accurate
-                        # but at least we'll avoid crashing
-                        planet_identifier = "MARS"  # Default fallback
-
                     try:
                         new_pos = self.planet_ephemeris.get_planet_positions(
-                            planet_identifier, time_spec
+                            self.planet.name, time_spec
                         )
                         return new_pos[jd][Quantity.ECLIPTIC_LONGITUDE]
                     except Exception:
@@ -511,10 +448,9 @@ class RetrogradeFinder:
         coarse_step = step if step.endswith("d") and int(step[:-1]) >= 1 else "1d"
         coarse_time_spec = TimeSpec.from_range(start_date, end_date, coarse_step)
 
-        # Use planet.name instead of planet.value for WeftEphemeris compatibility
-        planet_identifier = planet.name
+        # Get coarse positions
         coarse_positions = self.planet_ephemeris.get_planet_positions(
-            planet_identifier, coarse_time_spec
+            self.planet.name, coarse_time_spec
         )
 
         # Calculate velocities for coarse sampling
@@ -624,11 +560,8 @@ class RetrogradeFinder:
             fine_time_spec = TimeSpec.from_range(period_start, period_end, fine_step)
 
             # Get fine-grained positions
-            planet_identifier = (
-                planet.name
-            )  # Use planet.name for WeftEphemeris compatibility
             fine_positions = self.planet_ephemeris.get_planet_positions(
-                planet_identifier, fine_time_spec
+                self.planet.name, fine_time_spec
             )
             if planet != Planet.SUN:
                 fine_sun_positions = self.sun_ephemeris.get_planet_positions(
@@ -658,7 +591,7 @@ class RetrogradeFinder:
                 middle_jd = fine_dates[middle_idx]
                 # Get position at this JD
                 middle_pos = self.planet_ephemeris.get_planet_positions(
-                    planet_identifier, TimeSpec.from_dates([middle_jd])
+                    self.planet.name, TimeSpec.from_dates([middle_jd])
                 )
                 middle_lon = middle_pos[middle_jd][Quantity.ECLIPTIC_LONGITUDE]
                 station_retrograde = (middle_jd, middle_lon)
@@ -669,7 +602,7 @@ class RetrogradeFinder:
             station_jd, _ = station_retrograde
             # Get position at interpolated Julian date using ephemeris
             station_pos = self.planet_ephemeris.get_planet_positions(
-                planet_identifier, TimeSpec.from_dates([station_jd])
+                self.planet.name, TimeSpec.from_dates([station_jd])
             )
             station_lon = station_pos[station_jd][Quantity.ECLIPTIC_LONGITUDE]
 
@@ -687,7 +620,7 @@ class RetrogradeFinder:
                 end_jd = fine_dates[end_idx]
                 # Get position at this JD
                 end_pos = self.planet_ephemeris.get_planet_positions(
-                    planet_identifier, TimeSpec.from_dates([end_jd])
+                    self.planet.name, TimeSpec.from_dates([end_jd])
                 )
                 end_lon = end_pos[end_jd][Quantity.ECLIPTIC_LONGITUDE]
                 station_direct = (end_jd, end_lon)
@@ -698,7 +631,7 @@ class RetrogradeFinder:
             direct_jd, _ = station_direct
             # Get position at interpolated Julian date using ephemeris
             direct_pos = self.planet_ephemeris.get_planet_positions(
-                planet_identifier, TimeSpec.from_dates([direct_jd])
+                self.planet.name, TimeSpec.from_dates([direct_jd])
             )
             direct_lon = direct_pos[direct_jd][Quantity.ECLIPTIC_LONGITUDE]
 
@@ -739,7 +672,7 @@ class RetrogradeFinder:
                 )
                 try:
                     pre_ext_positions = self.planet_ephemeris.get_planet_positions(
-                        planet_identifier, pre_ext_time_spec
+                        self.planet.name, pre_ext_time_spec
                     )
                     extended_dates = sorted(pre_ext_positions.keys()) + extended_dates
                     extended_positions = {**pre_ext_positions, **extended_positions}
@@ -779,7 +712,7 @@ class RetrogradeFinder:
                 # Get the position at this date or use direct_lon as approximation
                 try:
                     closest_pos = self.planet_ephemeris.get_planet_positions(
-                        planet_identifier, TimeSpec.from_dates([closest_jd])
+                        self.planet.name, TimeSpec.from_dates([closest_jd])
                     )
                 except Exception:
                     closest_pos = direct_lon  # Fallback to direct_lon
@@ -814,7 +747,7 @@ class RetrogradeFinder:
                 )
                 try:
                     post_ext_positions = self.planet_ephemeris.get_planet_positions(
-                        planet_identifier, post_ext_time_spec
+                        self.planet.name, post_ext_time_spec
                     )
                     post_extended_dates = post_extended_dates + sorted(
                         post_ext_positions.keys()
@@ -879,7 +812,7 @@ class RetrogradeFinder:
                     if closest_jd:
                         # Get position at closest point using ephemeris
                         closest_pos = self.planet_ephemeris.get_planet_positions(
-                            planet.name, TimeSpec.from_dates([closest_jd])
+                            self.planet.name, TimeSpec.from_dates([closest_jd])
                         )
                         sun_aspect = (
                             closest_jd,
@@ -904,7 +837,7 @@ class RetrogradeFinder:
                     if closest_jd:
                         # Get position at closest point using ephemeris
                         closest_pos = self.planet_ephemeris.get_planet_positions(
-                            planet.name, TimeSpec.from_dates([closest_jd])
+                            self.planet.name, TimeSpec.from_dates([closest_jd])
                         )
                         sun_aspect = (
                             closest_jd,

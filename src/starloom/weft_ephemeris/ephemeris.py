@@ -249,4 +249,7 @@ class WeftEphemeris(Ephemeris):
                 except Exception as e:
                     # Just log the error and continue
                     print(f"Error loading {filename}: {str(e)}")
-                    continue
+                    # print the full stack trace
+                    import traceback
+                    print(traceback.format_exc())
+                    raise e
