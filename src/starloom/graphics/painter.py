@@ -52,15 +52,18 @@ class PlanetaryPainter:
         # Convert longitude to radians
         lon_rad = math.radians(longitude)
 
-        # Scale distance to fit in plot (assuming max distance of 5 AU)
-        max_distance = 5.0
-        scaled_distance = min(distance / max_distance, 1.0) * min(self.plot_width, self.plot_height) / 2
+        # Scale distance to fit in plot (now using 2 AU as max for better visibility)
+        max_distance = 2.0  # Reduced from 5 AU to 2 AU to make planets appear larger
+        plot_radius = min(self.plot_width, self.plot_height) / 2
+        scaled_distance = (
+            min(distance / max_distance, 1.0) * plot_radius * 0.9
+        )  # 90% of radius to leave margin
 
         # Calculate x, y coordinates using trigonometry
         # x = r * cos(θ), y = r * sin(θ)
         center_x = self.width / 2
         center_y = self.height / 2
-        
+
         x = center_x + scaled_distance * math.cos(lon_rad)
         y = center_y + scaled_distance * math.sin(lon_rad)
 
@@ -125,7 +128,7 @@ class PlanetaryPainter:
 
             # Draw planet dot
             dwg.add(
-                dwg.circle(center=(x, y), r=4, fill=self.planet_color, stroke="none")
+                dwg.circle(center=(x, y), r=2, fill=self.planet_color, stroke="none")
             )
 
             # Add date label for first and last points
