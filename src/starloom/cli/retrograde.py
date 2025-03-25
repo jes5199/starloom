@@ -47,9 +47,9 @@ DEFAULT_SUN_WEFTBALL = "./weftballs/sun_weftball.tar.gz"
 )
 @click.option(
     "--format",
-    type=click.Choice(["json", "text"]),
+    type=click.Choice(["json", "text", "csv"]),
     default="text",
-    help="Output format: 'json' for machine-readable data, 'text' for human-readable summary. Defaults to 'text'.",
+    help="Output format: 'json' for machine-readable data, 'text' for human-readable summary, 'csv' for spreadsheet format. Defaults to 'text'.",
 )
 @click.option(
     "--source",
@@ -171,36 +171,124 @@ def retrograde(
             else:
                 json.dump(serializable_periods, click.get_text_stream('stdout'), indent=2)
                 click.echo()
+        elif format == "csv":
+            import csv
+            from datetime import datetime
+            import dateutil.parser
+
+            def format_date_for_spreadsheet(date_str):
+                if not date_str:
+                    return ""
+                # Parse the ISO date string with timezone
+                dt = dateutil.parser.parse(date_str)
+                # Format as YYYY-MM-DD HH:MM:SS
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+            headers = [
+                "planet", 
+                "pre_shadow_start_date",
+                "station_retrograde_date", "station_retrograde_longitude",
+                "sun_aspect_date", "sun_aspect_longitude",
+                "station_direct_date", "station_direct_longitude",
+                "post_shadow_end_date"
+            ]
+            
+            def write_csv(f):
+                writer = csv.DictWriter(f, fieldnames=headers)
+                writer.writeheader()
+                for period in serializable_periods:
+                    row = {
+                        "planet": planet_enum.name,
+                        "pre_shadow_start_date": format_date_for_spreadsheet(period.get("pre_shadow_start", {}).get("date", "")),
+                        "station_retrograde_date": format_date_for_spreadsheet(period["station_retrograde"]["date"]),
+                        "station_retrograde_longitude": period["station_retrograde"]["longitude"],
+                        "sun_aspect_date": format_date_for_spreadsheet(period.get("sun_aspect", {}).get("date", "")),
+                        "sun_aspect_longitude": period.get("sun_aspect", {}).get("longitude", ""),
+                        "station_direct_date": format_date_for_spreadsheet(period["station_direct"]["date"]),
+                        "station_direct_longitude": period["station_direct"]["longitude"],
+                        "post_shadow_end_date": format_date_for_spreadsheet(period.get("post_shadow_end", {}).get("date", ""))
+                    }
+                    writer.writerow(row)
+            
+            if output:
+                with open(output, 'w', newline='') as f:
+                    write_csv(f)
+            else:
+                write_csv(click.get_text_stream('stdout'))
         else:  # text format
             if output:
                 with open(output, 'w') as f:
                     f.write(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}\n")
                     for i, period in enumerate(serializable_periods, 1):
                         f.write(f"\nPeriod {i}:\n")
+                        # TODO: The pre_shadow_start, post_shadow_end, and sun_aspect times need to be computed 
+                        # at their exact moments rather than defaulting to midnight
+                        events = []
                         if period.get('pre_shadow_start'):
-                            f.write(f"  Ingress (pre-shadow start) at: {period['pre_shadow_start']['date']} (longitude: {period['pre_shadow_start']['longitude']:.2f}°)\n")
-                        f.write(f"  Stations retrograde at: {period['station_retrograde']['date']} (longitude: {period['station_retrograde']['longitude']:.2f}°)\n")
-                        f.write(f"  Stations direct at: {period['station_direct']['date']} (longitude: {period['station_direct']['longitude']:.2f}°)\n")
-                        if period.get('post_shadow_end'):
-                            f.write(f"  Egress (post-shadow end) at: {period['post_shadow_end']['date']} (longitude: {period['post_shadow_end']['longitude']:.2f}°)\n")
+                            events.append((
+                                period['pre_shadow_start']['date'],
+                                f"  Ingress (pre-shadow start) at: {period['pre_shadow_start']['date']} (longitude: {period['pre_shadow_start']['longitude']:.2f}°)\n"
+                            ))
+                        events.append((
+                            period['station_retrograde']['date'],
+                            f"  Stations retrograde at: {period['station_retrograde']['date']} (longitude: {period['station_retrograde']['longitude']:.2f}°)\n"
+                        ))
                         if period.get('sun_aspect'):
-                            # Note: For Mercury and Venus, this is typically the cazimi moment.
-                            # For higher precision, ensure the calculation does not default to midnight.
                             aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
-                            f.write(f"  {aspect_type} occurs at: {period['sun_aspect']['date']} (longitude: {period['sun_aspect']['longitude']:.2f}°)\n")
+                            events.append((
+                                period['sun_aspect']['date'],
+                                f"  {aspect_type} occurs at: {period['sun_aspect']['date']} (longitude: {period['sun_aspect']['longitude']:.2f}°)\n"
+                            ))
+                        events.append((
+                            period['station_direct']['date'],
+                            f"  Stations direct at: {period['station_direct']['date']} (longitude: {period['station_direct']['longitude']:.2f}°)\n"
+                        ))
+                        if period.get('post_shadow_end'):
+                            events.append((
+                                period['post_shadow_end']['date'],
+                                f"  Egress (post-shadow end) at: {period['post_shadow_end']['date']} (longitude: {period['post_shadow_end']['longitude']:.2f}°)\n"
+                            ))
+                        
+                        # Sort events by date and write them in chronological order
+                        events.sort(key=lambda x: x[0])
+                        for _, event_text in events:
+                            f.write(event_text)
             else:
                 click.echo(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}")
                 for i, period in enumerate(serializable_periods, 1):
                     click.echo(f"\nPeriod {i}:")
+                    # TODO: The pre_shadow_start, post_shadow_end, and sun_aspect times need to be computed 
+                    # at their exact moments rather than defaulting to midnight
+                    events = []
                     if period.get('pre_shadow_start'):
-                        click.echo(f"  Ingress (pre-shadow start) at: {period['pre_shadow_start']['date']} (longitude: {period['pre_shadow_start']['longitude']:.2f}°)")
-                    click.echo(f"  Stations retrograde at: {period['station_retrograde']['date']} (longitude: {period['station_retrograde']['longitude']:.2f}°)")
-                    click.echo(f"  Stations direct at: {period['station_direct']['date']} (longitude: {period['station_direct']['longitude']:.2f}°)")
-                    if period.get('post_shadow_end'):
-                        click.echo(f"  Egress (post-shadow end) at: {period['post_shadow_end']['date']} (longitude: {period['post_shadow_end']['longitude']:.2f}°)")
+                        events.append((
+                            period['pre_shadow_start']['date'],
+                            f"  Ingress (pre-shadow start) at: {period['pre_shadow_start']['date']} (longitude: {period['pre_shadow_start']['longitude']:.2f}°)"
+                        ))
+                    events.append((
+                        period['station_retrograde']['date'],
+                        f"  Stations retrograde at: {period['station_retrograde']['date']} (longitude: {period['station_retrograde']['longitude']:.2f}°)"
+                    ))
                     if period.get('sun_aspect'):
                         aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
-                        click.echo(f"  {aspect_type} occurs at: {period['sun_aspect']['date']} (longitude: {period['sun_aspect']['longitude']:.2f}°)")
+                        events.append((
+                            period['sun_aspect']['date'],
+                            f"  {aspect_type} occurs at: {period['sun_aspect']['date']} (longitude: {period['sun_aspect']['longitude']:.2f}°)"
+                        ))
+                    events.append((
+                        period['station_direct']['date'],
+                        f"  Stations direct at: {period['station_direct']['date']} (longitude: {period['station_direct']['longitude']:.2f}°)"
+                    ))
+                    if period.get('post_shadow_end'):
+                        events.append((
+                            period['post_shadow_end']['date'],
+                            f"  Egress (post-shadow end) at: {period['post_shadow_end']['date']} (longitude: {period['post_shadow_end']['longitude']:.2f}°)"
+                        ))
+                    
+                    # Sort events by date and write them in chronological order
+                    events.sort(key=lambda x: x[0])
+                    for _, event_text in events:
+                        click.echo(event_text)
         
     except ValueError as e:
         click.echo(f"Error: {str(e)}", err=True)
