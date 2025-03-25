@@ -251,5 +251,6 @@ class WeftEphemeris(Ephemeris):
                     print(f"Error loading {filename}: {str(e)}")
                     # print the full stack trace
                     import traceback
+
                     print(traceback.format_exc())
                     raise e
