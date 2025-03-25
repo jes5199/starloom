@@ -1,9 +1,11 @@
 """Module for detecting planetary retrograde periods."""
 
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Iterator
+import bisect
 import json
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple, Iterator, Union, Any
 
 from ..ephemeris.quantities import Quantity
 from ..ephemeris.time_spec import TimeSpec
@@ -17,108 +19,49 @@ def angle_diff(lon2: float, lon1: float) -> float:
 
 
 def interpolate_angle(lon1: float, lon2: float, fraction: float) -> float:
-    """Interpolate between two angles, taking wrap-around into account."""
+    """Interpolate between two angles, accounting for wrap-around."""
     diff = angle_diff(lon2, lon1)
     return (lon1 + fraction * diff) % 360
 
 
+def create_event_dict(jd: float, lon: float) -> Dict[str, Any]:
+    """Create a standardized event dictionary."""
+    return {
+        "date": julian_to_datetime(jd).isoformat(),
+        "julian_date": jd,
+        "longitude": lon,
+    }
+
+
 @dataclass
 class RetrogradePeriod:
-    """Represents a complete retrograde cycle for a planet.
-
-    For clarity, we refer to:
-      - pre_shadow_start as the ingress into the retrograde shadow,
-      - station_retrograde as the point where motion reverses,
-      - station_direct as the exit (direct motion) point, and
-      - post_shadow_end as the egress from the shadow.
-    """
-
+    """Represents a complete retrograde cycle for a planet."""
     planet: Planet
     station_retrograde: Tuple[float, float]  # (julian_date, longitude)
-    station_direct: Tuple[float, float]  # (julian_date, longitude)
-    pre_shadow_start: Optional[Tuple[float, float]] = (
-        None  # (julian_date, longitude) [ingress]
-    )
-    post_shadow_end: Optional[Tuple[float, float]] = (
-        None  # (julian_date, longitude) [egress]
-    )
-    sun_aspect: Optional[Tuple[float, float]] = (
-        None  # (julian_date, longitude) for cazimi/opposition
-    )
+    station_direct: Tuple[float, float]      # (julian_date, longitude)
+    pre_shadow_start: Optional[Tuple[float, float]] = None  # (julian_date, longitude) [ingress]
+    post_shadow_end: Optional[Tuple[float, float]] = None   # (julian_date, longitude) [egress]
+    sun_aspect: Optional[Tuple[float, float]] = None        # (julian_date, longitude) for cazimi/opposition
 
     def to_dict(self) -> Dict:
         """Convert the retrograde period to a dictionary for JSON serialization."""
-        # Create all possible events with their dates
         events = []
 
-        if self.pre_shadow_start:
-            events.append(
-                (
-                    "pre_shadow_start",
-                    {
-                        "date": julian_to_datetime(
-                            self.pre_shadow_start[0]
-                        ).isoformat(),
-                        "julian_date": self.pre_shadow_start[0],
-                        "longitude": self.pre_shadow_start[1],
-                    },
-                )
-            )
+        def add_event(name: str, data: Optional[Tuple[float, float]]):
+            if data:
+                jd, lon = data
+                events.append((name, create_event_dict(jd, lon)))
 
-        events.append(
-            (
-                "station_retrograde",
-                {
-                    "date": julian_to_datetime(self.station_retrograde[0]).isoformat(),
-                    "julian_date": self.station_retrograde[0],
-                    "longitude": self.station_retrograde[1],
-                },
-            )
-        )
+        add_event("pre_shadow_start", self.pre_shadow_start)
+        add_event("station_retrograde", self.station_retrograde)
+        add_event("sun_aspect", self.sun_aspect)
+        add_event("station_direct", self.station_direct)
+        add_event("post_shadow_end", self.post_shadow_end)
 
-        if self.sun_aspect:
-            events.append(
-                (
-                    "sun_aspect",
-                    {
-                        "date": julian_to_datetime(self.sun_aspect[0]).isoformat(),
-                        "julian_date": self.sun_aspect[0],
-                        "longitude": self.sun_aspect[1],
-                    },
-                )
-            )
-
-        events.append(
-            (
-                "station_direct",
-                {
-                    "date": julian_to_datetime(self.station_direct[0]).isoformat(),
-                    "julian_date": self.station_direct[0],
-                    "longitude": self.station_direct[1],
-                },
-            )
-        )
-
-        if self.post_shadow_end:
-            events.append(
-                (
-                    "post_shadow_end",
-                    {
-                        "date": julian_to_datetime(self.post_shadow_end[0]).isoformat(),
-                        "julian_date": self.post_shadow_end[0],
-                        "longitude": self.post_shadow_end[1],
-                    },
-                )
-            )
-
-        # Sort events by julian_date, probably not needed really
         events.sort(key=lambda x: x[1]["julian_date"])
-
-        # Create the result dictionary with sorted events
         result = {"planet": self.planet.name}
-        for event_name, event_data in events:
-            result[event_name] = event_data
-
+        for name, data in events:
+            result[name] = data
         return result
 
 
@@ -129,9 +72,8 @@ class RetrogradeFinder:
         """Initialize the retrograde finder.
 
         Args:
-            planet_ephemeris: An ephemeris instance for the planet
-            sun_ephemeris: Optional separate ephemeris instance for the Sun.
-                          If not provided, planet_ephemeris will be used for Sun positions.
+            planet_ephemeris: Ephemeris instance for the planet.
+            sun_ephemeris: Optional ephemeris for the Sun. Defaults to planet_ephemeris.
         """
         self.planet = planet
         self.planet_ephemeris = planet_ephemeris
@@ -146,282 +88,141 @@ class RetrogradeFinder:
         """Calculate apparent velocity (degrees/day) using proper angle differences."""
         if dates is None:
             dates = sorted(positions.keys())
-
-        # Find the index of jd in dates using binary search for better performance
-        left, right = 0, len(dates) - 1
-        idx = -1
-        while left <= right:
-            mid = (left + right) // 2
-            if dates[mid] == jd:
-                idx = mid
-                break
-            elif dates[mid] < jd:
-                left = mid + 1
-            else:
-                right = mid - 1
-
-        if idx == -1:
+        
+        # Use bisect to find the index efficiently
+        idx = bisect.bisect_left(dates, jd)
+        if idx >= len(dates) or dates[idx] != jd:
             raise ValueError(f"Date {jd} not found in positions")
 
         curr_lon = positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+        
+        # Handle boundary cases
         if idx == 0:
-            next_jd = dates[idx + 1]
+            next_jd = dates[1]
             next_lon = positions[next_jd][Quantity.ECLIPTIC_LONGITUDE]
             return angle_diff(next_lon, curr_lon) / (next_jd - jd)
         elif idx == len(dates) - 1:
             prev_jd = dates[idx - 1]
             prev_lon = positions[prev_jd][Quantity.ECLIPTIC_LONGITUDE]
             return angle_diff(curr_lon, prev_lon) / (jd - prev_jd)
-        else:
-            next_jd = dates[idx + 1]
-            prev_jd = dates[idx - 1]
-            next_lon = positions[next_jd][Quantity.ECLIPTIC_LONGITUDE]
-            prev_lon = positions[prev_jd][Quantity.ECLIPTIC_LONGITUDE]
-            forward_vel = angle_diff(next_lon, curr_lon) / (next_jd - jd)
-            backward_vel = angle_diff(curr_lon, prev_lon) / (jd - prev_jd)
-            return (forward_vel + backward_vel) / 2
+        
+        # For middle points, use central difference
+        next_jd = dates[idx + 1]
+        prev_jd = dates[idx - 1]
+        next_lon = positions[next_jd][Quantity.ECLIPTIC_LONGITUDE]
+        prev_lon = positions[prev_jd][Quantity.ECLIPTIC_LONGITUDE]
+        forward_vel = angle_diff(next_lon, curr_lon) / (next_jd - jd)
+        backward_vel = angle_diff(curr_lon, prev_lon) / (jd - prev_jd)
+        return (forward_vel + backward_vel) / 2
+
+    def _get_interpolated_position(self, jd: float) -> Optional[float]:
+        """Get interpolated position at a specific Julian date."""
+        try:
+            time_spec = TimeSpec.from_dates([jd])
+            new_pos = self.planet_ephemeris.get_planet_positions(self.planet.name, time_spec)
+            return new_pos[jd][Quantity.ECLIPTIC_LONGITUDE]
+        except Exception:
+            return None
 
     def _find_zero_crossing(
         self,
         dates: List[float],
-        positions: Dict[float, Dict[str, float]],
+        positions: Union[Dict[float, float], Dict[float, Dict[str, float]]],
         target_lon: Optional[float] = None,
         is_velocity: bool = False,
-        find_pos_to_neg: bool = True,  # True for retrograde station (pos->neg), False for direct station (neg->pos)
-        zero_tolerance: float = 1e-4,  # Tolerance for near-zero values
-        precision_minutes: int = 1,  # Desired precision in minutes (default 1 minute)
+        find_pos_to_neg: bool = True,
+        zero_tolerance: float = 1e-4,
+        precision_minutes: int = 1,
     ) -> Optional[Tuple[float, float]]:
-        """Find a zero-crossing using binary search for high precision.
+        """Find a zero crossing using binary search and linear interpolation.
 
-        Args:
-            dates: List of sorted Julian dates
-            positions: Dictionary of positions/velocities indexed by Julian date
-            target_lon: Target longitude to find crossing for (if None, looks for velocity zero-crossing)
-            is_velocity: Whether we're looking for velocity zero-crossing
-            find_pos_to_neg: For velocity crossings, True finds positive to negative transition (retrograde),
-                             False finds negative to positive (direct station)
-            precision_minutes: Desired precision in minutes (default 1 minute)
-
-        Returns:
-            Tuple of (julian_date, longitude) at crossing, or None if not found
+        Returns a tuple of (julian_date, value) where value is 0 for velocity or an interpolated angle.
         """
         if len(dates) < 2:
             return None
 
         def get_value(jd: float) -> float:
-            """Get position/velocity value for a given Julian date.
-            For positions already in our cached data, return directly.
-            For new positions (during bisection), calculate via ephemeris."""
+            """Get value at a specific Julian date, with fallback to interpolation."""
             if jd in positions:
-                if is_velocity:
-                    return positions[jd]
-                else:
-                    return positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+                return positions[jd] if is_velocity else positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+
+            # Interpolate between nearest points if available
+            nearest = sorted(positions.keys())
+            dates_before = [d for d in nearest if d < jd]
+            dates_after = [d for d in nearest if d > jd]
+            
+            if dates_before and dates_after:
+                jd_before = max(dates_before)
+                jd_after = min(dates_after)
+                val_before = positions[jd_before] if is_velocity else positions[jd_before][Quantity.ECLIPTIC_LONGITUDE]
+                val_after = positions[jd_after] if is_velocity else positions[jd_after][Quantity.ECLIPTIC_LONGITUDE]
+                frac = (jd - jd_before) / (jd_after - jd_before)
+                return val_before + (val_after - val_before) * frac if is_velocity else interpolate_angle(val_before, val_after, frac)
+
+            # Fallback to ephemeris calculation
+            if is_velocity:
+                time_offset = 0.01  # ~14.4 minutes
+                pos_before = self._get_interpolated_position(jd - time_offset)
+                pos_center = self._get_interpolated_position(jd)
+                pos_after = self._get_interpolated_position(jd + time_offset)
+                
+                if all(p is not None for p in [pos_before, pos_center, pos_after]):
+                    forward_vel = angle_diff(pos_after, pos_center) / time_offset
+                    backward_vel = angle_diff(pos_center, pos_before) / time_offset
+                    return (forward_vel + backward_vel) / 2
+                return 0.0
             else:
-                # We need to get a new position via ephemeris for this JD
-                # and calculate velocity if needed
-                if is_velocity:
-                    # For velocity calculation, we need positions right before and after
-                    time_offset = 0.01  # ~14.4 minutes, small enough for accurate velocity
+                pos = self._get_interpolated_position(jd)
+                return pos if pos is not None else 0.0
 
-                    # Use TimeSpec.from_dates to get positions at these specific times
-                    from ..ephemeris.time_spec import TimeSpec
-
-                    jd_before = jd - time_offset
-                    jd_after = jd + time_offset
-
-                    # When we're in velocity mode, first try linear interpolation
-                    nearest_dates = sorted(positions.keys())
-
-                    # Find the nearest points before and after our target JD
-                    dates_before = [d for d in nearest_dates if d < jd]
-                    dates_after = [d for d in nearest_dates if d > jd]
-
-                    if dates_before and dates_after:
-                        jd_before = max(dates_before)
-                        jd_after = min(dates_after)
-
-                        val_before = positions[jd_before]
-                        val_after = positions[jd_after]
-
-                        # Linear interpolation
-                        range_frac = (jd - jd_before) / (jd_after - jd_before)
-                        return val_before + (val_after - val_before) * range_frac
-
-                    # If interpolation not possible, calculate velocity from ephemeris
-                    time_spec = TimeSpec.from_dates([jd_before, jd, jd_after])
-
-                    try:
-                        new_positions = self.planet_ephemeris.get_planet_positions(
-                            self.planet.name, time_spec
-                        )
-
-                        # Calculate velocity at the center point
-                        pos_before = new_positions[jd_before][Quantity.ECLIPTIC_LONGITUDE]
-                        pos_center = new_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
-                        pos_after = new_positions[jd_after][Quantity.ECLIPTIC_LONGITUDE]
-
-                        # Calculate forward and backward velocities
-                        forward_vel = angle_diff(pos_after, pos_center) / time_offset
-                        backward_vel = angle_diff(pos_center, pos_before) / time_offset
-
-                        # Average the two velocities
-                        return (forward_vel + backward_vel) / 2
-                    except Exception:
-                        # If we can't calculate a new velocity, return 0
-                        return 0.0
-                else:
-                    # For non-velocity lookup, just get the position
-                    from ..ephemeris.time_spec import TimeSpec
-
-                    time_spec = TimeSpec.from_dates([jd])
-                    try:
-                        new_pos = self.planet_ephemeris.get_planet_positions(
-                            self.planet.name, time_spec
-                        )
-                        return new_pos[jd][Quantity.ECLIPTIC_LONGITUDE]
-                    except Exception:
-                        # If we can't get a new position, interpolate from existing data
-                        nearest_dates = sorted(positions.keys())
-
-                        # Find the nearest points before and after our target JD
-                        dates_before = [d for d in nearest_dates if d < jd]
-                        dates_after = [d for d in nearest_dates if d > jd]
-
-                        if not dates_before or not dates_after:
-                            # If we're at the boundary, can't interpolate
-                            return 0.0
-
-                        jd_before = max(dates_before)
-                        jd_after = min(dates_after)
-
-                        lon_before = positions[jd_before][Quantity.ECLIPTIC_LONGITUDE]
-                        lon_after = positions[jd_after][Quantity.ECLIPTIC_LONGITUDE]
-
-                        # Interpolate the angle
-                        range_frac = (jd - jd_before) / (jd_after - jd_before)
-                        return interpolate_angle(lon_before, lon_after, range_frac)
-
-        # Find segments where there's a crossing of the expected type
+        # Find crossing segments
         crossings = []
         for i in range(1, len(dates)):
-            prev_jd = dates[i - 1]
-            curr_jd = dates[i]
-
-            prev_val = get_value(prev_jd)
-            curr_val = get_value(curr_jd)
-
+            prev_jd, curr_jd = dates[i - 1], dates[i]
+            prev_val, curr_val = get_value(prev_jd), get_value(curr_jd)
+            
             if is_velocity:
-                # For velocity, we're looking for specific zero crossings
-                if find_pos_to_neg:
-                    # Looking for positive to negative (retrograde station) with tolerance
-                    if prev_val > zero_tolerance and curr_val < -zero_tolerance:
-                        crossings.append((prev_jd, curr_jd))
-                else:
-                    # Looking for negative to positive (direct station) with tolerance
-                    if prev_val < -zero_tolerance and curr_val > zero_tolerance:
-                        crossings.append((prev_jd, curr_jd))
+                if find_pos_to_neg and prev_val > zero_tolerance and curr_val < -zero_tolerance:
+                    crossings.append((prev_jd, curr_jd, prev_val, curr_val))
+                elif not find_pos_to_neg and prev_val < -zero_tolerance and curr_val > zero_tolerance:
+                    crossings.append((prev_jd, curr_jd, prev_val, curr_val))
             elif target_lon is not None:
-                # For longitude crossings, find where we cross the target longitude
-                # This requires special handling for angle wrap-around
                 diff1 = angle_diff(target_lon, prev_val)
                 diff2 = angle_diff(target_lon, curr_val)
-                if diff1 * diff2 <= 0:  # Sign change indicates crossing
-                    crossings.append((prev_jd, curr_jd))
+                if diff1 * diff2 <= 0:
+                    crossings.append((prev_jd, curr_jd, prev_val, curr_val))
             else:
-                # Generic zero crossing
-                if prev_val * curr_val <= 0:  # Sign change indicates crossing
-                    crossings.append((prev_jd, curr_jd))
+                if prev_val * curr_val <= 0:
+                    crossings.append((prev_jd, curr_jd, prev_val, curr_val))
 
         if not crossings:
             return None
 
-        # For velocity crossings, get the one closest to the middle of the time span
+        # For velocity crossings with multiple candidates, choose the most central one
         if is_velocity and len(crossings) > 1:
             mid_date = (dates[0] + dates[-1]) / 2
             crossings.sort(key=lambda c: abs((c[0] + c[1]) / 2 - mid_date))
 
-        # Use the first crossing found (or the most central one for velocity)
-        left_jd, right_jd = crossings[0]
-        left_val = get_value(left_jd)
-        right_val = get_value(right_jd)
-
-        if left_val == right_val:
-            return None
-
-        # Convert desired precision from minutes to Julian day fraction
-        # 1 minute = 1/(24*60) of a day ≈ 0.000694 days
-        precision_jd = precision_minutes / (24.0 * 60.0)
-
-        # Implement binary search for high precision crossing
-        max_iterations = 20  # Avoid infinite loops
-        iteration = 0
-
-        while (right_jd - left_jd) > precision_jd and iteration < max_iterations:
-            mid_jd = (left_jd + right_jd) / 2
-            mid_val = get_value(mid_jd)
-
-            if is_velocity:
-                # For velocity, check which side of zero we're on
-                if find_pos_to_neg:  # Looking for positive to negative transition
-                    if mid_val > zero_tolerance:  # Still positive
-                        left_jd = mid_jd
-                        left_val = mid_val
-                    elif mid_val < -zero_tolerance:  # Already negative
-                        right_jd = mid_jd
-                        right_val = mid_val
-                    else:  # Very close to zero
-                        break
-                else:  # Looking for negative to positive transition
-                    if mid_val < -zero_tolerance:  # Still negative
-                        left_jd = mid_jd
-                        left_val = mid_val
-                    elif mid_val > zero_tolerance:  # Already positive
-                        right_jd = mid_jd
-                        right_val = mid_val
-                    else:  # Very close to zero
-                        break
-            elif target_lon is not None:
-                # For longitude crossings, check which side of target_lon we're on
-                diff = angle_diff(target_lon, mid_val)
-                if diff * angle_diff(target_lon, left_val) > 0:  # Same side as left
-                    left_jd = mid_jd
-                    left_val = mid_val
-                else:  # Same side as right or exactly on target
-                    right_jd = mid_jd
-                    right_val = mid_val
-            else:
-                # Generic zero crossing
-                if mid_val * left_val > 0:  # Same sign as left
-                    left_jd = mid_jd
-                    left_val = mid_val
-                else:  # Same sign as right or zero
-                    right_jd = mid_jd
-                    right_val = mid_val
-
-            iteration += 1
-
-        # For velocity crossings, crossing_val remains 0 (it will be replaced by actual longitude later)
-        # For longitude crossings, we calculate the interpolated angle
+        left_jd, right_jd, left_val, right_val = crossings[0]
+        
+        # Linear interpolation to find precise crossing
         if is_velocity:
-            crossing_jd = (left_jd + right_jd) / 2  # Use midpoint for best result
-            crossing_val = (
-                0  # This is just a placeholder; actual longitude is obtained later
-            )
+            # For velocity, interpolate to find where it crosses zero
+            fraction = abs(left_val) / (abs(left_val) + abs(right_val)) if abs(left_val - right_val) > 1e-12 else 0.5
+            crossing_jd = left_jd + fraction * (right_jd - left_jd)
+            crossing_val = 0
+        elif target_lon is not None:
+            # For target longitude, interpolate based on angle differences
+            diff_left = angle_diff(target_lon, left_val)
+            diff_right = angle_diff(target_lon, right_val)
+            fraction = abs(diff_left) / (abs(diff_left) + abs(diff_right)) if abs(diff_left) + abs(diff_right) > 1e-12 else 0.5
+            crossing_jd = left_jd + fraction * (right_jd - left_jd)
+            crossing_val = target_lon
         else:
-            # For longitude crossings, interpolate more accurately
-            if target_lon is not None:
-                # Find where the longitude equals the target_lon
-                # Calculate the fraction using angle differences
-                diff_left = angle_diff(target_lon, left_val)
-                diff_right = angle_diff(target_lon, right_val)
-                frac = abs(diff_left) / (abs(diff_left) + abs(diff_right))
-            else:
-                # For generic zero crossing
-                frac = abs(left_val) / (abs(left_val) + abs(right_val))
-
-            crossing_jd = left_jd + (right_jd - left_jd) * frac
-            crossing_val = interpolate_angle(left_val, right_val, frac)
+            # For general zero crossing, interpolate based on values
+            fraction = abs(left_val) / (abs(left_val) + abs(right_val)) if abs(left_val) + abs(right_val) > 1e-12 else 0.5
+            crossing_jd = left_jd + fraction * (right_jd - left_jd)
+            crossing_val = interpolate_angle(left_val, right_val, fraction)
 
         return (crossing_jd, crossing_val)
 
@@ -526,8 +327,6 @@ class RetrogradeFinder:
             potential_periods.append(current_period)
 
         # Log information about potential periods
-        import logging
-
         logging.info(f"Found {len(potential_periods)} potential retrograde periods")
         for i, period in enumerate(potential_periods):
             if period.get("detected_mid_retrograde"):
