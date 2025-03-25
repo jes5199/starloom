@@ -268,17 +268,26 @@ class RetrogradeFinder:
             for jd in coarse_dates
         }
         
-        # Use tolerance to detect velocity sign changes more reliably
-        zero_tolerance = 1e-4  # Tolerance for near-zero values
-        
         # Find potential retrograde periods with much higher sensitivity
         potential_periods = []
         current_period = None
         
         # Use tolerance to account for floating point issues
         # This is key - sometimes the velocity is very close to zero
-        zero_tolerance = 1e-4
+        zero_tolerance = 1e-4  # Tolerance for near-zero values
         
+        # First, check if we're starting in the middle of a retrograde period
+        # If the velocity at the first point is negative, we're likely already in retrograde
+        if len(coarse_dates) > 0 and coarse_velocities[coarse_dates[0]] < -zero_tolerance:
+            # We're already in retrograde at the start date
+            # Create a period that starts earlier to capture the beginning
+            first_jd = coarse_dates[0]
+            current_period = {
+                'start_jd': first_jd - 60,  # Go back 60 days to find the retrograde station
+                'end_jd': first_jd + 60,    # Add buffer for finding direct station
+                'detected_mid_retrograde': True  # Flag to indicate we started in retrograde
+            }
+            
         for i in range(1, len(coarse_dates)):
             prev_jd = coarse_dates[i-1]
             curr_jd = coarse_dates[i]
@@ -317,6 +326,14 @@ class RetrogradeFinder:
         if current_period is not None:
             potential_periods.append(current_period)
             
+        # Log information about potential periods
+        import logging
+        logging.info(f"Found {len(potential_periods)} potential retrograde periods")
+        for i, period in enumerate(potential_periods):
+            if period.get('detected_mid_retrograde'):
+                logging.info(f"Period {i+1} started in the middle of retrograde motion")
+                logging.info(f"  Will look back to {julian_to_datetime(period['start_jd']).isoformat()}")
+                
         # Second pass: Use finer sampling for each potential period
         retrograde_periods = []
         fine_step = "6h"  # Use 6-hour sampling for a good balance between precision and performance
@@ -326,8 +343,11 @@ class RetrogradeFinder:
             period_start = julian_to_datetime(period['start_jd'])
             period_end = julian_to_datetime(period['end_jd'])
             
-            # Ensure we don't exceed the overall date range
-            period_start = max(period_start, start_date)
+            # Ensure we don't exceed the overall end date
+            # But we allow going earlier than start_date if needed to find complete retrograde periods
+            if not period.get('detected_mid_retrograde'):
+                # Only restrict to start_date if we didn't detect a mid-retrograde scenario
+                period_start = max(period_start, start_date)
             period_end = min(period_end, end_date)
             
             # Skip if period is too short
@@ -421,8 +441,12 @@ class RetrogradeFinder:
             pre_shadow_start = None
             
             # Always try to extend the data window backwards to ensure we have sufficient pre-retrograde data
-            pre_window_start = julian_to_datetime(station_jd - 30)  # 30 days before station
-            pre_window_start = max(pre_window_start, start_date)  # Don't go before overall start date
+            # If we detected an already-in-progress retrograde, we need to look back further
+            # to find the station retrograde point
+            look_back_days = 60 if period.get('detected_mid_retrograde') else 30
+            pre_window_start = julian_to_datetime(station_jd - look_back_days)
+            # Don't limit to the overall start date anymore since we want to find 
+            # the true beginning of the retrograde period
             
             # Start with original fine_dates
             extended_dates = list(fine_dates)
