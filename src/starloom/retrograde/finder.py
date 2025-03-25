@@ -223,8 +223,8 @@ class RetrogradeFinder:
             
             # Function to compute velocity at a given time
             def compute_velocity(jd):
-                # Use 30-second interval for velocity calculation
-                time_delta = 30.0 / (24.0 * 60.0 * 60.0)
+                # Use 15-second interval for velocity calculation
+                time_delta = 15.0 / (24.0 * 60.0 * 60.0)
                 
                 try:
                     # Get three points for central difference
@@ -393,8 +393,8 @@ class RetrogradeFinder:
         Returns:
             Angular rate in degrees per day
         """
-        # Use a small time step for accurate differentiation (30 seconds)
-        time_delta = 30.0 / (24.0 * 60.0 * 60.0)  # 30 seconds in days
+        # Use a small time step for accurate differentiation (15 seconds)
+        time_delta = 15.0 / (24.0 * 60.0 * 60.0)  # 15 seconds in days
         
         # Get positions just before and after the time point
         jd_before = jd - time_delta
@@ -764,22 +764,22 @@ class RetrogradeFinder:
             }
             
             # Find precise station retrograde (velocity crosses from positive to negative)
-            # Using 30-second precision
+            # Using 15-second precision
             station_retrograde = self._find_zero_crossing(
                 fine_dates, fine_positions, fine_velocities,
                 find_velocity_crossing=True, find_pos_to_neg=True,
-                precision_seconds=30
+                precision_seconds=15
             )
             
             if not station_retrograde:
                 continue
                 
             # Find precise station direct (velocity crosses from negative to positive)
-            # Using 30-second precision
+            # Using 15-second precision
             station_direct = self._find_zero_crossing(
                 fine_dates, fine_positions, fine_velocities,
                 find_velocity_crossing=True, find_pos_to_neg=False,
-                precision_seconds=30
+                precision_seconds=15
             )
             
             if not station_direct:
@@ -798,7 +798,7 @@ class RetrogradeFinder:
                 pre_shadow_start = self._find_zero_crossing(
                     pre_shadow_dates, pre_shadow_positions,
                     target_angle=station_direct_lon,
-                    precision_seconds=30
+                    precision_seconds=15
                 )
             
             # If we couldn't find pre-shadow, try extending search earlier
@@ -828,7 +828,7 @@ class RetrogradeFinder:
                     pre_shadow_start = self._find_zero_crossing(
                         ext_dates, ext_positions,
                         target_angle=station_direct_lon,
-                        precision_seconds=30
+                        precision_seconds=15
                     )
                 except Exception as e:
                     logging.debug(f"Error finding pre-shadow start: {e}")
@@ -844,7 +844,7 @@ class RetrogradeFinder:
                 post_shadow_end = self._find_zero_crossing(
                     post_shadow_dates, post_shadow_positions,
                     target_angle=station_retro_lon,
-                    precision_seconds=30
+                    precision_seconds=15
                 )
             
             # If we couldn't find post-shadow, try extending search later
@@ -874,7 +874,7 @@ class RetrogradeFinder:
                     post_shadow_end = self._find_zero_crossing(
                         ext_dates, ext_positions,
                         target_angle=station_retro_lon,
-                        precision_seconds=30
+                        precision_seconds=15
                     )
                 except Exception as e:
                     logging.debug(f"Error finding post-shadow end: {e}")
@@ -934,11 +934,11 @@ class RetrogradeFinder:
                         narrow_window_end = aspect_approx_jd + 1    # 1 day after approx
                         narrow_window = (narrow_window_start, narrow_window_end)
                         
-                        # Use precise aspect finder on narrow window
+                        # Use precise aspect finder on narrow window with 15-second precision
                         sun_aspect = self._find_sun_aspect(
                             planet, 
                             narrow_window,
-                            precision_seconds=30  # 30-second precision
+                            precision_seconds=15  # 15-second precision
                         )
                     
                 except Exception as e:
@@ -951,7 +951,7 @@ class RetrogradeFinder:
                         aspect_window,
                         fine_positions,  # Use the existing positions as fallback
                         fine_dates,
-                        precision_seconds=30
+                        precision_seconds=15  # 15-second precision
                     )
             
             # Create RetrogradePeriod object
