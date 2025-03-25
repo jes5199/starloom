@@ -496,3 +496,35 @@ Create a CLI module and supporting code to find retrograde periods for planets.
 - The JSON output includes both human-readable dates and Julian dates
 - When using weft source, can now specify separate files for planet and sun data
 - For non-weft sources, uses the same ephemeris for both planet and sun positions
+
+# Current Task: Add Default Weftball Paths
+
+## Goal
+Add default weftball paths for when no data file is supplied on the command line.
+
+## Todo List
+[X] Add default weftball path mapping for each planet
+[X] Modify retrograde command to use default paths when --data is not provided
+[X] Ensure sun_data also uses default path when not provided
+[ ] Test the changes
+
+## Changes Made
+1. Added DEFAULT_WEFTBALL_PATHS dictionary mapping each planet to its default weftball path
+2. Added DEFAULT_SUN_WEFTBALL constant for the sun's weftball path
+3. Modified the retrograde command to:
+   - Use default planet weftball if --data is not provided
+   - Use default sun weftball if --sun-data is not provided
+   - Check if the default files exist before using them
+   - Provide clear error messages if default files are not found
+
+## Default Paths Added:
+- Mercury: ./weftballs/mercury_weftball.tar.gz
+- Venus: ./weftballs/venus_weftball.tar.gz
+- Mars: ./weftballs/mars_weftball.tar.gz
+- Jupiter: ./weftballs/jupiter_weftball.tar.gz
+- Saturn: ./weftballs/saturn_weftball.tar.gz
+- Uranus: ./weftballs/uranus_weftball.tar.gz
+- Neptune: ./weftballs/neptune_weftball.tar.gz
+- Pluto: ./weftballs/pluto_weftball.tar.gz
+- Moon: ./weftballs/moon_weftball.tar.gz
+- Sun: ./weftballs/sun_weftball.tar.gz

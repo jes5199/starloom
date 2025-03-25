@@ -4,11 +4,26 @@ import click
 import traceback
 from datetime import datetime, timezone
 from typing import Optional
+import os.path
 
 from ..planet import Planet
 from ..retrograde.finder import RetrogradeFinder
 from .ephemeris import parse_date_input, get_ephemeris_factory, EPHEMERIS_SOURCES, DEFAULT_SOURCE
 
+# Default weftball paths for each planet
+DEFAULT_WEFTBALL_PATHS = {
+    Planet.MERCURY: "./weftballs/mercury_weftball.tar.gz",
+    Planet.VENUS: "./weftballs/venus_weftball.tar.gz",
+    Planet.MARS: "./weftballs/mars_weftball.tar.gz",
+    Planet.JUPITER: "./weftballs/jupiter_weftball.tar.gz",
+    Planet.SATURN: "./weftballs/saturn_weftball.tar.gz",
+    Planet.URANUS: "./weftballs/uranus_weftball.tar.gz",
+    Planet.NEPTUNE: "./weftballs/neptune_weftball.tar.gz",
+    Planet.PLUTO: "./weftballs/pluto_weftball.tar.gz",
+    Planet.MOON: "./weftballs/moon_weftball.tar.gz",
+}
+
+DEFAULT_SUN_WEFTBALL = "./weftballs/sun_weftball.tar.gz"
 
 @click.command()
 @click.argument("planet")
@@ -111,7 +126,16 @@ def retrograde(
         # For weft source, handle data paths separately
         if source == "weft":
             if not data:
-                raise click.BadParameter("--data is required when using weft source")
+                # Use default weftball path for the planet
+                data = DEFAULT_WEFTBALL_PATHS.get(planet_enum)
+                if not data or not os.path.exists(data):
+                    raise click.BadParameter(f"Default weftball not found at {data}. Please provide --data parameter.")
+            
+            if not sun_data:
+                # Use default sun weftball
+                if os.path.exists(DEFAULT_SUN_WEFTBALL):
+                    sun_data = DEFAULT_SUN_WEFTBALL
+            
             planet_ephemeris = factory(data_dir=data)
             sun_ephemeris = factory(data_dir=sun_data) if sun_data else None
         else:
