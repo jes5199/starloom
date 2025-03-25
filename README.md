@@ -426,6 +426,78 @@ Weftballs provide several advantages:
 - Offline operation - no need for API calls
 - High precision with configurable accuracy levels
 
+### Finding Retrograde Periods
+
+The retrograde finder can identify planetary retrograde periods, including shadow periods and key aspects:
+
+```bash
+# Find Mercury retrogrades in 2024 using weftballs
+starloom retrograde mercury --start 2024-01-01 --stop 2024-12-31 \
+    --source weft --data mercury_weftball.tar.gz --sun-data sun_weftball.tar.gz \
+    --output mercury_2024.json
+
+# Find Mars retrogrades with higher precision
+starloom retrograde mars --start 2024-01-01 --stop 2025-12-31 \
+    --step 6h --output mars_retro.json
+
+# Using a specific data source
+starloom retrograde venus --start 2024-01-01 --stop 2024-12-31 \
+    --source sqlite --data ./data --output venus_retro.json
+```
+
+The output JSON file contains detailed information about each retrograde period:
+- Pre-shadow start: When the planet first reaches the degree of eventual station
+- Station retrograde: When the planet appears to stop and begin moving backward
+- Station direct: When the planet appears to stop and begin moving forward
+- Post-shadow end: When the planet last crosses the degree of station
+- Sun aspect: 
+  - For inner planets (Mercury/Venus): Time of cazimi (conjunction with Sun)
+  - For outer planets: Time of opposition to Sun
+
+Example output:
+```json
+{
+  "retrograde_periods": [
+    {
+      "planet": "MARS",
+      "pre_shadow_start": {
+        "date": "2024-12-06T12:00:00",
+        "julian_date": 2460289.0,
+        "longitude": 295.5
+      },
+      "station_retrograde": {
+        "date": "2024-12-31T18:00:00",
+        "julian_date": 2460314.25,
+        "longitude": 298.2
+      },
+      "station_direct": {
+        "date": "2025-03-02T06:00:00",
+        "julian_date": 2460375.75,
+        "longitude": 282.4
+      },
+      "post_shadow_end": {
+        "date": "2025-03-27T12:00:00",
+        "julian_date": 2460401.0,
+        "longitude": 285.1
+      },
+      "sun_aspect": {
+        "date": "2025-01-15T00:00:00",
+        "julian_date": 2460328.5,
+        "longitude": 290.3
+      }
+    }
+  ]
+}
+```
+
+You can use different ephemeris sources:
+- `weft`: Use weftball files (fastest, offline)
+- `cached_horizons`: Use cached JPL Horizons data
+- `sqlite`: Use local SQLite storage
+- `horizons`: Query JPL Horizons API directly
+
+When using weftballs, you can specify separate files for the planet and Sun positions using `--data` and `--sun-data` respectively.
+
 ### Profiling
 
 For performance analysis, you can run any starloom command with profiling enabled:
