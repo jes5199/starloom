@@ -12,7 +12,7 @@ from ..space_time.julian import julian_to_datetime, datetime_to_julian
 
 
 def angle_diff(lon2: float, lon1: float) -> float:
-    """Return smallest difference between two angles."""
+    """Return the smallest difference between two angles."""
     return ((lon2 - lon1 + 180) % 360) - 180
 
 
@@ -24,13 +24,20 @@ def interpolate_angle(lon1: float, lon2: float, fraction: float) -> float:
 
 @dataclass
 class RetrogradePeriod:
-    """Represents a complete retrograde cycle for a planet."""
+    """Represents a complete retrograde cycle for a planet.
+
+    For clarity, we refer to:
+      - pre_shadow_start as the ingress into the retrograde shadow,
+      - station_retrograde as the point where motion reverses,
+      - station_direct as the exit (direct motion) point, and
+      - post_shadow_end as the egress from the shadow.
+    """
     
     planet: Planet
-    pre_shadow_start: Tuple[float, float]  # (julian_date, longitude)
+    pre_shadow_start: Tuple[float, float]  # (julian_date, longitude) [ingress]
     station_retrograde: Tuple[float, float]  # (julian_date, longitude)
     station_direct: Tuple[float, float]  # (julian_date, longitude)
-    post_shadow_end: Tuple[float, float]  # (julian_date, longitude)
+    post_shadow_end: Tuple[float, float]  # (julian_date, longitude) [egress]
     sun_aspect: Optional[Tuple[float, float]] = None  # (julian_date, longitude) for cazimi/opposition
 
     def to_dict(self) -> Dict:
@@ -192,27 +199,67 @@ class RetrogradeFinder:
                         current_period['post_shadow_end'] = (post_jd, station_lon)
                         break
                 
-                # Determine cazimi (for inner planets) or opposition (for outer planets)
+                # Determine the Sun aspect (cazimi for inner planets, opposition for outer).
                 if planet != Planet.SUN:
                     is_inner = planet in [Planet.MERCURY, Planet.VENUS]
-                    target_angle = 0 if is_inner else 180
-                    mid_jd = (current_period['station_retrograde'][0] + station_jd) / 2
-                    closest_jd = None
-                    closest_diff = 360
-                    window = 30  # days
-                    for jd in dates:
-                        if abs(jd - mid_jd) > window:
-                            continue
-                        planet_lon = positions[jd][Quantity.ECLIPTIC_LONGITUDE]
-                        sun_lon = sun_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
-                        diff = abs(angle_diff(planet_lon, sun_lon))
-                        if abs(diff - target_angle) < closest_diff:
-                            closest_diff = abs(diff - target_angle)
-                            closest_jd = jd
-                    if closest_jd:
-                        current_period['sun_aspect'] = (
-                            closest_jd, positions[closest_jd][Quantity.ECLIPTIC_LONGITUDE]
-                        )
+                    if is_inner:
+                        # For inner planets, find the precise conjunction (0° difference)
+                        mid_jd = (current_period['station_retrograde'][0] + station_jd) / 2
+                        refined_jd = None
+                        window = 30  # days window for search
+                        for j in range(len(dates)-1):
+                            if abs(dates[j] - mid_jd) > window:
+                                continue
+                            planet_lon1 = positions[dates[j]][Quantity.ECLIPTIC_LONGITUDE]
+                            sun_lon1 = sun_positions[dates[j]][Quantity.ECLIPTIC_LONGITUDE]
+                            diff1 = angle_diff(planet_lon1, sun_lon1)
+                            planet_lon2 = positions[dates[j+1]][Quantity.ECLIPTIC_LONGITUDE]
+                            sun_lon2 = sun_positions[dates[j+1]][Quantity.ECLIPTIC_LONGITUDE]
+                            diff2 = angle_diff(planet_lon2, sun_lon2)
+                            if diff1 * diff2 < 0:  # crossing detected
+                                frac_aspect = abs(diff1) / (abs(diff1) + abs(diff2))
+                                refined_jd = dates[j] + (dates[j+1] - dates[j]) * frac_aspect
+                                refined_lon = interpolate_angle(planet_lon1, planet_lon2, frac_aspect)
+                                current_period['sun_aspect'] = (refined_jd, refined_lon)
+                                break
+                        # If no crossing is found, fall back to previous method.
+                        if refined_jd is None:
+                            target_angle = 0
+                            closest_jd = None
+                            closest_diff = 360
+                            for jd in dates:
+                                if abs(jd - mid_jd) > window:
+                                    continue
+                                planet_lon = positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+                                sun_lon = sun_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+                                diff = abs(angle_diff(planet_lon, sun_lon))
+                                if abs(diff - target_angle) < closest_diff:
+                                    closest_diff = abs(diff - target_angle)
+                                    closest_jd = jd
+                            if closest_jd:
+                                current_period['sun_aspect'] = (
+                                    closest_jd, positions[closest_jd][Quantity.ECLIPTIC_LONGITUDE]
+                                )
+                    else:
+                        # For outer planets, use opposition (target 180°)
+                        target_angle = 180
+                        mid_jd = (current_period['station_retrograde'][0] + station_jd) / 2
+                        closest_jd = None
+                        closest_diff = 360
+                        window = 30  # days window for search
+                        for jd in dates:
+                            if abs(jd - mid_jd) > window:
+                                continue
+                            planet_lon = positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+                            sun_lon = sun_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+                            diff = abs(angle_diff(planet_lon, sun_lon))
+                            if abs(diff - target_angle) < closest_diff:
+                                closest_diff = abs(diff - target_angle)
+                                closest_jd = jd
+                        if closest_jd:
+                            current_period['sun_aspect'] = (
+                                closest_jd, positions[closest_jd][Quantity.ECLIPTIC_LONGITUDE]
+                            )
                 
                 # Create RetrogradePeriod object and add to list
                 retrograde_periods.append(RetrogradePeriod(
