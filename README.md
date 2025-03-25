@@ -1,13 +1,16 @@
 # Starloom 2025
 
-A Python toolkit for astronomical ephemeris calculations and data retrieval.
+A streamlined Python toolkit for precise astronomical ephemeris calculations, data retrieval, and visualization, optimized for speed and ease of use.
 
 ## Features
 
-- **JPL Horizons API Integration**: Query planetary positions and orbital elements
-- **Weft Binary Ephemeris Support**: Work with Weft binary ephemeris files
-- **Time Utilities**: Handle astronomical time calculations and conversions
-- **Command Line Interface**: Easy-to-use tools for common astronomical calculations
+- **JPL Horizons Integration**: Fetch precise planetary positions and orbital elements
+- **Weft Binary Ephemeris**: Efficiently handle binary ephemeris data for rapid calculations
+- **Advanced Time Utilities**: Accurate astronomical time conversions and manipulations
+- **Retrograde Analysis**: Find and analyze planetary retrograde periods
+- **Data Visualization**: Generate SVG visualizations of planetary positions
+- **Flexible Storage**: Multiple storage options including SQLite and binary formats
+- **Smart Caching**: Efficient data caching for improved performance
 
 ## Quick Start
 
@@ -19,49 +22,13 @@ pip install -e .
 
 ### Basic Usage
 
-Get Venus's current position:
+Get current planetary positions effortlessly:
 
 ```bash
 starloom ephemeris venus
-```
-
-Get Mars's position at a specific time:
-
-```bash
 starloom ephemeris mars --date 2025-03-19T20:00:00
-```
-
-Get Jupiter's position from a specific location:
-
-```bash
 starloom ephemeris jupiter --location 34.0522,-118.2437,0
 ```
-
-## Command Line Interface
-
-### Planetary Positions
-
-#### Simplified Ephemeris Command
-
-The `ephemeris` command provides a user-friendly way to get planetary positions with human-readable output:
-
-```bash
-# Get current position
-starloom ephemeris venus
-
-# Get position at a specific time
-starloom ephemeris mars --date 2025-03-19T20:00:00
-
-# Get position from a specific location
-starloom ephemeris jupiter --location 34.0522,-118.2437,0
-```
-
-The output includes:
-- Date and time (UTC)
-- Planet name
-- Zodiac position (degrees and sign)
-- Ecliptic latitude (degrees with N/S direction)
-- Distance from Earth in AU
 
 Example output:
 ```
@@ -69,61 +36,100 @@ Example output:
 Venus Aries 4°, 8.5°N, 0.28 AU
 ```
 
-#### Horizons Ephemeris Commands
+## Command Reference
 
-The `horizons` commands provide more detailed astronomical data:
+### Ephemeris Commands
 
-The `ecliptic` command retrieves ecliptic coordinates for planets. You can query for a single time or a range of times.
-
-#### Single Time Query
-
+#### Basic Position Queries
 ```bash
-# Get current position
-starloom horizons ecliptic venus --date now
+# Current position
+starloom ephemeris venus --date now
 
-# Get position at a specific time (ISO format)
-starloom horizons ecliptic venus --date 2025-03-19T20:00:00
+# Specific date/time
+starloom ephemeris mars --date 2025-03-19T20:00:00
+
+# With location
+starloom ephemeris jupiter --location 34.0522,-118.2437,0
 ```
 
-#### Time Range Query
-
+#### Detailed Horizons Queries
 ```bash
+# Get ecliptic coordinates
+starloom horizons ecliptic venus --date now
+
+# Get orbital elements
+starloom horizons elements mars --date 2025-03-19T20:00:00
+
+# Time range query
 starloom horizons ecliptic venus \
     --start 2025-03-19T20:00:00 \
     --stop 2025-03-19T22:00:00 \
     --step 1h
 ```
 
-The output includes:
-- Distance from Earth (delta) in AU
-- Velocity relative to Earth (deldot) in km/s
-- Ecliptic longitude (ObsEcLon) in degrees
-- Ecliptic latitude (ObsEcLat) in degrees
+### Weft Binary Ephemeris Commands
+
+#### Generate Weft Files
+```bash
+# Generate a weft file for a planet's quantity
+starloom weft generate mars longitude \
+    --start 2025-01-01 \
+    --stop 2025-02-01 \
+    --step 1h \
+    --output mars_longitude.weft
+
+# Combine weft files
+starloom weft combine mars1.weft mars2.weft combined_mars.weft \
+    --timespan 2020-2040
+```
+
+#### Using Weftballs
+```bash
+# Generate comprehensive planetary data (1900-2100)
+python -m scripts.make_weftball mars
+
+# Use weftball for calculations
+starloom ephemeris mars \
+    --source weft \
+    --data mars_weftball.tar.gz \
+    --date 2025-03-19T20:00:00
+```
+
+### Retrograde Analysis
+
+Find planetary retrograde periods with shadow periods and key aspects:
+
+```bash
+# Basic retrograde search
+starloom retrograde mercury \
+    --start 2024-01-01 \
+    --stop 2024-12-31 \
+    --output mercury_2024.json
+
+# High precision with weftballs
+starloom retrograde mars \
+    --start 2024-01-01 \
+    --stop 2025-12-31 \
+    --source weft \
+    --data mars_weftball.tar.gz \
+    --sun-data sun_weftball.tar.gz \
+    --step 6h \
+    --output mars_retro.json
+```
+
+## Data Types and Formats
+
+### Ephemeris Output
+
+Basic position output includes:
+- Date/time (UTC)
+- Zodiac position (° and sign)
+- Ecliptic latitude (°N/S)
+- Distance from Earth (AU)
 
 ### Orbital Elements
 
-The `elements` command retrieves heliocentric orbital elements for planets. Like the `ecliptic` command, you can query for a single time or a range of times.
-
-#### Single Time Query
-
-```bash
-# Get current orbital elements
-starloom horizons elements mars --date now
-
-# Get orbital elements at a specific time (ISO format)
-starloom horizons elements mars --date 2025-03-19T20:00:00
-```
-
-#### Time Range Query
-
-```bash
-starloom horizons elements mars \
-    --start 2025-03-19T20:00:00 \
-    --stop 2025-03-19T22:00:00 \
-    --step 1h
-```
-
-The output includes:
+Detailed elements include:
 - Eccentricity (EC)
 - Periapsis distance (QR) in km
 - Inclination (IN) in degrees
@@ -137,324 +143,9 @@ The output includes:
 - Apoapsis distance (AD) in km
 - Sidereal orbit period (PR) in seconds
 
-All elements are geometric osculating elements with respect to the Sun, referenced to the ecliptic and mean equinox of J2000.0.
+### Retrograde Data Format
 
-### Supported Planets
-
-- Mercury
-- Venus
-- Earth
-- Mars
-- Jupiter
-- Saturn
-- Uranus
-- Neptune
-- Pluto
-- Sun
-- Moon
-
-### Date Format
-
-Dates should be provided in ISO format: `YYYY-MM-DDTHH:MM:SS`. If no timezone is specified, UTC is assumed. You can also use "now" to get the current time.
-
-### Step Sizes
-
-When using time ranges, step sizes can be specified in various formats:
-- `1d` for 1 day
-- `1h` for 1 hour
-- `30m` for 30 minutes
-- `1m` for 1 minute
-
-## Data Storage and Caching
-
-### Local Data Storage
-
-The library provides classes for local storage and caching of ephemeris data:
-
-```python
-from starloom.local_horizons.storage import LocalHorizonsStorage
-from starloom.local_horizons.ephemeris import LocalHorizonsEphemeris
-from starloom.ephemeris.quantities import Quantity
-from datetime import datetime
-
-# Store ephemeris data locally
-storage = LocalHorizonsStorage(data_dir="./data")
-data = {
-    Quantity.ECLIPTIC_LONGITUDE: 120.5,
-    Quantity.ECLIPTIC_LATITUDE: 1.5,
-    Quantity.DELTA: 1.5,
-}
-storage.store_ephemeris_quantities("mars", datetime.utcnow(), data)
-
-# Retrieve data using the Ephemeris interface
-ephemeris = LocalHorizonsEphemeris(data_dir="./data")
-position = ephemeris.get_planet_position("mars")
-```
-
-### Cached API Access
-
-For efficient API usage, the library provides a caching layer:
-
-```python
-from starloom.cached_horizons.ephemeris import CachedHorizonsEphemeris
-from datetime import datetime, timedelta
-
-# Create a cached ephemeris instance
-ephemeris = CachedHorizonsEphemeris(data_dir="./data")
-
-# Get a planet's position - will fetch from API if not in cache
-position = ephemeris.get_planet_position("venus", datetime.utcnow())
-
-# Prefetch data for future use
-start_time = datetime.utcnow()
-end_time = start_time + timedelta(days=30)
-ephemeris.prefetch_data("mars", start_time, end_time, step_hours=24)
-```
-
-## Development
-
-### Project Structure
-
-```
-/src/starloom/
-├── cli/                # Command-line interface modules
-│   ├── ephemeris.py   # Ephemeris calculation commands
-│   ├── graphics.py    # SVG visualization commands
-│   ├── horizons.py    # JPL Horizons API commands
-│   ├── retrograde.py  # Retrograde period finder
-│   └── weft.py        # Weft file manipulation commands
-│
-├── ephemeris/         # Abstract ephemeris interface and utilities
-├── graphics/         # SVG visualization tools
-├── horizons/         # JPL Horizons API integration
-├── retrograde/       # Retrograde period detection and analysis
-├── weft/            # Weft binary ephemeris tools
-├── weft_ephemeris/  # Weft-based ephemeris implementation
-├── cached_horizons/ # Cached JPL Horizons data access (uses local_horizons)
-├── local_horizons/  # Local SQLite-based data storage
-├── space_time/      # Datetime and Julian date utilities
-└── linting/         # Code quality tools
-
-/scripts/            # Command-line tools and utilities
-/tests/
-└── fixtures/        # Test fixture data
-    ├── ecliptic/   # Planetary position data
-    └── elements/   # Orbital elements data
-```
-
-Key Module Descriptions:
-
-- **cli/**: Command-line interface modules for all functionality
-  - `ephemeris.py`: Calculate planetary positions
-  - `graphics.py`: Generate SVG visualizations
-  - `horizons.py`: Direct JPL Horizons API access
-  - `retrograde.py`: Find retrograde periods
-  - `weft.py`: Work with binary ephemeris files
-
-- **ephemeris/**: Core interfaces and utilities for astronomical calculations
-- **graphics/**: Tools for generating astronomical visualizations
-- **horizons/**: JPL Horizons API client and data parsers
-- **retrograde/**: Algorithms for detecting and analyzing retrograde motion
-- **weft/**: Binary ephemeris file format implementation
-- **weft_ephemeris/**: Ephemeris implementation using weft files
-- **cached_horizons/**: Caching layer for JPL Horizons data
-- **local_horizons/**: Local data storage using SQLite
-- **space_time/**: Time conversion and manipulation utilities
-- **linting/**: Custom code quality tools
-
-### Test Fixtures
-
-The project includes test fixtures for planetary positions and orbital elements. These are stored in `tests/fixtures/` and include:
-
-- Ecliptic positions for Venus and Mars
-- Orbital elements for Mars and Jupiter
-
-Each planet has both single-time and time-range data files.
-
-To regenerate the test fixtures:
-
-1. Ensure you have the package installed in development mode:
-   ```bash
-   pip install -e .
-   ```
-
-2. Run the fixture generation script:
-   ```bash
-   ./scripts/generate_fixtures.py
-   ```
-
-This will create or update the following files:
-- `tests/fixtures/ecliptic/*.txt`: Position data for Venus and Mars
-- `tests/fixtures/elements/*.txt`: Orbital elements for Mars and Jupiter
-
-The fixtures use the following time parameters:
-- Single time point: 2025-03-19T20:00:00
-- Time range: 2025-03-19T20:00:00 to 2025-03-19T22:00:00 (1-hour steps)
-
-### Key Design Principles
-
-1. **Timezone Awareness**: All datetime operations use timezone-aware objects, defaulting to UTC
-2. **Modular Design**: Clear separation between different astronomical data sources
-3. **Type Safety**: Comprehensive type hints and validation
-4. **Extensible**: Easy to add new features and data sources
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run the tests: `python -m pytest tests/`
-5. Submit a pull request
-
-### Running Tests
-
-Run all tests:
-
-```bash
-python -m pytest
-```
-
-Run specific test modules:
-
-```bash
-# Run local_horizons tests
-python -m pytest tests/local_horizons
-
-# Run cached_horizons tests
-python -m pytest tests/cached_horizons
-```
-
-The test suite includes comprehensive tests for:
-- Local storage operations
-- Ephemeris interface implementation
-- Caching behavior
-- Error handling
-
-## License
-
-[Add license information here]
-
-### Weft Binary Ephemeris Commands
-
-The `weft` commands allow you to work with Weft binary ephemeris files for efficient storage and retrieval of planetary data.
-
-#### Generate Weft Files
-
-```bash
-# Generate a weft file for a planet's quantity
-starloom weft generate <planet> <quantity> --start <date> --stop <date> --step <step> --output <file>
-
-# Example: Generate Mars longitude data for a month
-starloom weft generate mars longitude --start 2025-01-01 --stop 2025-02-01 --step 1h --output mars_longitude.weft
-```
-
-Supported quantities:
-- `longitude`: Ecliptic longitude
-- `latitude`: Ecliptic latitude
-- `distance`: Distance from Earth
-
-#### Combine Weft Files
-
-```bash
-# Combine two weft files
-starloom weft combine <file1> <file2> <output> --timespan <span>
-
-# Example: Combine two Mars longitude files
-starloom weft combine mars_2020s.weft mars_2030s.weft mars_combined.weft --timespan 2020-2040
-```
-
-### Weftball Generation
-
-The `make_weftball.py` script generates comprehensive planetary data files spanning from 1900 to 2100:
-
-```bash
-# Generate a weftball for a planet
-python -m scripts.make_weftball <planet> [options]
-
-# Examples
-python -m scripts.make_weftball mars              # Basic usage
-python -m scripts.make_weftball jupiter --debug   # Enable debug logging
-python -m scripts.make_weftball saturn -v         # Enable verbose logging
-python -m scripts.make_weftball mercury --quiet   # Suppress all but error logs
-```
-
-The script:
-1. Generates decade-by-decade weft files for longitude, latitude, and distance
-2. Combines them into one file per quantity
-3. Creates a tar.gz archive containing all files
-
-### Using Weftballs as Ephemeris Source
-
-Once you have generated a weftball for a planet, you can use it as an ephemeris source for fast, offline planetary calculations:
-
-```bash
-# Use a weftball file for ephemeris calculations
-starloom ephemeris mercury --source weft --data mercury_weftball.tar.gz
-
-# Get position at a specific time
-starloom ephemeris venus --source weft --data venus_weftball.tar.gz --date 2025-03-19T20:00:00
-
-# Get positions for a date range
-starloom ephemeris mars --source weft --data mars_weftball.tar.gz \
-    --start 2025-03-19T20:00:00 \
-    --stop 2025-03-19T22:00:00 \
-    --step 1h
-```
-
-You can also use weftballs programmatically:
-
-```python
-from starloom.weft_ephemeris import WeftEphemeris
-from datetime import datetime, timezone
-
-# Create an ephemeris instance using a weftball
-ephemeris = WeftEphemeris(data="mars_weftball.tar.gz")
-
-# Get a planet's position at a specific time
-time_point = datetime(2025, 3, 22, tzinfo=timezone.utc)
-position = ephemeris.get_planet_position("mars", time_point)
-
-# Access the position data
-longitude = position[Quantity.ECLIPTIC_LONGITUDE]  # Degrees [0, 360)
-latitude = position[Quantity.ECLIPTIC_LATITUDE]    # Degrees [-90, 90]
-distance = position[Quantity.DELTA]                # Distance in AU
-```
-
-Weftballs provide several advantages:
-- Fast lookup times using Chebyshev polynomial interpolation
-- Compact storage of ephemeris data
-- Offline operation - no need for API calls
-- High precision with configurable accuracy levels
-
-### Finding Retrograde Periods
-
-The retrograde finder can identify planetary retrograde periods, including shadow periods and key aspects:
-
-```bash
-# Find Mercury retrogrades in 2024 using weftballs
-starloom retrograde mercury --start 2024-01-01 --stop 2024-12-31 \
-    --source weft --data mercury_weftball.tar.gz --sun-data sun_weftball.tar.gz \
-    --output mercury_2024.json
-
-# Find Mars retrogrades with higher precision
-starloom retrograde mars --start 2024-01-01 --stop 2025-12-31 \
-    --step 6h --output mars_retro.json
-
-# Using a specific data source
-starloom retrograde venus --start 2024-01-01 --stop 2024-12-31 \
-    --source sqlite --data ./data --output venus_retro.json
-```
-
-The output JSON file contains detailed information about each retrograde period:
-- Pre-shadow start: When the planet first reaches the degree of eventual station
-- Station retrograde: When the planet appears to stop and begin moving backward
-- Station direct: When the planet appears to stop and begin moving forward
-- Post-shadow end: When the planet last crosses the degree of station
-- Sun aspect: 
-  - For inner planets (Mercury/Venus): Time of cazimi (conjunction with Sun)
-  - For outer planets: Time of opposition to Sun
-
-Example output:
+JSON output includes for each period:
 ```json
 {
   "retrograde_periods": [
@@ -490,24 +181,121 @@ Example output:
 }
 ```
 
-You can use different ephemeris sources:
-- `weft`: Use weftball files (fastest, offline)
-- `cached_horizons`: Use cached JPL Horizons data
-- `sqlite`: Use local SQLite storage
-- `horizons`: Query JPL Horizons API directly
+## Advanced Usage
 
-When using weftballs, you can specify separate files for the planet and Sun positions using `--data` and `--sun-data` respectively.
+### Data Storage & Caching
+
+```python
+from starloom.cached_horizons.ephemeris import CachedHorizonsEphemeris
+from datetime import datetime, timedelta
+
+# Create a cached ephemeris instance
+ephemeris = CachedHorizonsEphemeris(data_dir="./data")
+
+# Prefetch data for future use
+start_time = datetime.utcnow()
+end_time = start_time + timedelta(days=30)
+ephemeris.prefetch_data("mars", start_time, end_time, step_hours=24)
+```
+
+### Using Weftballs Programmatically
+
+```python
+from starloom.weft_ephemeris import WeftEphemeris
+from datetime import datetime, timezone
+
+# Create an ephemeris instance using a weftball
+ephemeris = WeftEphemeris(data="mars_weftball.tar.gz")
+
+# Get a planet's position
+time_point = datetime(2025, 3, 22, tzinfo=timezone.utc)
+position = ephemeris.get_planet_position("mars", time_point)
+
+# Access position data
+longitude = position[Quantity.ECLIPTIC_LONGITUDE]  # Degrees [0, 360)
+latitude = position[Quantity.ECLIPTIC_LATITUDE]    # Degrees [-90, 90]
+distance = position[Quantity.DELTA]                # Distance in AU
+```
+
+## Project Structure
+
+```
+src/starloom/
+├── cli/                # Command-line interface modules
+│   ├── ephemeris.py   # Ephemeris calculation commands
+│   ├── graphics.py    # SVG visualization commands
+│   ├── horizons.py    # JPL Horizons API commands
+│   ├── retrograde.py  # Retrograde period finder
+│   └── weft.py        # Weft file manipulation commands
+│
+├── ephemeris/         # Abstract ephemeris interface and utilities
+├── graphics/         # SVG visualization tools
+├── horizons/         # JPL Horizons API integration
+├── retrograde/       # Retrograde period detection and analysis
+├── weft/            # Weft binary ephemeris tools
+├── weft_ephemeris/  # Weft-based ephemeris implementation
+├── cached_horizons/ # Cached JPL Horizons data access
+├── local_horizons/  # Local SQLite-based data storage
+├── space_time/      # Datetime and Julian date utilities
+└── linting/         # Code quality tools
+```
+
+## Development
+
+### Testing
+
+Run all tests:
+```bash
+python -m pytest
+```
+
+Run specific test modules:
+```bash
+python -m pytest tests/local_horizons
+python -m pytest tests/cached_horizons
+```
 
 ### Profiling
 
-For performance analysis, you can run any starloom command with profiling enabled:
-
+Profile any command for performance analysis:
 ```bash
-# Run a command with profiling
-python -m starloom.profile <command>
-
-# Example: Profile an ephemeris calculation
 python -m starloom.profile ephemeris mars --date 2025-03-19T20:00:00
 ```
 
-The profiler will output cumulative execution time statistics for analysis.
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run the tests: `python -m pytest tests/`
+5. Submit a pull request
+
+## Supported Objects
+
+- Mercury
+- Venus
+- Earth
+- Mars
+- Jupiter
+- Saturn
+- Uranus
+- Neptune
+- Pluto
+- Sun
+- Moon
+
+## Date and Time Formats
+
+- ISO format: `YYYY-MM-DDTHH:MM:SS`
+- "now" for current time
+- UTC assumed if no timezone specified
+
+Step sizes for time ranges:
+- `1d`: 1 day
+- `1h`: 1 hour
+- `30m`: 30 minutes
+- `1m`: 1 minute
+
+## License
+
+[Add license information here] 
