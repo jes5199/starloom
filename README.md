@@ -217,17 +217,50 @@ ephemeris.prefetch_data("mars", start_time, end_time, step_hours=24)
 
 ```
 /src/starloom/
-├── ephemeris/  # Abstract ephemeris interface and utilities
-├── horizons/   # JPL Horizons API integration
-├── weft/       # Weft binary ephemeris tools
-└── space_time/ # Datetime and Julian date utilities
+├── cli/                # Command-line interface modules
+│   ├── ephemeris.py   # Ephemeris calculation commands
+│   ├── graphics.py    # SVG visualization commands
+│   ├── horizons.py    # JPL Horizons API commands
+│   ├── retrograde.py  # Retrograde period finder
+│   └── weft.py        # Weft file manipulation commands
+│
+├── ephemeris/         # Abstract ephemeris interface and utilities
+├── graphics/         # SVG visualization tools
+├── horizons/         # JPL Horizons API integration
+├── retrograde/       # Retrograde period detection and analysis
+├── weft/            # Weft binary ephemeris tools
+├── weft_ephemeris/  # Weft-based ephemeris implementation
+├── cached_horizons/ # Cached JPL Horizons data access (uses local_horizons)
+├── local_horizons/  # Local SQLite-based data storage
+├── space_time/      # Datetime and Julian date utilities
+└── linting/         # Code quality tools
 
-/scripts/       # Command-line tools and utilities
+/scripts/            # Command-line tools and utilities
 /tests/
-└── fixtures/   # Test fixture data
+└── fixtures/        # Test fixture data
     ├── ecliptic/   # Planetary position data
     └── elements/   # Orbital elements data
 ```
+
+Key Module Descriptions:
+
+- **cli/**: Command-line interface modules for all functionality
+  - `ephemeris.py`: Calculate planetary positions
+  - `graphics.py`: Generate SVG visualizations
+  - `horizons.py`: Direct JPL Horizons API access
+  - `retrograde.py`: Find retrograde periods
+  - `weft.py`: Work with binary ephemeris files
+
+- **ephemeris/**: Core interfaces and utilities for astronomical calculations
+- **graphics/**: Tools for generating astronomical visualizations
+- **horizons/**: JPL Horizons API client and data parsers
+- **retrograde/**: Algorithms for detecting and analyzing retrograde motion
+- **weft/**: Binary ephemeris file format implementation
+- **weft_ephemeris/**: Ephemeris implementation using weft files
+- **cached_horizons/**: Caching layer for JPL Horizons data
+- **local_horizons/**: Local data storage using SQLite
+- **space_time/**: Time conversion and manipulation utilities
+- **linting/**: Custom code quality tools
 
 ### Test Fixtures
 
