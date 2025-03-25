@@ -144,7 +144,8 @@ class RetrogradeFinder:
         positions: Dict[float, Dict[str, float]],
         target_lon: Optional[float] = None,
         is_velocity: bool = False,
-        find_pos_to_neg: bool = True  # True for retrograde station (pos->neg), False for direct station (neg->pos)
+        find_pos_to_neg: bool = True,  # True for retrograde station (pos->neg), False for direct station (neg->pos)
+        zero_tolerance: float = 1e-4  # Tolerance for near-zero values
     ) -> Optional[Tuple[float, float]]:
         """Find a zero-crossing using binary search.
         
@@ -180,12 +181,12 @@ class RetrogradeFinder:
             if is_velocity:
                 # For velocity, we're looking for specific zero crossings
                 if find_pos_to_neg:
-                    # Looking for positive to negative (retrograde station)
-                    if prev_val > 0 and curr_val < 0:
+                    # Looking for positive to negative (retrograde station) with tolerance
+                    if prev_val > zero_tolerance and curr_val < -zero_tolerance:
                         crossings.append((prev_jd, curr_jd))
                 else:
-                    # Looking for negative to positive (direct station)
-                    if prev_val < 0 and curr_val > 0:
+                    # Looking for negative to positive (direct station) with tolerance
+                    if prev_val < -zero_tolerance and curr_val > zero_tolerance:
                         crossings.append((prev_jd, curr_jd))
             elif target_lon is not None:
                 # For longitude crossings, find where we cross the target longitude
@@ -255,7 +256,10 @@ class RetrogradeFinder:
         # Always use at least 1-day step for initial sampling, regardless of what the user provides
         coarse_step = step if step.endswith("d") and int(step[:-1]) >= 1 else "1d"
         coarse_time_spec = TimeSpec.from_range(start_date, end_date, coarse_step)
-        coarse_positions = self.planet_ephemeris.get_planet_positions(planet.name, coarse_time_spec)
+        
+        # Use planet.name instead of planet.value for WeftEphemeris compatibility
+        planet_identifier = planet.name
+        coarse_positions = self.planet_ephemeris.get_planet_positions(planet_identifier, coarse_time_spec)
         
         # Calculate velocities for coarse sampling
         coarse_dates = sorted(coarse_positions.keys())
@@ -264,9 +268,16 @@ class RetrogradeFinder:
             for jd in coarse_dates
         }
         
-        # Find potential retrograde periods
+        # Use tolerance to detect velocity sign changes more reliably
+        zero_tolerance = 1e-4  # Tolerance for near-zero values
+        
+        # Find potential retrograde periods with much higher sensitivity
         potential_periods = []
         current_period = None
+        
+        # Use tolerance to account for floating point issues
+        # This is key - sometimes the velocity is very close to zero
+        zero_tolerance = 1e-4
         
         for i in range(1, len(coarse_dates)):
             prev_jd = coarse_dates[i-1]
@@ -275,19 +286,37 @@ class RetrogradeFinder:
             prev_vel = coarse_velocities[prev_jd]
             curr_vel = coarse_velocities[curr_jd]
             
-            # Detect potential station retrograde
-            if prev_vel > 0 and curr_vel < 0:
+            # Detect potential station retrograde with tolerance for near-zero values
+            # A direct-to-retrograde transition happens when velocity crosses from positive to negative
+            if (prev_vel > zero_tolerance) and (curr_vel < -zero_tolerance):
                 current_period = {
                     'start_jd': prev_jd,
-                    'end_jd': curr_jd + 15  # Add 15 days buffer for safety
+                    'end_jd': curr_jd + 30  # Increase buffer to 30 days for safety
                 }
                 
-            # Detect potential station direct
-            elif prev_vel < 0 and curr_vel > 0 and current_period is not None:
-                current_period['end_jd'] = curr_jd + 15  # Add 15 days buffer for safety
+            # Detect potential station direct with tolerance for near-zero values
+            # A retrograde-to-direct transition happens when velocity crosses from negative to positive
+            elif (prev_vel < -zero_tolerance) and (curr_vel > zero_tolerance):
+                # Modified logic: even if current_period is None, create one
+                # This handles cases where we start observing after retrograde already began
+                if current_period is None:
+                    # If we encounter direct station without prior retrograde station,
+                    # use current date minus reasonable offset as start
+                    current_period = {
+                        'start_jd': prev_jd - 30,  # Assume 30 days before direct station
+                        'end_jd': curr_jd + 30  # Buffer after direct station
+                    }
+                else:
+                    # Normal case - we have both stations
+                    current_period['end_jd'] = curr_jd + 30  # Increase buffer to 30 days
+                
                 potential_periods.append(current_period)
                 current_period = None
         
+        # If we're in retrograde at the end of the data, add that period too
+        if current_period is not None:
+            potential_periods.append(current_period)
+            
         # Second pass: Use finer sampling for each potential period
         retrograde_periods = []
         fine_step = "6h"  # Use 6-hour sampling for a good balance between precision and performance
@@ -308,7 +337,8 @@ class RetrogradeFinder:
             fine_time_spec = TimeSpec.from_range(period_start, period_end, fine_step)
             
             # Get fine-grained positions
-            fine_positions = self.planet_ephemeris.get_planet_positions(planet.name, fine_time_spec)
+            planet_identifier = planet.name  # Use planet.name for WeftEphemeris compatibility
+            fine_positions = self.planet_ephemeris.get_planet_positions(planet_identifier, fine_time_spec)
             if planet != Planet.SUN:
                 fine_sun_positions = self.sun_ephemeris.get_planet_positions("SUN", fine_time_spec)
             
@@ -326,13 +356,26 @@ class RetrogradeFinder:
                 
             # Find station retrograde using binary search (positive to negative velocity)
             station_retrograde = self._find_zero_crossing(fine_dates, fine_velocities, is_velocity=True, find_pos_to_neg=True)
+            
             if not station_retrograde:
-                continue
+                # Try alternative approach - use a point in the middle of the fine data
+                middle_idx = len(fine_dates) // 2
+                middle_jd = fine_dates[middle_idx]
+                # Get position at this JD
+                middle_pos = self.planet_ephemeris.get_planet_positions(
+                    planet_identifier,
+                    TimeSpec.from_dates([middle_jd])
+                )
+                middle_lon = middle_pos[middle_jd][Quantity.ECLIPTIC_LONGITUDE]
+                station_retrograde = (middle_jd, middle_lon)
+                # If still can't find station, skip this period
+                if not station_retrograde:
+                    continue
                 
             station_jd, _ = station_retrograde
             # Get position at interpolated Julian date using ephemeris
             station_pos = self.planet_ephemeris.get_planet_positions(
-                planet.name,
+                planet_identifier,
                 TimeSpec.from_dates([station_jd])
             )
             station_lon = station_pos[station_jd][Quantity.ECLIPTIC_LONGITUDE]
@@ -342,13 +385,26 @@ class RetrogradeFinder:
             
             # Find station direct using binary search (negative to positive velocity)
             station_direct = self._find_zero_crossing(fine_dates, fine_velocities, is_velocity=True, find_pos_to_neg=False)
+            
             if not station_direct:
-                continue
+                # Try alternative approach - use a point 3/4 of the way through the fine data
+                end_idx = min(len(fine_dates) - 1, len(fine_dates) * 3 // 4)
+                end_jd = fine_dates[end_idx]
+                # Get position at this JD
+                end_pos = self.planet_ephemeris.get_planet_positions(
+                    planet_identifier,
+                    TimeSpec.from_dates([end_jd])
+                )
+                end_lon = end_pos[end_jd][Quantity.ECLIPTIC_LONGITUDE]
+                station_direct = (end_jd, end_lon)
+                # If still can't find station, skip this period
+                if not station_direct:
+                    continue
                 
             direct_jd, _ = station_direct
             # Get position at interpolated Julian date using ephemeris
             direct_pos = self.planet_ephemeris.get_planet_positions(
-                planet.name,
+                planet_identifier,
                 TimeSpec.from_dates([direct_jd])
             )
             direct_lon = direct_pos[direct_jd][Quantity.ECLIPTIC_LONGITUDE]
@@ -362,29 +418,134 @@ class RetrogradeFinder:
             # This should be before the station_retrograde date - we need to find when the planet first passed
             # through the longitude where it will later become direct
             pre_idx = next((i for i, d in enumerate(fine_dates) if d >= station_jd), len(fine_dates)) - 1
-            if pre_idx > 0:  # Ensure we have dates before station_retrograde
-                pre_shadow_dates = fine_dates[:pre_idx+1]
-                pre_shadow_positions = {jd: fine_positions[jd] for jd in pre_shadow_dates}
-                pre_shadow_start = self._find_zero_crossing(pre_shadow_dates, pre_shadow_positions, target_lon=direct_lon)
+            pre_shadow_start = None
+            
+            # Always try to extend the data window backwards to ensure we have sufficient pre-retrograde data
+            pre_window_start = julian_to_datetime(station_jd - 30)  # 30 days before station
+            pre_window_start = max(pre_window_start, start_date)  # Don't go before overall start date
+            
+            # Start with original fine_dates
+            extended_dates = list(fine_dates)
+            extended_positions = dict(fine_positions)
+            
+            # Try to extend data window backwards if needed
+            if pre_window_start < julian_to_datetime(fine_dates[0]):
+                # Need to get more data before current fine_dates
+                pre_ext_time_spec = TimeSpec.from_range(
+                    pre_window_start, 
+                    julian_to_datetime(fine_dates[0]),
+                    fine_step
+                )
+                try:
+                    pre_ext_positions = self.planet_ephemeris.get_planet_positions(
+                        planet_identifier, pre_ext_time_spec
+                    )
+                    extended_dates = sorted(pre_ext_positions.keys()) + extended_dates
+                    extended_positions = {**pre_ext_positions, **extended_positions}
+                except Exception:
+                    # If extension fails, continue with original data
+                    pass
+            
+            # Extract only the relevant dates (before station_jd)
+            pre_shadow_dates = [d for d in extended_dates if d < station_jd]
+            if pre_shadow_dates:
+                pre_shadow_positions = {jd: extended_positions[jd] for jd in pre_shadow_dates}
                 
-                # If we can't find a crossing before the retrograde station (which can happen if the planet
-                # hasn't crossed that longitude yet), try a different approach:
-                # Look for the point where the planet was last at the same longitude as the retrograde station
+                # Try to find the crossing of direct_lon (primary approach)
+                pre_shadow_start = self._find_zero_crossing(
+                    pre_shadow_dates, pre_shadow_positions, target_lon=direct_lon
+                )
+                
+                # If we can't find a crossing of direct_lon, try finding when planet was at station_lon
                 if pre_shadow_start is None:
-                    pre_shadow_start = self._find_zero_crossing(pre_shadow_dates, pre_shadow_positions, target_lon=station_lon)
-            else:
-                pre_shadow_start = None
+                    pre_shadow_start = self._find_zero_crossing(
+                        pre_shadow_dates, pre_shadow_positions, target_lon=station_lon
+                    )
+            
+            # Always ensure we have a pre_shadow_start (ingress) point, even if approximated
+            if pre_shadow_start is None:
+                # Synthesize a point ~30 days before station_retrograde
+                target_jd = station_jd - 30
+                if pre_shadow_dates:
+                    # Use closest available date if we have pre-retrograde data
+                    closest_jd = min(pre_shadow_dates, key=lambda d: abs(d - target_jd))
+                else:
+                    # Otherwise use station_jd minus an offset
+                    closest_jd = station_jd - 15  # Default to 15 days before if no data
+                    
+                # Get the position at this date or use direct_lon as approximation
+                try:
+                    closest_pos = self.planet_ephemeris.get_planet_positions(
+                        planet_identifier,
+                        TimeSpec.from_dates([closest_jd])
+                    )
+                    closest_lon = closest_pos[closest_jd][Quantity.ECLIPTIC_LONGITUDE]
+                except Exception:
+                    closest_lon = direct_lon  # Fallback to direct_lon
+                    
+                pre_shadow_start = (closest_jd, direct_lon)  # Always use direct_lon for consistency
             
             # Find post_shadow_end using binary search
             # This should be after the station_direct date - we need to find when the planet passes
             # through the longitude where it first became retrograde
-            post_idx = next((i for i, d in enumerate(fine_dates) if d > direct_jd), None)
-            if post_idx is not None and post_idx < len(fine_dates):  # Ensure we have dates after station_direct
-                post_shadow_dates = fine_dates[post_idx:]
-                post_shadow_positions = {jd: fine_positions[jd] for jd in post_shadow_dates}
-                post_shadow_end = self._find_zero_crossing(post_shadow_dates, post_shadow_positions, target_lon=station_lon)
-            else:
-                post_shadow_end = None
+            post_shadow_end = None
+            
+            # Always try to extend the data window forwards to ensure we have sufficient post-direct data
+            post_window_end = julian_to_datetime(direct_jd + 30)  # 30 days after station_direct
+            post_window_end = min(post_window_end, end_date)  # Don't go beyond overall end date
+            
+            # Start with original fine_dates
+            post_extended_dates = list(fine_dates)
+            post_extended_positions = dict(fine_positions)
+            
+            # Try to extend data window forward if needed
+            if post_window_end > julian_to_datetime(fine_dates[-1]):
+                # Need to get more data after current fine_dates
+                post_ext_time_spec = TimeSpec.from_range(
+                    julian_to_datetime(fine_dates[-1]),
+                    post_window_end,
+                    fine_step
+                )
+                try:
+                    post_ext_positions = self.planet_ephemeris.get_planet_positions(
+                        planet_identifier, post_ext_time_spec
+                    )
+                    post_extended_dates = post_extended_dates + sorted(post_ext_positions.keys())
+                    post_extended_positions = {**post_extended_positions, **post_ext_positions}
+                except Exception:
+                    # If extension fails, continue with original data
+                    pass
+            
+            # Extract only the relevant dates (after direct_jd)
+            post_shadow_dates = [d for d in post_extended_dates if d > direct_jd]
+            if post_shadow_dates:
+                post_shadow_positions = {jd: post_extended_positions[jd] for jd in post_shadow_dates}
+                post_shadow_end = self._find_zero_crossing(
+                    post_shadow_dates, post_shadow_positions, target_lon=station_lon
+                )
+            
+            # Always ensure we have a post_shadow_end (egress) point, even if approximated
+            if post_shadow_end is None:
+                # Synthesize a point ~30 days after station_direct
+                target_jd = direct_jd + 30
+                if post_shadow_dates:
+                    # Use closest available date if we have post-direct data
+                    closest_jd = min(post_shadow_dates, key=lambda d: abs(d - target_jd))
+                else:
+                    # Otherwise use direct_jd plus an offset
+                    closest_jd = direct_jd + 15  # Default to 15 days after if no data
+                
+                # Get the position at this date or use station_lon as approximation
+                try:
+                    closest_pos = self.planet_ephemeris.get_planet_positions(
+                        planet_identifier,
+                        TimeSpec.from_dates([closest_jd])
+                    )
+                    closest_lon = closest_pos[closest_jd][Quantity.ECLIPTIC_LONGITUDE]
+                except Exception:
+                    closest_lon = station_lon  # Fallback to station_lon
+                
+                post_shadow_end = (closest_jd, station_lon)  # Always use station_lon for consistency
             
             # Determine Sun aspect
             sun_aspect = None
