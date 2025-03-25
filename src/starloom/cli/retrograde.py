@@ -2,7 +2,6 @@
 
 import click
 import traceback
-from datetime import datetime, timezone
 from typing import Optional
 import os.path
 

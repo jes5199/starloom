@@ -2,13 +2,13 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 import json
 
 from ..ephemeris.quantities import Quantity
 from ..ephemeris.time_spec import TimeSpec
 from ..planet import Planet
-from ..space_time.julian import julian_to_datetime, datetime_to_julian
+from ..space_time.julian import julian_to_datetime
 
 
 def angle_diff(lon2: float, lon1: float) -> float:
