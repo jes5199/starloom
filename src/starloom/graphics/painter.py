@@ -54,11 +54,15 @@ class PlanetaryPainter:
 
         # Scale distance to fit in plot (assuming max distance of 5 AU)
         max_distance = 5.0
-        scaled_distance = min(distance / max_distance, 1.0)
+        scaled_distance = min(distance / max_distance, 1.0) * min(self.plot_width, self.plot_height) / 2
 
-        # Calculate x, y coordinates (polar to cartesian)
-        x = self.margin + self.plot_width * (lon_rad / (2 * math.pi))
-        y = self.margin + self.plot_height * (1 - scaled_distance)
+        # Calculate x, y coordinates using trigonometry
+        # x = r * cos(θ), y = r * sin(θ)
+        center_x = self.width / 2
+        center_y = self.height / 2
+        
+        x = center_x + scaled_distance * math.cos(lon_rad)
+        y = center_y + scaled_distance * math.sin(lon_rad)
 
         return x, y
 
