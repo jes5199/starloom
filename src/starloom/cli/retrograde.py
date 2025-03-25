@@ -173,7 +173,6 @@ def retrograde(
                 click.echo()
         elif format == "csv":
             import csv
-            from datetime import datetime
             import dateutil.parser
 
             def format_date_for_spreadsheet(date_str):
