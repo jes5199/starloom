@@ -350,6 +350,49 @@ The script:
 2. Combines them into one file per quantity
 3. Creates a tar.gz archive containing all files
 
+### Using Weftballs as Ephemeris Source
+
+Once you have generated a weftball for a planet, you can use it as an ephemeris source for fast, offline planetary calculations:
+
+```bash
+# Use a weftball file for ephemeris calculations
+starloom ephemeris mercury --source weft --data mercury_weftball.tar.gz
+
+# Get position at a specific time
+starloom ephemeris venus --source weft --data venus_weftball.tar.gz --date 2025-03-19T20:00:00
+
+# Get positions for a date range
+starloom ephemeris mars --source weft --data mars_weftball.tar.gz \
+    --start 2025-03-19T20:00:00 \
+    --stop 2025-03-19T22:00:00 \
+    --step 1h
+```
+
+You can also use weftballs programmatically:
+
+```python
+from starloom.weft_ephemeris import WeftEphemeris
+from datetime import datetime, timezone
+
+# Create an ephemeris instance using a weftball
+ephemeris = WeftEphemeris(data="mars_weftball.tar.gz")
+
+# Get a planet's position at a specific time
+time_point = datetime(2025, 3, 22, tzinfo=timezone.utc)
+position = ephemeris.get_planet_position("mars", time_point)
+
+# Access the position data
+longitude = position[Quantity.ECLIPTIC_LONGITUDE]  # Degrees [0, 360)
+latitude = position[Quantity.ECLIPTIC_LATITUDE]    # Degrees [-90, 90]
+distance = position[Quantity.DELTA]                # Distance in AU
+```
+
+Weftballs provide several advantages:
+- Fast lookup times using Chebyshev polynomial interpolation
+- Compact storage of ephemeris data
+- Offline operation - no need for API calls
+- High precision with configurable accuracy levels
+
 ### Profiling
 
 For performance analysis, you can run any starloom command with profiling enabled:
