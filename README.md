@@ -150,6 +150,8 @@ All elements are geometric osculating elements with respect to the Sun, referenc
 - Uranus
 - Neptune
 - Pluto
+- Sun
+- Moon
 
 ### Date Format
 
@@ -298,3 +300,66 @@ The test suite includes comprehensive tests for:
 ## License
 
 [Add license information here]
+
+### Weft Binary Ephemeris Commands
+
+The `weft` commands allow you to work with Weft binary ephemeris files for efficient storage and retrieval of planetary data.
+
+#### Generate Weft Files
+
+```bash
+# Generate a weft file for a planet's quantity
+starloom weft generate <planet> <quantity> --start <date> --stop <date> --step <step> --output <file>
+
+# Example: Generate Mars longitude data for a month
+starloom weft generate mars longitude --start 2025-01-01 --stop 2025-02-01 --step 1h --output mars_longitude.weft
+```
+
+Supported quantities:
+- `longitude`: Ecliptic longitude
+- `latitude`: Ecliptic latitude
+- `distance`: Distance from Earth
+
+#### Combine Weft Files
+
+```bash
+# Combine two weft files
+starloom weft combine <file1> <file2> <output> --timespan <span>
+
+# Example: Combine two Mars longitude files
+starloom weft combine mars_2020s.weft mars_2030s.weft mars_combined.weft --timespan 2020-2040
+```
+
+### Weftball Generation
+
+The `make_weftball.py` script generates comprehensive planetary data files spanning from 1900 to 2100:
+
+```bash
+# Generate a weftball for a planet
+python -m scripts.make_weftball <planet> [options]
+
+# Examples
+python -m scripts.make_weftball mars              # Basic usage
+python -m scripts.make_weftball jupiter --debug   # Enable debug logging
+python -m scripts.make_weftball saturn -v         # Enable verbose logging
+python -m scripts.make_weftball mercury --quiet   # Suppress all but error logs
+```
+
+The script:
+1. Generates decade-by-decade weft files for longitude, latitude, and distance
+2. Combines them into one file per quantity
+3. Creates a tar.gz archive containing all files
+
+### Profiling
+
+For performance analysis, you can run any starloom command with profiling enabled:
+
+```bash
+# Run a command with profiling
+python -m starloom.profile <command>
+
+# Example: Profile an ephemeris calculation
+python -m starloom.profile ephemeris mars --date 2025-03-19T20:00:00
+```
+
+The profiler will output cumulative execution time statistics for analysis.
