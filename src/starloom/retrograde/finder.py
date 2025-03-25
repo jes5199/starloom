@@ -78,7 +78,7 @@ class RetrogradePeriod:
                 "longitude": self.post_shadow_end[1],
             }))
             
-        # Sort events by julian_date
+        # Sort events by julian_date, probably not needed really
         events.sort(key=lambda x: x[1]["julian_date"])
         
         # Create the result dictionary with sorted events
