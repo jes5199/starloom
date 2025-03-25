@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Iterator
 import json
 
 from ..ephemeris.quantities import Quantity
@@ -490,7 +490,7 @@ class RetrogradeFinder:
 
     def find_retrograde_periods(
         self, planet: Planet, start_date: datetime, end_date: datetime, step: str = "1d"
-    ) -> List[RetrogradePeriod]:
+    ) -> Iterator[RetrogradePeriod]:
         """Find all retrograde periods for a planet within the given date range.
 
         Uses a two-pass approach:
@@ -503,8 +503,8 @@ class RetrogradeFinder:
             end_date: End of search range
             step: Time step for initial coarse sampling (e.g. "1d", "6h")
 
-        Returns:
-            List of RetrogradePeriod objects
+        Yields:
+            RetrogradePeriod objects as they are found
         """
         # First pass: Use coarser sampling to find general periods
         # Always use at least 1-day step for initial sampling, regardless of what the user provides
@@ -603,7 +603,6 @@ class RetrogradeFinder:
                 )
 
         # Second pass: Use finer sampling for each potential period
-        retrograde_periods = []
         fine_step = "6h"  # Use 6-hour sampling for a good balance between precision and performance
 
         for period in potential_periods:
@@ -912,19 +911,15 @@ class RetrogradeFinder:
                             closest_pos[closest_jd][Quantity.ECLIPTIC_LONGITUDE],
                         )
 
-            # Create RetrogradePeriod object and add to list
-            retrograde_periods.append(
-                RetrogradePeriod(
-                    planet=planet,
-                    station_retrograde=station_retrograde,
-                    station_direct=station_direct,
-                    pre_shadow_start=pre_shadow_start,
-                    post_shadow_end=post_shadow_end,
-                    sun_aspect=sun_aspect,
-                )
+            # Create RetrogradePeriod object and yield it immediately
+            yield RetrogradePeriod(
+                planet=planet,
+                station_retrograde=station_retrograde,
+                station_direct=station_direct,
+                pre_shadow_start=pre_shadow_start,
+                post_shadow_end=post_shadow_end,
+                sun_aspect=sun_aspect,
             )
-
-        return retrograde_periods
 
     def save_to_json(self, periods: List[RetrogradePeriod], output_file: str) -> None:
         """Save retrograde periods to a JSON file.
