@@ -72,6 +72,7 @@ class RetrogradeFinder:
         """Initialize the retrograde finder.
 
         Args:
+            planet: The planet to find retrograde periods for
             planet_ephemeris: Ephemeris instance for the planet.
             sun_ephemeris: Optional ephemeris for the Sun. Defaults to planet_ephemeris.
         """
@@ -106,7 +107,7 @@ class RetrogradeFinder:
             prev_lon = positions[prev_jd][Quantity.ECLIPTIC_LONGITUDE]
             return angle_diff(curr_lon, prev_lon) / (jd - prev_jd)
         
-        # For middle points, use central difference
+        # For middle points, use central difference for more accurate velocity
         next_jd = dates[idx + 1]
         prev_jd = dates[idx - 1]
         next_lon = positions[next_jd][Quantity.ECLIPTIC_LONGITUDE]
@@ -115,552 +116,694 @@ class RetrogradeFinder:
         backward_vel = angle_diff(curr_lon, prev_lon) / (jd - prev_jd)
         return (forward_vel + backward_vel) / 2
 
-    def _get_interpolated_position(self, jd: float) -> Optional[float]:
-        """Get interpolated position at a specific Julian date."""
+    def _get_position_at_time(self, jd: float) -> Optional[float]:
+        """Get planet position at a specific Julian date."""
         try:
             time_spec = TimeSpec.from_dates([jd])
-            new_pos = self.planet_ephemeris.get_planet_positions(self.planet.name, time_spec)
-            return new_pos[jd][Quantity.ECLIPTIC_LONGITUDE]
+            positions = self.planet_ephemeris.get_planet_positions(self.planet.name, time_spec)
+            return positions[jd][Quantity.ECLIPTIC_LONGITUDE]
         except Exception:
             return None
 
     def _find_zero_crossing(
         self,
         dates: List[float],
-        positions: Union[Dict[float, float], Dict[float, Dict[str, float]]],
-        target_lon: Optional[float] = None,
-        is_velocity: bool = False,
+        positions: Dict[float, Dict[str, float]],
+        velocities: Optional[Dict[float, float]] = None,
+        target_angle: Optional[float] = None,
+        find_velocity_crossing: bool = False,
         find_pos_to_neg: bool = True,
-        zero_tolerance: float = 1e-4,
-        precision_minutes: int = 1,
+        precision_hours: int = 1,
     ) -> Optional[Tuple[float, float]]:
-        """Find a zero crossing using binary search and linear interpolation.
-
-        Returns a tuple of (julian_date, value) where value is 0 for velocity or an interpolated angle.
+        """Find a crossing point (velocity=0 or specific angle) with high precision.
+        
+        Args:
+            dates: List of Julian dates
+            positions: Dict mapping Julian dates to position data
+            velocities: Optional dict of pre-calculated velocities
+            target_angle: Optional target longitude to find crossing for
+            find_velocity_crossing: If True, find where velocity crosses zero
+            find_pos_to_neg: If finding velocity crossing, whether to find positive-to-negative
+                             or negative-to-positive crossing
+            precision_hours: Desired precision in hours
+            
+        Returns:
+            Tuple of (julian_date, longitude) at the crossing point
         """
         if len(dates) < 2:
             return None
-
-        def get_value(jd: float) -> float:
-            """Get value at a specific Julian date, with fallback to interpolation."""
-            if jd in positions:
-                return positions[jd] if is_velocity else positions[jd][Quantity.ECLIPTIC_LONGITUDE]
-
-            # Interpolate between nearest points if available
-            nearest = sorted(positions.keys())
-            dates_before = [d for d in nearest if d < jd]
-            dates_after = [d for d in nearest if d > jd]
             
-            if dates_before and dates_after:
-                jd_before = max(dates_before)
-                jd_after = min(dates_after)
-                val_before = positions[jd_before] if is_velocity else positions[jd_before][Quantity.ECLIPTIC_LONGITUDE]
-                val_after = positions[jd_after] if is_velocity else positions[jd_after][Quantity.ECLIPTIC_LONGITUDE]
-                frac = (jd - jd_before) / (jd_after - jd_before)
-                return val_before + (val_after - val_before) * frac if is_velocity else interpolate_angle(val_before, val_after, frac)
-
-            # Fallback to ephemeris calculation
-            if is_velocity:
-                time_offset = 0.01  # ~14.4 minutes
-                pos_before = self._get_interpolated_position(jd - time_offset)
-                pos_center = self._get_interpolated_position(jd)
-                pos_after = self._get_interpolated_position(jd + time_offset)
-                
-                if all(p is not None for p in [pos_before, pos_center, pos_after]):
-                    forward_vel = angle_diff(pos_after, pos_center) / time_offset
-                    backward_vel = angle_diff(pos_center, pos_before) / time_offset
-                    return (forward_vel + backward_vel) / 2
-                return 0.0
-            else:
-                pos = self._get_interpolated_position(jd)
-                return pos if pos is not None else 0.0
-
-        # Find crossing segments
-        crossings = []
-        for i in range(1, len(dates)):
-            prev_jd, curr_jd = dates[i - 1], dates[i]
-            prev_val, curr_val = get_value(prev_jd), get_value(curr_jd)
-            
-            if is_velocity:
-                if find_pos_to_neg and prev_val > zero_tolerance and curr_val < -zero_tolerance:
-                    crossings.append((prev_jd, curr_jd, prev_val, curr_val))
-                elif not find_pos_to_neg and prev_val < -zero_tolerance and curr_val > zero_tolerance:
-                    crossings.append((prev_jd, curr_jd, prev_val, curr_val))
-            elif target_lon is not None:
-                diff1 = angle_diff(target_lon, prev_val)
-                diff2 = angle_diff(target_lon, curr_val)
-                if diff1 * diff2 <= 0:
-                    crossings.append((prev_jd, curr_jd, prev_val, curr_val))
-            else:
-                if prev_val * curr_val <= 0:
-                    crossings.append((prev_jd, curr_jd, prev_val, curr_val))
-
-        if not crossings:
-            return None
-
-        # For velocity crossings with multiple candidates, choose the most central one
-        if is_velocity and len(crossings) > 1:
-            mid_date = (dates[0] + dates[-1]) / 2
-            crossings.sort(key=lambda c: abs((c[0] + c[1]) / 2 - mid_date))
-
-        left_jd, right_jd, left_val, right_val = crossings[0]
+        # Find potential crossing segments
+        segments = []
         
-        # Linear interpolation to find precise crossing
-        if is_velocity:
-            # For velocity, interpolate to find where it crosses zero
-            fraction = abs(left_val) / (abs(left_val) + abs(right_val)) if abs(left_val - right_val) > 1e-12 else 0.5
-            crossing_jd = left_jd + fraction * (right_jd - left_jd)
-            crossing_val = 0
-        elif target_lon is not None:
-            # For target longitude, interpolate based on angle differences
-            diff_left = angle_diff(target_lon, left_val)
-            diff_right = angle_diff(target_lon, right_val)
-            fraction = abs(diff_left) / (abs(diff_left) + abs(diff_right)) if abs(diff_left) + abs(diff_right) > 1e-12 else 0.5
-            crossing_jd = left_jd + fraction * (right_jd - left_jd)
-            crossing_val = target_lon
-        else:
-            # For general zero crossing, interpolate based on values
-            fraction = abs(left_val) / (abs(left_val) + abs(right_val)) if abs(left_val) + abs(right_val) > 1e-12 else 0.5
-            crossing_jd = left_jd + fraction * (right_jd - left_jd)
-            crossing_val = interpolate_angle(left_val, right_val, fraction)
+        for i in range(1, len(dates)):
+            prev_jd, curr_jd = dates[i-1], dates[i]
+            
+            if find_velocity_crossing:
+                # If velocities not provided, calculate them
+                if velocities is None:
+                    prev_vel = self._calculate_velocity(positions, prev_jd, dates)
+                    curr_vel = self._calculate_velocity(positions, curr_jd, dates)
+                else:
+                    prev_vel = velocities[prev_jd]
+                    curr_vel = velocities[curr_jd]
+                    
+                # Check for velocity zero crossing
+                if (find_pos_to_neg and prev_vel > 0 and curr_vel < 0) or \
+                   (not find_pos_to_neg and prev_vel < 0 and curr_vel > 0):
+                    segments.append((prev_jd, curr_jd))
+            elif target_angle is not None:
+                # Check for crossing of target angle
+                prev_lon = positions[prev_jd][Quantity.ECLIPTIC_LONGITUDE]
+                curr_lon = positions[curr_jd][Quantity.ECLIPTIC_LONGITUDE]
+                
+                prev_diff = angle_diff(target_angle, prev_lon)
+                curr_diff = angle_diff(target_angle, curr_lon)
+                
+                if prev_diff * curr_diff <= 0:  # Sign change indicates crossing
+                    segments.append((prev_jd, curr_jd))
+        
+        if not segments:
+            return None
+            
+        # For multiple segments, choose the most central one
+        if len(segments) > 1:
+            mid_date = (dates[0] + dates[-1]) / 2
+            segments.sort(key=lambda seg: abs((seg[0] + seg[1])/2 - mid_date))
+            
+        # Use binary search to refine the crossing with high precision
+        left_jd, right_jd = segments[0]
+        precision = precision_hours / 24.0  # Convert hours to days
+        
+        while (right_jd - left_jd) > precision:
+            mid_jd = (left_jd + right_jd) / 2
+            
+            if find_velocity_crossing:
+                # For velocity crossings, calculate velocity at midpoint
+                # We need positions slightly before and after to calculate velocity
+                offset = 0.01  # Small offset (~15 min) for velocity calculation
+                
+                pos_before = self._get_position_at_time(mid_jd - offset)
+                pos_at = self._get_position_at_time(mid_jd)
+                pos_after = self._get_position_at_time(mid_jd + offset)
+                
+                if None in (pos_before, pos_at, pos_after):
+                    # Fall back to linear interpolation if we can't get precise positions
+                    break
+                    
+                vel_before = angle_diff(pos_at, pos_before) / offset
+                vel_after = angle_diff(pos_after, pos_at) / offset
+                mid_vel = (vel_before + vel_after) / 2
+                
+                if (find_pos_to_neg and mid_vel > 0) or (not find_pos_to_neg and mid_vel < 0):
+                    left_jd = mid_jd
+                else:
+                    right_jd = mid_jd
+            elif target_angle is not None:
+                # For angle crossings, check if we've crossed the target angle
+                mid_lon = self._get_position_at_time(mid_jd)
+                if mid_lon is None:
+                    break
+                    
+                mid_diff = angle_diff(target_angle, mid_lon)
+                
+                if prev_diff * mid_diff <= 0:
+                    right_jd = mid_jd
+                else:
+                    left_jd = mid_jd
+                    prev_diff = mid_diff
+        
+        # Get final position at the crossing point
+        cross_jd = (left_jd + right_jd) / 2
+        cross_lon = self._get_position_at_time(cross_jd)
+        
+        if cross_lon is None:
+            # Fall back to interpolation if direct query fails
+            left_lon = positions[left_jd][Quantity.ECLIPTIC_LONGITUDE]
+            right_lon = positions[right_jd][Quantity.ECLIPTIC_LONGITUDE]
+            fraction = (cross_jd - left_jd) / (right_jd - left_jd)
+            cross_lon = interpolate_angle(left_lon, right_lon, fraction)
+            
+        return (cross_jd, cross_lon)
 
-        return (crossing_jd, crossing_val)
+    def _find_sun_aspect(
+        self,
+        planet: Planet,
+        jd_range: Tuple[float, float],
+        planet_positions: Dict[float, Dict[str, float]] = None,
+        dates: List[float] = None,
+        precision_hours: int = 1
+    ) -> Optional[Tuple[float, float]]:
+        """Find the precise time of cazimi (conjunction) or opposition with the Sun.
+        
+        Args:
+            planet: The planet to find aspect for
+            jd_range: (start_jd, end_jd) for the search window
+            planet_positions: Optional dict of planet positions (if already available)
+            dates: Optional list of Julian dates (if already available)
+            precision_hours: Desired precision in hours
+            
+        Returns:
+            Tuple of (julian_date, longitude) at the aspect point
+        """
+        if planet == Planet.SUN:
+            return None
+            
+        # Get the date range
+        start_jd, end_jd = jd_range
+        aspect_start = julian_to_datetime(start_jd)
+        aspect_end = julian_to_datetime(end_jd)
+        
+        # Define the time specification with 1-hour step
+        time_spec = TimeSpec.from_range(aspect_start, aspect_end, "1h")
+        
+        # Get planet and sun positions if not provided
+        if planet_positions is None:
+            try:
+                planet_positions = self.planet_ephemeris.get_planet_positions(
+                    planet.name, time_spec
+                )
+                dates = sorted(planet_positions.keys())
+            except Exception as e:
+                logging.error(f"Error getting planet positions: {e}")
+                return None
+                
+        # Get sun positions
+        try:
+            sun_positions = self.sun_ephemeris.get_planet_positions("SUN", time_spec)
+        except Exception as e:
+            logging.error(f"Error getting sun positions: {e}")
+            return None
+            
+        # Determine the type of aspect based on whether it's an inner or outer planet
+        is_inner = planet in [Planet.MERCURY, Planet.VENUS]
+        
+        # Find closest approach between planet and sun
+        min_diff = 360.0
+        aspect_jd = None
+        aspect_lon = None
+        
+        for jd in dates:
+            if jd < start_jd or jd > end_jd or jd not in sun_positions:
+                continue
+                
+            planet_lon = planet_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+            sun_lon = sun_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+            
+            # For inner planets, look for conjunction (where diff is closest to 0°)
+            # For outer planets, look for opposition (where diff is closest to 180°)
+            diff = abs(angle_diff(planet_lon, sun_lon))
+            
+            if is_inner:
+                curr_diff = diff  # Want closest to 0°
+            else:
+                curr_diff = abs(diff - 180.0)  # Want closest to 180°
+                
+            if curr_diff < min_diff:
+                min_diff = curr_diff
+                aspect_jd = jd
+                aspect_lon = planet_lon
+        
+        if aspect_jd is None:
+            return None
+            
+        # Now refine the aspect time with higher precision
+        try:
+            # Use binary search around initial cazimi for precision
+            left_jd = aspect_jd - 0.1  # ~2.4 hours before
+            right_jd = aspect_jd + 0.1  # ~2.4 hours after
+            precision = precision_hours / 24.0  # Convert hours to days
+            
+            while (right_jd - left_jd) > precision / 6:  # 10 minutes of precision
+                mid_jd = (left_jd + right_jd) / 2
+                
+                # Get planet and sun positions at midpoint
+                mid_time_spec = TimeSpec.from_dates([mid_jd])
+                
+                try:
+                    mid_planet_pos = self.planet_ephemeris.get_planet_positions(
+                        planet.name, mid_time_spec
+                    )
+                    mid_sun_pos = self.sun_ephemeris.get_planet_positions(
+                        "SUN", mid_time_spec
+                    )
+                    
+                    mid_planet_lon = mid_planet_pos[mid_jd][Quantity.ECLIPTIC_LONGITUDE]
+                    mid_sun_lon = mid_sun_pos[mid_jd][Quantity.ECLIPTIC_LONGITUDE]
+                    
+                    # Calculate angular difference
+                    diff = abs(angle_diff(mid_planet_lon, mid_sun_lon))
+                    
+                    if is_inner:
+                        curr_diff = diff
+                    else:
+                        curr_diff = abs(diff - 180.0)
+                    
+                    if curr_diff < min_diff:
+                        min_diff = curr_diff
+                        aspect_jd = mid_jd
+                        aspect_lon = mid_planet_lon
+                    
+                    # Get positions on both sides to determine direction of approach
+                    try:
+                        before_jd = mid_jd - 0.02  # ~30 minutes before
+                        after_jd = mid_jd + 0.02   # ~30 minutes after
+                        
+                        before_spec = TimeSpec.from_dates([before_jd])
+                        after_spec = TimeSpec.from_dates([after_jd])
+                        
+                        before_planet = self.planet_ephemeris.get_planet_positions(
+                            planet.name, before_spec
+                        )[before_jd][Quantity.ECLIPTIC_LONGITUDE]
+                        
+                        before_sun = self.sun_ephemeris.get_planet_positions(
+                            "SUN", before_spec
+                        )[before_jd][Quantity.ECLIPTIC_LONGITUDE]
+                        
+                        after_planet = self.planet_ephemeris.get_planet_positions(
+                            planet.name, after_spec
+                        )[after_jd][Quantity.ECLIPTIC_LONGITUDE]
+                        
+                        after_sun = self.sun_ephemeris.get_planet_positions(
+                            "SUN", after_spec
+                        )[after_jd][Quantity.ECLIPTIC_LONGITUDE]
+                        
+                        # Calculate differences before and after
+                        before_diff = angle_diff(before_planet, before_sun)
+                        after_diff = angle_diff(after_planet, after_sun)
+                        
+                        # Determine which side to search based on direction of change
+                        if is_inner:
+                            # For conjunction, see if difference is getting smaller or larger
+                            if abs(before_diff) > abs(after_diff):
+                                # Difference is decreasing, cazimi is ahead
+                                left_jd = mid_jd
+                            else:
+                                # Difference is increasing, cazimi is behind
+                                right_jd = mid_jd
+                        else:
+                            # For opposition, see if we're approaching or moving away from 180°
+                            before_to_180 = abs(abs(before_diff) - 180.0)
+                            after_to_180 = abs(abs(after_diff) - 180.0)
+                            
+                            if before_to_180 > after_to_180:
+                                # Getting closer to 180°, opposition is ahead
+                                left_jd = mid_jd
+                            else:
+                                # Moving away from 180°, opposition is behind
+                                right_jd = mid_jd
+                    except Exception:
+                        # If direction detection fails, use basic approach
+                        if is_inner:
+                            if diff < 0.05:  # Very close already
+                                break  # Stop refining if we're very close
+                            
+                            diff_angle = angle_diff(mid_planet_lon, mid_sun_lon)
+                            if diff_angle > 0:
+                                right_jd = mid_jd
+                            else:
+                                left_jd = mid_jd
+                        else:
+                            if abs(diff - 180.0) < 0.05:  # Very close to 180°
+                                break
+                                
+                            if diff < 180.0:
+                                left_jd = mid_jd
+                            else:
+                                right_jd = mid_jd
+                except Exception:
+                    # If a query fails, stop refining
+                    break
+            
+            # Get the final position
+            try:
+                final_spec = TimeSpec.from_dates([aspect_jd])
+                final_pos = self.planet_ephemeris.get_planet_positions(
+                    planet.name, final_spec
+                )
+                final_lon = final_pos[aspect_jd][Quantity.ECLIPTIC_LONGITUDE]
+                return (aspect_jd, final_lon)
+            except Exception:
+                # If we can't get the final position, use our best approximation
+                if aspect_lon is not None:
+                    return (aspect_jd, aspect_lon)
+        except Exception as e:
+            logging.error(f"Error refining aspect: {e}")
+        
+        # If we couldn't refine, but have a basic aspect, return it
+        if aspect_jd is not None and aspect_lon is not None:
+            return (aspect_jd, aspect_lon)
+            
+        return None
 
     def find_retrograde_periods(
         self, planet: Planet, start_date: datetime, end_date: datetime, step: str = "1d"
     ) -> Iterator[RetrogradePeriod]:
         """Find all retrograde periods for a planet within the given date range.
-
-        Uses a two-pass approach:
-        1. First pass with coarser sampling to find general retrograde periods
-        2. Second pass with finer sampling to get precise timings
-
+        
         Args:
             planet: The planet to find retrograde periods for
             start_date: Start of search range
             end_date: End of search range
-            step: Time step for initial coarse sampling (e.g. "1d", "6h")
-
+            step: Time step for initial sampling (e.g. "1d", "6h")
+            
         Yields:
             RetrogradePeriod objects as they are found
         """
-        # First pass: Use coarser sampling to find general periods
-        # Always use at least 1-day step for initial sampling, regardless of what the user provides
+        # First pass: Use at least 1-day step for initial scanning
         coarse_step = step if step.endswith("d") and int(step[:-1]) >= 1 else "1d"
         coarse_time_spec = TimeSpec.from_range(start_date, end_date, coarse_step)
-
+        
         # Get coarse positions
         coarse_positions = self.planet_ephemeris.get_planet_positions(
-            self.planet.name, coarse_time_spec
+            planet.name, coarse_time_spec
         )
-
-        # Calculate velocities for coarse sampling
+        
+        # Calculate velocities
         coarse_dates = sorted(coarse_positions.keys())
         coarse_velocities = {
             jd: self._calculate_velocity(coarse_positions, jd, coarse_dates)
             for jd in coarse_dates
         }
-
-        # Find potential retrograde periods with much higher sensitivity
+        
+        # Find potential retrograde periods
         potential_periods = []
         current_period = None
-
-        # Use tolerance to account for floating point issues
-        # This is key - sometimes the velocity is very close to zero
-        zero_tolerance = 1e-4  # Tolerance for near-zero values
-
-        # First, check if we're starting in the middle of a retrograde period
-        # If the velocity at the first point is negative, we're likely already in retrograde
-        if (
-            len(coarse_dates) > 0
-            and coarse_velocities[coarse_dates[0]] < -zero_tolerance
-        ):
-            # We're already in retrograde at the start date
-            # Create a period that starts earlier to capture the beginning
+        
+        # Handle case where we start in the middle of retrograde motion
+        if coarse_dates and coarse_velocities[coarse_dates[0]] < 0:
             first_jd = coarse_dates[0]
             current_period = {
-                "start_jd": first_jd
-                - 60,  # Go back 60 days to find the retrograde station
-                "end_jd": first_jd + 60,  # Add buffer for finding direct station
-                "detected_mid_retrograde": True,  # Flag to indicate we started in retrograde
+                "start_jd": first_jd - 60,  # Look back 60 days to find retrograde station
+                "end_jd": first_jd + 60     # Add buffer for finding direct station
             }
-
+            
+        # Scan through velocity changes to detect retrograde periods
         for i in range(1, len(coarse_dates)):
-            prev_jd = coarse_dates[i - 1]
+            prev_jd = coarse_dates[i-1]
             curr_jd = coarse_dates[i]
-
+            
             prev_vel = coarse_velocities[prev_jd]
             curr_vel = coarse_velocities[curr_jd]
-
-            # Detect potential station retrograde with tolerance for near-zero values
-            # A direct-to-retrograde transition happens when velocity crosses from positive to negative
-            if (prev_vel > zero_tolerance) and (curr_vel < -zero_tolerance):
+            
+            # Detect transition to retrograde motion
+            if prev_vel > 0 and curr_vel < 0:
                 current_period = {
-                    "start_jd": prev_jd,
-                    "end_jd": curr_jd + 30,  # Increase buffer to 30 days for safety
+                    "start_jd": prev_jd - 30,  # Look back 30 days to ensure we capture shadow start
+                    "end_jd": curr_jd + 30     # Add buffer for finding direct station
                 }
-
-            # Detect potential station direct with tolerance for near-zero values
-            # A retrograde-to-direct transition happens when velocity crosses from negative to positive
-            elif (prev_vel < -zero_tolerance) and (curr_vel > zero_tolerance):
-                # Modified logic: even if current_period is None, create one
-                # This handles cases where we start observing after retrograde already began
+                
+            # Detect transition to direct motion
+            elif prev_vel < 0 and curr_vel > 0:
                 if current_period is None:
-                    # If we encounter direct station without prior retrograde station,
-                    # use current date minus reasonable offset as start
+                    # Handle case where we start observing after retrograde already began
                     current_period = {
-                        "start_jd": prev_jd
-                        - 30,  # Assume 30 days before direct station
-                        "end_jd": curr_jd + 30,  # Buffer after direct station
+                        "start_jd": prev_jd - 30,  # Look back 30 days
+                        "end_jd": curr_jd + 30     # Add buffer for finding post shadow
                     }
                 else:
-                    # Normal case - we have both stations
-                    current_period["end_jd"] = (
-                        curr_jd + 30
-                    )  # Increase buffer to 30 days
-
+                    current_period["end_jd"] = curr_jd + 30
+                    
                 potential_periods.append(current_period)
                 current_period = None
-
-        # If we're in retrograde at the end of the data, add that period too
+                
+        # Handle case where we end in the middle of retrograde motion
         if current_period is not None:
             potential_periods.append(current_period)
-
-        # Log information about potential periods
-        logging.info(f"Found {len(potential_periods)} potential retrograde periods")
-        for i, period in enumerate(potential_periods):
-            if period.get("detected_mid_retrograde"):
-                logging.info(
-                    f"Period {i + 1} started in the middle of retrograde motion"
-                )
-                logging.info(
-                    f"  Will look back to {julian_to_datetime(period['start_jd']).isoformat()}"
-                )
-
-        # Second pass: Use finer sampling for each potential period
-        fine_step = "6h"  # Use 6-hour sampling for a good balance between precision and performance
-
+            
+        # Second pass: Analyze each potential period with higher precision
+        fine_step = "3h"  # Use 3-hour sampling for higher precision
+        
         for period in potential_periods:
-            # Create time spec for this period
+            # Create time spec for this period with fine granularity
             period_start = julian_to_datetime(period["start_jd"])
             period_end = julian_to_datetime(period["end_jd"])
-
-            # Ensure we don't exceed the overall end date
-            # But we allow going earlier than start_date if needed to find complete retrograde periods
-            if not period.get("detected_mid_retrograde"):
-                # Only restrict to start_date if we didn't detect a mid-retrograde scenario
-                period_start = max(period_start, start_date)
+            
+            # Ensure period is within overall search bounds
             period_end = min(period_end, end_date)
-
-            # Skip if period is too short
-            if (period_end - period_start).total_seconds() < 3600:  # Less than 1 hour
-                continue
-
+            
             fine_time_spec = TimeSpec.from_range(period_start, period_end, fine_step)
-
+            
             # Get fine-grained positions
-            fine_positions = self.planet_ephemeris.get_planet_positions(
-                self.planet.name, fine_time_spec
-            )
-            if planet != Planet.SUN:
-                fine_sun_positions = self.sun_ephemeris.get_planet_positions(
-                    "SUN", fine_time_spec
+            try:
+                fine_positions = self.planet_ephemeris.get_planet_positions(
+                    planet.name, fine_time_spec
                 )
-
-            # Calculate fine-grained velocities
-            sorted_fine_dates = sorted(fine_positions.keys())
-            fine_velocities = {
-                jd: self._calculate_velocity(fine_positions, jd, sorted_fine_dates)
-                for jd in sorted_fine_dates
-            }
-
-            # Use the already sorted dates
-            if not sorted_fine_dates:  # Skip if no fine-grained data
+            except Exception as e:
+                logging.error(f"Error getting fine positions: {e}")
                 continue
-            fine_dates = sorted_fine_dates
-
-            # Find station retrograde using binary search (positive to negative velocity)
+                
+            fine_dates = sorted(fine_positions.keys())
+            if len(fine_dates) < 2:
+                continue
+                
+            # Calculate fine-grained velocities
+            fine_velocities = {
+                jd: self._calculate_velocity(fine_positions, jd, fine_dates)
+                for jd in fine_dates
+            }
+            
+            # Find precise station retrograde (velocity crosses from positive to negative)
             station_retrograde = self._find_zero_crossing(
-                fine_dates, fine_velocities, is_velocity=True, find_pos_to_neg=True
+                fine_dates, fine_positions, fine_velocities,
+                find_velocity_crossing=True, find_pos_to_neg=True,
+                precision_hours=1
             )
-
+            
             if not station_retrograde:
-                # Try alternative approach - use a point in the middle of the fine data
-                middle_idx = len(fine_dates) // 2
-                middle_jd = fine_dates[middle_idx]
-                # Get position at this JD
-                middle_pos = self.planet_ephemeris.get_planet_positions(
-                    self.planet.name, TimeSpec.from_dates([middle_jd])
-                )
-                middle_lon = middle_pos[middle_jd][Quantity.ECLIPTIC_LONGITUDE]
-                station_retrograde = (middle_jd, middle_lon)
-                # If still can't find station, skip this period
-                if not station_retrograde:
-                    continue
-
-            station_jd, _ = station_retrograde
-            # Get position at interpolated Julian date using ephemeris
-            station_pos = self.planet_ephemeris.get_planet_positions(
-                self.planet.name, TimeSpec.from_dates([station_jd])
-            )
-            station_lon = station_pos[station_jd][Quantity.ECLIPTIC_LONGITUDE]
-
-            # Update the station_retrograde tuple with the actual longitude
-            station_retrograde = (station_jd, station_lon)
-
-            # Find station direct using binary search (negative to positive velocity)
+                continue
+                
+            # Find precise station direct (velocity crosses from negative to positive)
             station_direct = self._find_zero_crossing(
-                fine_dates, fine_velocities, is_velocity=True, find_pos_to_neg=False
+                fine_dates, fine_positions, fine_velocities,
+                find_velocity_crossing=True, find_pos_to_neg=False,
+                precision_hours=1
             )
-
+            
             if not station_direct:
-                # Try alternative approach - use a point 3/4 of the way through the fine data
-                end_idx = min(len(fine_dates) - 1, len(fine_dates) * 3 // 4)
-                end_jd = fine_dates[end_idx]
-                # Get position at this JD
-                end_pos = self.planet_ephemeris.get_planet_positions(
-                    self.planet.name, TimeSpec.from_dates([end_jd])
-                )
-                end_lon = end_pos[end_jd][Quantity.ECLIPTIC_LONGITUDE]
-                station_direct = (end_jd, end_lon)
-                # If still can't find station, skip this period
-                if not station_direct:
-                    continue
-
-            direct_jd, _ = station_direct
-            # Get position at interpolated Julian date using ephemeris
-            direct_pos = self.planet_ephemeris.get_planet_positions(
-                self.planet.name, TimeSpec.from_dates([direct_jd])
-            )
-            direct_lon = direct_pos[direct_jd][Quantity.ECLIPTIC_LONGITUDE]
-
-            # Update the station_direct tuple with the actual longitude
-            station_direct = (direct_jd, direct_lon)
-
-            # Now that we have both station points, find the shadow points
-
-            # Find pre_shadow_start using binary search
-            # This should be before the station_retrograde date - we need to find when the planet first passed
-            # through the longitude where it will later become direct
-            (
-                next(
-                    (i for i, d in enumerate(fine_dates) if d >= station_jd),
-                    len(fine_dates),
-                )
-                - 1
-            )
+                continue
+                
+            station_retro_jd, station_retro_lon = station_retrograde
+            station_direct_jd, station_direct_lon = station_direct
+            
+            # Find pre-shadow start (when planet first crosses direct station longitude)
+            # This happens before station retrograde
+            pre_shadow_dates = [jd for jd in fine_dates if jd < station_retro_jd]
+            pre_shadow_positions = {jd: fine_positions[jd] for jd in pre_shadow_dates}
+            
             pre_shadow_start = None
-
-            # Always try to extend the data window backwards to ensure we have sufficient pre-retrograde data
-            # If we detected an already-in-progress retrograde, we need to look back further
-            # to find the station retrograde point
-            look_back_days = 60 if period.get("detected_mid_retrograde") else 30
-            pre_window_start = julian_to_datetime(station_jd - look_back_days)
-            # Don't limit to the overall start date anymore since we want to find
-            # the true beginning of the retrograde period
-
-            # Start with original fine_dates
-            extended_dates = list(fine_dates)
-            extended_positions = dict(fine_positions)
-
-            # Try to extend data window backwards if needed
-            if pre_window_start < julian_to_datetime(fine_dates[0]):
-                # Need to get more data before current fine_dates
-                pre_ext_time_spec = TimeSpec.from_range(
-                    pre_window_start, julian_to_datetime(fine_dates[0]), fine_step
-                )
-                try:
-                    pre_ext_positions = self.planet_ephemeris.get_planet_positions(
-                        self.planet.name, pre_ext_time_spec
-                    )
-                    extended_dates = sorted(pre_ext_positions.keys()) + extended_dates
-                    extended_positions = {**pre_ext_positions, **extended_positions}
-                except Exception:
-                    # If extension fails, continue with original data
-                    pass
-
-            # Extract only the relevant dates (before station_jd)
-            pre_shadow_dates = [d for d in extended_dates if d < station_jd]
             if pre_shadow_dates:
-                pre_shadow_positions = {
-                    jd: extended_positions[jd] for jd in pre_shadow_dates
-                }
-
-                # Try to find the crossing of direct_lon (primary approach)
                 pre_shadow_start = self._find_zero_crossing(
-                    pre_shadow_dates, pre_shadow_positions, target_lon=direct_lon
+                    pre_shadow_dates, pre_shadow_positions,
+                    target_angle=station_direct_lon,
+                    precision_hours=1
                 )
-
-                # If we can't find a crossing of direct_lon, try finding when planet was at station_lon
-                if pre_shadow_start is None:
-                    pre_shadow_start = self._find_zero_crossing(
-                        pre_shadow_dates, pre_shadow_positions, target_lon=station_lon
-                    )
-
-            # Always ensure we have a pre_shadow_start (ingress) point, even if approximated
-            if pre_shadow_start is None:
-                # Synthesize a point ~30 days before station_retrograde
-                target_jd = station_jd - 30
-                if pre_shadow_dates:
-                    # Use closest available date if we have pre-retrograde data
-                    closest_jd = min(pre_shadow_dates, key=lambda d: abs(d - target_jd))
-                else:
-                    # Otherwise use station_jd minus an offset
-                    closest_jd = station_jd - 15  # Default to 15 days before if no data
-
-                # Get the position at this date or use direct_lon as approximation
-                try:
-                    closest_pos = self.planet_ephemeris.get_planet_positions(
-                        self.planet.name, TimeSpec.from_dates([closest_jd])
-                    )
-                except Exception:
-                    closest_pos = direct_lon  # Fallback to direct_lon
-
-                pre_shadow_start = (
-                    closest_jd,
-                    direct_lon,
-                )  # Always use direct_lon for consistency
-
-            # Find post_shadow_end using binary search
-            # This should be after the station_direct date - we need to find when the planet passes
-            # through the longitude where it first became retrograde
+            
+            # If we couldn't find pre-shadow, try extending search earlier
+            if not pre_shadow_start:
+                extended_start = julian_to_datetime(station_retro_jd - 60)
+                if extended_start >= start_date:
+                    try:
+                        ext_time_spec = TimeSpec.from_range(
+                            extended_start,
+                            julian_to_datetime(station_retro_jd),
+                            fine_step
+                        )
+                        ext_positions = self.planet_ephemeris.get_planet_positions(
+                            planet.name, ext_time_spec
+                        )
+                        ext_dates = sorted(ext_positions.keys())
+                        
+                        pre_shadow_start = self._find_zero_crossing(
+                            ext_dates, ext_positions,
+                            target_angle=station_direct_lon,
+                            precision_hours=1
+                        )
+                    except Exception:
+                        pass
+            
+            # Find post-shadow end (when planet crosses retrograde station longitude)
+            # This happens after station direct
+            post_shadow_dates = [jd for jd in fine_dates if jd > station_direct_jd]
+            post_shadow_positions = {jd: fine_positions[jd] for jd in post_shadow_dates}
+            
             post_shadow_end = None
-
-            # Always try to extend the data window forwards to ensure we have sufficient post-direct data
-            post_window_end = julian_to_datetime(
-                direct_jd + 30
-            )  # 30 days after station_direct
-            post_window_end = min(
-                post_window_end, end_date
-            )  # Don't go beyond overall end date
-
-            # Start with original fine_dates
-            post_extended_dates = list(fine_dates)
-            post_extended_positions = dict(fine_positions)
-
-            # Try to extend data window forward if needed
-            if post_window_end > julian_to_datetime(fine_dates[-1]):
-                # Need to get more data after current fine_dates
-                post_ext_time_spec = TimeSpec.from_range(
-                    julian_to_datetime(fine_dates[-1]), post_window_end, fine_step
-                )
-                try:
-                    post_ext_positions = self.planet_ephemeris.get_planet_positions(
-                        self.planet.name, post_ext_time_spec
-                    )
-                    post_extended_dates = post_extended_dates + sorted(
-                        post_ext_positions.keys()
-                    )
-                    post_extended_positions = {
-                        **post_extended_positions,
-                        **post_ext_positions,
-                    }
-                except Exception:
-                    # If extension fails, continue with original data
-                    pass
-
-            # Extract only the relevant dates (after direct_jd)
-            post_shadow_dates = [d for d in post_extended_dates if d > direct_jd]
             if post_shadow_dates:
-                post_shadow_positions = {
-                    jd: post_extended_positions[jd] for jd in post_shadow_dates
-                }
                 post_shadow_end = self._find_zero_crossing(
-                    post_shadow_dates, post_shadow_positions, target_lon=station_lon
+                    post_shadow_dates, post_shadow_positions,
+                    target_angle=station_retro_lon,
+                    precision_hours=1
                 )
-
-            # Always ensure we have a post_shadow_end (egress) point, even if approximated
-            if post_shadow_end is None:
-                # Synthesize a point ~30 days after station_direct
-                target_jd = direct_jd + 30
-                if post_shadow_dates:
-                    # Use closest available date if we have post-direct data
-                    closest_jd = min(
-                        post_shadow_dates, key=lambda d: abs(d - target_jd)
-                    )
-                else:
-                    # Otherwise use direct_jd plus an offset
-                    closest_jd = direct_jd + 15  # Default to 15 days after if no data
-
-                post_shadow_end = (
-                    closest_jd,
-                    station_lon,
-                )  # Always use station_lon for consistency
-
-            # Determine Sun aspect
+            
+            # If we couldn't find post-shadow, try extending search later
+            if not post_shadow_end:
+                extended_end = julian_to_datetime(station_direct_jd + 60)
+                if extended_end <= end_date:
+                    try:
+                        ext_time_spec = TimeSpec.from_range(
+                            julian_to_datetime(station_direct_jd),
+                            extended_end,
+                            fine_step
+                        )
+                        ext_positions = self.planet_ephemeris.get_planet_positions(
+                            planet.name, ext_time_spec
+                        )
+                        ext_dates = sorted(ext_positions.keys())
+                        
+                        post_shadow_end = self._find_zero_crossing(
+                            ext_dates, ext_positions,
+                            target_angle=station_retro_lon,
+                            precision_hours=1
+                        )
+                    except Exception:
+                        pass
+                        
+            # For cazimi detection (inner planets) or opposition (outer planets),
+            # we need more precise data centered around the retrograde period
             sun_aspect = None
             if planet != Planet.SUN:
-                is_inner = planet in [Planet.MERCURY, Planet.VENUS]
-                if is_inner:
-                    # For inner planets, find precise conjunction (0° difference)
-                    mid_jd = (station_jd + direct_jd) / 2
-                    window = 15  # days window for search
-
-                    # Find the closest point to 0° difference
-                    closest_jd = None
-                    closest_diff = 360
-                    for jd in fine_dates:
-                        if abs(jd - mid_jd) > window:
+                # Use 1-hour step for more precise cazimi detection
+                aspect_start = julian_to_datetime(station_retro_jd - 5)  # 5 days before retrograde
+                aspect_end = julian_to_datetime(station_direct_jd + 5)   # 5 days after direct
+                
+                # Ensure dates are within overall range
+                aspect_start = max(aspect_start, start_date)
+                aspect_end = min(aspect_end, end_date)
+                
+                try:
+                    # Get positions with higher precision
+                    aspect_time_spec = TimeSpec.from_range(aspect_start, aspect_end, "1h")
+                    aspect_planet_pos = self.planet_ephemeris.get_planet_positions(
+                        planet.name, aspect_time_spec
+                    )
+                    aspect_sun_pos = self.sun_ephemeris.get_planet_positions(
+                        "SUN", aspect_time_spec
+                    )
+                    
+                    is_inner = planet in [Planet.MERCURY, Planet.VENUS]
+                    
+                    # Find the closest conjunction (for inner planets) or opposition (for outer planets)
+                    min_diff = 360.0
+                    aspect_jd = None
+                    aspect_lon = None
+                    target_diff = 0.0 if is_inner else 180.0
+                    
+                    for jd in sorted(aspect_planet_pos.keys()):
+                        if jd not in aspect_sun_pos:
                             continue
-                        planet_lon = fine_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
-                        sun_lon = fine_sun_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
+                            
+                        planet_lon = aspect_planet_pos[jd][Quantity.ECLIPTIC_LONGITUDE]
+                        sun_lon = aspect_sun_pos[jd][Quantity.ECLIPTIC_LONGITUDE]
+                        
+                        # For inner planets (conjunction), find minimum difference
+                        # For outer planets (opposition), find closest to 180°
                         diff = abs(angle_diff(planet_lon, sun_lon))
-                        if diff < closest_diff:
-                            closest_diff = diff
-                            closest_jd = jd
-                    if closest_jd:
-                        # Get position at closest point using ephemeris
-                        closest_pos = self.planet_ephemeris.get_planet_positions(
-                            self.planet.name, TimeSpec.from_dates([closest_jd])
-                        )
-                        sun_aspect = (
-                            closest_jd,
-                            closest_pos[closest_jd][Quantity.ECLIPTIC_LONGITUDE],
-                        )
-                else:
-                    # For outer planets, use opposition (target 180°)
-                    target_angle = 180
-                    mid_jd = (station_jd + direct_jd) / 2
-                    closest_jd = None
-                    closest_diff = 360
-                    window = 15  # days window for search
-                    for jd in fine_dates:
-                        if abs(jd - mid_jd) > window:
-                            continue
-                        planet_lon = fine_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
-                        sun_lon = fine_sun_positions[jd][Quantity.ECLIPTIC_LONGITUDE]
-                        diff = abs(angle_diff(planet_lon, sun_lon))
-                        if abs(diff - target_angle) < closest_diff:
-                            closest_diff = abs(diff - target_angle)
-                            closest_jd = jd
-                    if closest_jd:
-                        # Get position at closest point using ephemeris
-                        closest_pos = self.planet_ephemeris.get_planet_positions(
-                            self.planet.name, TimeSpec.from_dates([closest_jd])
-                        )
-                        sun_aspect = (
-                            closest_jd,
-                            closest_pos[closest_jd][Quantity.ECLIPTIC_LONGITUDE],
-                        )
-
-            # Create RetrogradePeriod object and yield it immediately
+                        if is_inner:
+                            curr_diff = diff  # Want closest to 0°
+                        else:
+                            curr_diff = abs(diff - 180.0)  # Want closest to 180°
+                            
+                        if curr_diff < min_diff:
+                            min_diff = curr_diff
+                            aspect_jd = jd
+                            aspect_lon = planet_lon
+                    
+                    if aspect_jd is not None:
+                        # Further refine with binary search for 10-minute precision
+                        left_jd = aspect_jd - 0.1  # ~2.4 hours before
+                        right_jd = aspect_jd + 0.1  # ~2.4 hours after
+                        precision = 10.0 / (24.0 * 60.0)  # 10 minutes in days
+                        
+                        while (right_jd - left_jd) > precision:
+                            mid_jd = (left_jd + right_jd) / 2
+                            
+                            try:
+                                # Get positions at midpoint
+                                mid_time_spec = TimeSpec.from_dates([mid_jd])
+                                mid_planet_pos = self.planet_ephemeris.get_planet_positions(
+                                    planet.name, mid_time_spec
+                                )
+                                mid_sun_pos = self.sun_ephemeris.get_planet_positions(
+                                    "SUN", mid_time_spec
+                                )
+                                
+                                mid_planet_lon = mid_planet_pos[mid_jd][Quantity.ECLIPTIC_LONGITUDE]
+                                mid_sun_lon = mid_sun_pos[mid_jd][Quantity.ECLIPTIC_LONGITUDE]
+                                
+                                # Calculate difference
+                                diff = abs(angle_diff(mid_planet_lon, mid_sun_lon))
+                                if is_inner:
+                                    curr_diff = diff
+                                else:
+                                    curr_diff = abs(diff - 180.0)
+                                
+                                if curr_diff < min_diff:
+                                    min_diff = curr_diff
+                                    aspect_jd = mid_jd
+                                    aspect_lon = mid_planet_lon
+                                
+                                # Narrow the search window
+                                if is_inner:
+                                    # For conjunction, check if planet is approaching or separating from sun
+                                    planet_moving_faster = False
+                                    try:
+                                        # Check velocity difference to determine direction
+                                        planet_vel = self._calculate_velocity(aspect_planet_pos, aspect_jd)
+                                        sun_vel = self._calculate_velocity(aspect_sun_pos, aspect_jd)
+                                        planet_moving_faster = abs(planet_vel) > abs(sun_vel)
+                                    except Exception:
+                                        pass
+                                    
+                                    # Choose which half to search based on direction
+                                    diff = angle_diff(mid_planet_lon, mid_sun_lon)
+                                    if (diff > 0 and planet_moving_faster) or (diff < 0 and not planet_moving_faster):
+                                        right_jd = mid_jd
+                                    else:
+                                        left_jd = mid_jd
+                                else:
+                                    # For opposition, find where difference is closest to 180°
+                                    if diff < 180.0:
+                                        left_jd = mid_jd
+                                    else:
+                                        right_jd = mid_jd
+                            except Exception:
+                                # If we can't get positions, stop refining
+                                break
+                                
+                        # Get final planet position
+                        final_time_spec = TimeSpec.from_dates([aspect_jd])
+                        try:
+                            final_pos = self.planet_ephemeris.get_planet_positions(
+                                planet.name, final_time_spec
+                            )
+                            aspect_lon = final_pos[aspect_jd][Quantity.ECLIPTIC_LONGITUDE]
+                            sun_aspect = (aspect_jd, aspect_lon)
+                        except Exception:
+                            # If we can't get the exact position, use what we had
+                            if aspect_lon is not None:
+                                sun_aspect = (aspect_jd, aspect_lon)
+                            
+                except Exception as e:
+                    logging.error(f"Error finding sun aspect: {e}")
+            
+            # Create RetrogradePeriod object
             yield RetrogradePeriod(
                 planet=planet,
                 station_retrograde=station_retrograde,
                 station_direct=station_direct,
                 pre_shadow_start=pre_shadow_start,
                 post_shadow_end=post_shadow_end,
-                sun_aspect=sun_aspect,
+                sun_aspect=sun_aspect
             )
-
+    
     def save_to_json(self, periods: List[RetrogradePeriod], output_file: str) -> None:
         """Save retrograde periods to a JSON file.
-
+        
         Args:
             periods: List of RetrogradePeriod objects
             output_file: Path to save JSON file
         """
         data = {"retrograde_periods": [period.to_dict() for period in periods]}
-
+        
         with open(output_file, "w") as f:
             json.dump(data, f, indent=2)
