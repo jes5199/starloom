@@ -448,3 +448,45 @@ Create a new CLI module for generating SVG visualizations of planetary positions
 1. Add tests for the new modules
 2. Update documentation with examples and usage instructions
 3. Consider adding more visualization options (e.g., zodiac labels, grid lines)
+
+# Retrograde Finder Task
+
+Create a CLI module and supporting code to find retrograde periods for planets.
+
+## Components Needed:
+[X] Create `starloom/retrograde/finder.py` module
+  - Core logic for detecting retrograde motion
+  - Calculate shadow periods
+  - Calculate cazimi/opposition points
+  - JSON output format
+
+[X] Create `starloom/cli/retrograde.py` module
+  - CLI interface similar to existing ephemeris command
+  - Parameters for planet, date range
+  - Output file handling
+
+## Technical Considerations:
+- Need to detect velocity changes (longitude delta) to find stations ✓
+- Pre/post shadow periods typically start when planet is at the degree of eventual station ✓
+- Will need Sun ephemeris for cazimi/opposition calculations ✓
+- JSON structure should include all key dates and positions ✓
+
+## Implementation Status:
+1. [X] Implemented retrograde detection logic
+2. [X] Added shadow period calculations
+3. [X] Added cazimi/opposition points
+4. [X] Created CLI interface
+5. [ ] Add tests and documentation
+
+## Next Steps:
+1. Create tests for the RetrogradeFinder class
+2. Add documentation for the new modules
+3. Test with real data for various planets
+4. Consider adding visualization options for retrograde periods
+
+## Notes:
+- The finder uses velocity changes to detect station points
+- Shadow periods are calculated by finding when the planet first/last crosses the station degree
+- For inner planets (Mercury/Venus), we find cazimi points
+- For outer planets, we find opposition points
+- The JSON output includes both human-readable dates and Julian dates

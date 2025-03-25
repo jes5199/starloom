@@ -61,7 +61,7 @@ def get_ephemeris_factory(source: str) -> Callable[[Optional[str]], EphemerisPro
 EPHEMERIS_SOURCES = ["sqlite", "cached_horizons", "weft", "horizons"]
 
 # Default ephemeris source
-DEFAULT_SOURCE = "horizons"
+DEFAULT_SOURCE = "weft"
 
 
 def parse_date_input(date_str: str) -> Union[datetime, float]:
