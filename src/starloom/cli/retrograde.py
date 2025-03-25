@@ -129,20 +129,12 @@ def retrograde(
         
         # Output results based on format
         if format == "json":
-            # Convert periods to serializable format
-            serializable_periods = [
-                {
-                    "station_retrograde": period.station_retrograde,
-                    "station_direct": period.station_direct,
-                    "sun_aspect": period.sun_aspect,
-                    "planet": period.planet.name
-                }
-                for period in periods
-            ]
+            import json
+            # Convert periods to serializable format using the class method
+            serializable_periods = [period.to_dict() for period in periods]
             
             # Output JSON
             if output:
-                import json
                 with open(output, 'w') as f:
                     json.dump(serializable_periods, f, indent=2)
             else:
@@ -155,29 +147,29 @@ def retrograde(
                 with open(output, 'w') as f:
                     f.write(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}\n")
                     for i, period in enumerate(periods, 1):
-                        station_r_date = julian_to_datetime(period.station_retrograde[0])
-                        station_d_date = julian_to_datetime(period.station_direct[0])
+                        period_dict = period.to_dict()
                         f.write(f"\nPeriod {i}:\n")
-                        f.write(f"  Stations retrograde at: {station_r_date.isoformat()}\n")
-                        f.write(f"  Stations direct at: {station_d_date.isoformat()}\n")
+                        f.write(f"  Pre-shadow starts at: {period_dict['pre_shadow_start']['date']} (longitude: {period_dict['pre_shadow_start']['longitude']:.2f}°)\n")
+                        f.write(f"  Stations retrograde at: {period_dict['station_retrograde']['date']} (longitude: {period_dict['station_retrograde']['longitude']:.2f}°)\n")
+                        f.write(f"  Stations direct at: {period_dict['station_direct']['date']} (longitude: {period_dict['station_direct']['longitude']:.2f}°)\n")
+                        f.write(f"  Post-shadow ends at: {period_dict['post_shadow_end']['date']} (longitude: {period_dict['post_shadow_end']['longitude']:.2f}°)\n")
                         
-                        if period.sun_aspect:
-                            aspect_date = julian_to_datetime(period.sun_aspect[0])
+                        if period_dict['sun_aspect']:
                             aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
-                            f.write(f"  {aspect_type} occurs at: {aspect_date.isoformat()}\n")
+                            f.write(f"  {aspect_type} occurs at: {period_dict['sun_aspect']['date']} (longitude: {period_dict['sun_aspect']['longitude']:.2f}°)\n")
             else:
                 click.echo(f"Found {len(periods)} retrograde period(s) for {planet_enum.name}")
                 for i, period in enumerate(periods, 1):
-                    station_r_date = julian_to_datetime(period.station_retrograde[0])
-                    station_d_date = julian_to_datetime(period.station_direct[0])
+                    period_dict = period.to_dict()
                     click.echo(f"\nPeriod {i}:")
-                    click.echo(f"  Stations retrograde at: {station_r_date.isoformat()}")
-                    click.echo(f"  Stations direct at: {station_d_date.isoformat()}")
+                    click.echo(f"  Pre-shadow starts at: {period_dict['pre_shadow_start']['date']} (longitude: {period_dict['pre_shadow_start']['longitude']:.2f}°)")
+                    click.echo(f"  Stations retrograde at: {period_dict['station_retrograde']['date']} (longitude: {period_dict['station_retrograde']['longitude']:.2f}°)")
+                    click.echo(f"  Stations direct at: {period_dict['station_direct']['date']} (longitude: {period_dict['station_direct']['longitude']:.2f}°)")
+                    click.echo(f"  Post-shadow ends at: {period_dict['post_shadow_end']['date']} (longitude: {period_dict['post_shadow_end']['longitude']:.2f}°)")
                     
-                    if period.sun_aspect:
-                        aspect_date = julian_to_datetime(period.sun_aspect[0])
+                    if period_dict['sun_aspect']:
                         aspect_type = "Cazimi" if planet_enum in [Planet.MERCURY, Planet.VENUS] else "Opposition"
-                        click.echo(f"  {aspect_type} occurs at: {aspect_date.isoformat()}")
+                        click.echo(f"  {aspect_type} occurs at: {period_dict['sun_aspect']['date']} (longitude: {period_dict['sun_aspect']['longitude']:.2f}°)")
         
     except ValueError as e:
         click.echo(f"Error: {str(e)}", err=True)
