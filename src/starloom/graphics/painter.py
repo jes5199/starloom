@@ -9,6 +9,28 @@ from ..ephemeris.quantities import Quantity
 from ..planet import Planet
 
 
+def angle_distance(a: float, b: float) -> float:
+    """
+    Returns the 'forward' distance in degrees from angle a to angle b,
+    each in [0..360). The result is also in [0..360).
+    """
+    return (b - a) % 360
+
+
+def is_in_angular_range(x: float, start: float, end: float) -> bool:
+    """
+    Returns True if angle x is in the forward range from start to end
+    (wrapping at 360). If end < start, the range passes 0/360 boundary.
+    """
+    return angle_distance(start, x) <= angle_distance(start, end)
+
+
+def is_near_angle(x: float, ref: float, tolerance: float = 5.0) -> bool:
+    """Returns True if angle x is within `tolerance` degrees of ref."""
+    diff = min(abs(x - ref), 360 - abs(x - ref))
+    return diff <= tolerance
+
+
 class PlanetaryPainter:
     """SVG painter for visualizing planetary positions."""
 
@@ -543,42 +565,24 @@ class PlanetaryPainter:
             )
         )
 
-        # Draw lines for nearby zodiac sign boundaries
-        min_longitude = min(retrograde_period.station_retrograde_longitude, retrograde_period.station_direct_longitude)
-        max_longitude = max(retrograde_period.station_retrograde_longitude, retrograde_period.station_direct_longitude)
-        longitude_range = max_longitude - min_longitude
-        
-        # Check each zodiac boundary (0, 30, 60, ..., 330)
+        # Draw all zodiac sign boundaries
         for zodiac_boundary in range(0, 360, 30):
-            # Check if boundary is within the range or near either end
-            if max_longitude < min_longitude:
-                # Range crosses 0/360 boundary
-                is_in_range = zodiac_boundary >= min_longitude or zodiac_boundary <= max_longitude
-            else:
-                # Normal case
-                is_in_range = min_longitude <= zodiac_boundary <= max_longitude
-                
-            dist_to_min = min(abs(zodiac_boundary - min_longitude), 360 - abs(zodiac_boundary - min_longitude))
-            dist_to_max = min(abs(zodiac_boundary - max_longitude), 360 - abs(zodiac_boundary - max_longitude))
-            is_near_end = dist_to_min <= 10 or dist_to_max <= 10
-            
-            if is_in_range or is_near_end:
-                # Where is this zodiac boundary at 1 AU, in final coords?
-                zx, zy = self._normalize_coordinates(
-                    zodiac_boundary,
-                    1.0,
-                    sun_aspect_longitude
+            # Where is this zodiac boundary at 1 AU, in final coords?
+            zx, zy = self._normalize_coordinates(
+                zodiac_boundary,
+                1.0,
+                sun_aspect_longitude
+            )
+            # Draw solid line from Earth center to zodiac boundary
+            clip_group.add(
+                dwg.line(
+                    start=(earth_x, earth_y),
+                    end=(zx, zy),
+                    stroke="#000000",
+                    stroke_width=0.15,
+                    opacity=0.3
                 )
-                # Draw solid line from Earth center to zodiac boundary
-                clip_group.add(
-                    dwg.line(
-                        start=(earth_x, earth_y),
-                        end=(zx, zy),
-                        stroke="#000000",
-                        stroke_width=0.15,
-                        opacity=0.3
-                    )
-                )
+            )
 
         # Add the clipped group to the drawing
         dwg.add(clip_group)
