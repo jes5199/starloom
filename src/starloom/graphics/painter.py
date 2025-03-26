@@ -289,8 +289,8 @@ class PlanetaryPainter:
 
         # Generate daily timestamps at midnight UTC
         daily_times = []
-        current_jd = shadow_start_jd
-        while current_jd <= shadow_end_jd:
+        current_jd = shadow_start_jd - 60  # Start 60 days before
+        while current_jd <= shadow_end_jd + 60:  # End 60 days after
             daily_times.append(current_jd)
             current_jd += 1.0  # Add one day
 
@@ -364,6 +364,7 @@ class PlanetaryPainter:
 
         # Draw planet positions and path
         planet_path_data = []
+        # First pass: draw grey dots and path for pre/post period
         for jd in daily_times:
             if jd not in planet_positions:
                 continue
@@ -384,10 +385,11 @@ class PlanetaryPainter:
             else:
                 planet_path_data.append(f"L {x} {y}")
 
-            # Draw planet dot
-            dwg.add(
-                dwg.circle(center=(x, y), r=1, fill=self.planet_color, stroke="none")
-            )
+            # Draw grey dots for pre/post period
+            if not (shadow_start_jd <= jd <= shadow_end_jd):
+                dwg.add(
+                    dwg.circle(center=(x, y), r=0.5, fill="#CCCCCC", stroke="none")
+                )
 
         # Draw planet path
         if planet_path_data:
@@ -395,10 +397,32 @@ class PlanetaryPainter:
                 dwg.path(
                     d=" ".join(planet_path_data),
                     fill="none",
-                    stroke=self.planet_color,
+                    stroke="#CCCCCC",
                     stroke_width=1,
                 )
             )
+
+        # Second pass: draw colored dots for retrograde period
+        for jd in daily_times:
+            if jd not in planet_positions:
+                continue
+
+            pos_data = planet_positions[jd]
+            longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+            distance = pos_data.get(Quantity.DELTA, 0.0)
+
+            if not isinstance(longitude, (int, float)) or not isinstance(
+                distance, (int, float)
+            ):
+                continue
+
+            x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+
+            # Draw colored dots for retrograde period
+            if shadow_start_jd <= jd <= shadow_end_jd:
+                dwg.add(
+                    dwg.circle(center=(x, y), r=0.5, fill=self.planet_color, stroke="none")
+                )
 
         # Draw Sun positions and path
         sun_path_data = []
@@ -424,7 +448,7 @@ class PlanetaryPainter:
 
             # Draw Sun dot
             dwg.add(
-                dwg.circle(center=(x, y), r=1.5, fill="#FFD700", stroke="none")  # Gold color for Sun
+                dwg.circle(center=(x, y), r=0.75, fill="#FFD700", stroke="none")  # Gold color for Sun
             )
 
         # Draw Sun path
