@@ -271,6 +271,9 @@ class PlanetaryPainter:
         available_jds = sorted(positions.keys())
         closest_jd = min(available_jds, key=lambda x: abs(x - sun_aspect_jd))
         sun_aspect_longitude = positions[closest_jd].get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+        
+        # Add 90 degrees to rotate counterclockwise
+        sun_aspect_longitude += 90.0
 
         # Create SVG drawing
         dwg = svgwrite.Drawing(
