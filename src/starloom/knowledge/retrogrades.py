@@ -29,7 +29,9 @@ class RetrogradePeriod:
     post_shadow_end_date: datetime
 
 
-def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[RetrogradePeriod]:
+def find_nearest_retrograde(
+    planet: Planet, target_date: datetime
+) -> Optional[RetrogradePeriod]:
     """Find the nearest retrograde period to the given date.
 
     Args:
@@ -40,11 +42,16 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
         The nearest RetrogradePeriod, or None if no retrograde periods are found
     """
     logger.debug(f"Finding nearest retrograde for {planet.name} at {target_date}")
-    
+
     # Get the CSV file path - look in knowledge/retrogrades instead of src/knowledge/retrogrades
-    csv_path = Path(__file__).parent.parent.parent.parent / "knowledge" / "retrogrades" / f"{planet.name.lower()}.csv"
+    csv_path = (
+        Path(__file__).parent.parent.parent.parent
+        / "knowledge"
+        / "retrogrades"
+        / f"{planet.name.lower()}.csv"
+    )
     logger.debug(f"Looking for CSV file at {csv_path}")
-    
+
     if not csv_path.exists():
         logger.error(f"CSV file not found at {csv_path}")
         return None
@@ -72,7 +79,7 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
                         except ValueError:
                             # Try converting space to T and parse
                             dt = datetime.fromisoformat(date_str.replace(" ", "T"))
-                    
+
                     # Ensure timezone is set
                     if dt.tzinfo is None:
                         dt = dt.replace(tzinfo=timezone.utc)
@@ -82,12 +89,14 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
                 station_retrograde = parse_date(row["station_retrograde_date"])
                 station_direct = parse_date(row["station_direct_date"])
                 shadow_start = parse_date(row["pre_shadow_start_date"])
-                shadow_end = parse_date(row["post_shadow_end_date"])                
+                shadow_end = parse_date(row["post_shadow_end_date"])
                 sun_event = parse_date(row["sun_aspect_date"])
 
                 # Parse longitudes with error handling
                 try:
-                    station_retrograde_longitude = float(row["station_retrograde_longitude"])
+                    station_retrograde_longitude = float(
+                        row["station_retrograde_longitude"]
+                    )
                     station_direct_longitude = float(row["station_direct_longitude"])
                     sun_aspect_longitude = float(row["sun_aspect_longitude"])
                 except (ValueError, KeyError) as e:
@@ -96,11 +105,27 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
                     continue
 
                 # Validate the data
-                if not all(isinstance(x, datetime) for x in [station_retrograde, station_direct, shadow_start, shadow_end, sun_event]):
+                if not all(
+                    isinstance(x, datetime)
+                    for x in [
+                        station_retrograde,
+                        station_direct,
+                        shadow_start,
+                        shadow_end,
+                        sun_event,
+                    ]
+                ):
                     logger.error("Invalid date format in row")
                     continue
 
-                if not all(isinstance(x, float) for x in [station_retrograde_longitude, station_direct_longitude, sun_aspect_longitude]):
+                if not all(
+                    isinstance(x, float)
+                    for x in [
+                        station_retrograde_longitude,
+                        station_direct_longitude,
+                        sun_aspect_longitude,
+                    ]
+                ):
                     logger.error("Invalid longitude format in row")
                     continue
 
@@ -131,7 +156,9 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
     # Find the period where the target date falls between shadow_start and shadow_end
     for period in periods:
         if period.pre_shadow_start_date <= target_date <= period.post_shadow_end_date:
-            logger.debug(f"Found containing period: {period.pre_shadow_start_date} to {period.post_shadow_end_date}")
+            logger.debug(
+                f"Found containing period: {period.pre_shadow_start_date} to {period.post_shadow_end_date}"
+            )
             return period
 
     # If no period contains the target date, find the closest one
@@ -144,5 +171,7 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
             return (target_date - period.post_shadow_end_date).total_seconds()
 
     nearest = min(periods, key=get_distance)
-    logger.debug(f"Found nearest period: {nearest.pre_shadow_start_date} to {nearest.post_shadow_end_date}")
-    return nearest 
+    logger.debug(
+        f"Found nearest period: {nearest.pre_shadow_start_date} to {nearest.post_shadow_end_date}"
+    )
+    return nearest

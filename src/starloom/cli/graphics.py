@@ -353,9 +353,7 @@ def retrograde(
         time_spec = TimeSpec.from_range(start_date, stop_date, "1d")
     else:
         # If target_date is a Julian date, convert to datetime for range calculation
-        dt = datetime.fromtimestamp(
-            (target_date - 2440587.5) * 86400, tz=timezone.utc
-        )
+        dt = datetime.fromtimestamp((target_date - 2440587.5) * 86400, tz=timezone.utc)
         start_date = (dt - timedelta(days=30)).astimezone(timezone.utc)
         stop_date = (dt + timedelta(days=30)).astimezone(timezone.utc)
         time_spec = TimeSpec.from_range(start_date, stop_date, "1d")

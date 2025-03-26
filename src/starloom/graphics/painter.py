@@ -134,7 +134,9 @@ class PlanetaryPainter:
 
             # Add date label for first and last points
             if jd == min(positions.keys()) or jd == max(positions.keys()):
-                dt = datetime.fromtimestamp(jd * 86400 - 2440587.5 * 86400, tz=timezone.utc)
+                dt = datetime.fromtimestamp(
+                    jd * 86400 - 2440587.5 * 86400, tz=timezone.utc
+                )
                 date_str = dt.strftime("%Y-%m-%d")
                 dwg.add(
                     dwg.text(
@@ -256,35 +258,48 @@ class PlanetaryPainter:
             target_date: Julian date of the target date to analyze
         """
         # Convert target_date to datetime with UTC timezone
-        target_datetime = datetime.fromtimestamp(target_date * 86400 - 2440587.5 * 86400, tz=timezone.utc)
+        target_datetime = datetime.fromtimestamp(
+            target_date * 86400 - 2440587.5 * 86400, tz=timezone.utc
+        )
 
         # Find the nearest retrograde period
         from ..knowledge.retrogrades import find_nearest_retrograde
+
         retrograde_period = find_nearest_retrograde(planet, target_datetime)
         if not retrograde_period:
             raise ValueError(f"No retrograde periods found for {planet.name}")
 
         # Get the sun aspect longitude for rotation offset
-        sun_aspect_jd = retrograde_period.sun_aspect_date.timestamp() / 86400 + 2440587.5
-        
+        sun_aspect_jd = (
+            retrograde_period.sun_aspect_date.timestamp() / 86400 + 2440587.5
+        )
+
         # Find the closest available Julian date in positions
         available_jds = sorted(positions.keys())
         closest_jd = min(available_jds, key=lambda x: abs(x - sun_aspect_jd))
-        sun_aspect_longitude = positions[closest_jd].get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-        
+        sun_aspect_longitude = positions[closest_jd].get(
+            Quantity.ECLIPTIC_LONGITUDE, 0.0
+        )
+
         # Add 90 degrees to rotate counterclockwise
         sun_aspect_longitude += 90.0
 
         # Convert retrograde period dates to Julian dates
-        shadow_start_jd = retrograde_period.pre_shadow_start_date.timestamp() / 86400 + 2440587.5
-        shadow_end_jd = retrograde_period.post_shadow_end_date.timestamp() / 86400 + 2440587.5
+        shadow_start_jd = (
+            retrograde_period.pre_shadow_start_date.timestamp() / 86400 + 2440587.5
+        )
+        shadow_end_jd = (
+            retrograde_period.post_shadow_end_date.timestamp() / 86400 + 2440587.5
+        )
 
         # Get daily positions for both planet and Sun
         from ..weft_ephemeris.ephemeris import WeftEphemeris
         from ..ephemeris.time_spec import TimeSpec
 
         # Load ephemeris data
-        planet_ephemeris = WeftEphemeris(data_dir=f"weftballs/{planet.name.lower()}_weftball.tar.gz")
+        planet_ephemeris = WeftEphemeris(
+            data_dir=f"weftballs/{planet.name.lower()}_weftball.tar.gz"
+        )
         sun_ephemeris = WeftEphemeris(data_dir="weftballs/sun_weftball.tar.gz")
 
         # Generate daily timestamps at midnight UTC
@@ -300,10 +315,10 @@ class PlanetaryPainter:
         sun_positions = sun_ephemeris.get_planet_positions("SUN", time_spec)
 
         # Track min/max coordinates for viewbox calculation
-        min_x = float('inf')
-        max_x = float('-inf')
-        min_y = float('inf')
-        max_y = float('-inf')
+        min_x = float("inf")
+        max_x = float("-inf")
+        min_y = float("inf")
+        max_y = float("-inf")
         aspect_x = 0
         aspect_y = 0
 
@@ -315,8 +330,12 @@ class PlanetaryPainter:
                     pos_data = planet_positions[jd]
                     longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
                     distance = pos_data.get(Quantity.DELTA, 0.0)
-                    if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
-                        x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+                    if isinstance(longitude, (int, float)) and isinstance(
+                        distance, (int, float)
+                    ):
+                        x, y = self._normalize_coordinates(
+                            longitude, distance, sun_aspect_longitude
+                        )
                         min_x = min(min_x, x)
                         max_x = max(max_x, x)
                         min_y = min(min_y, y)
@@ -328,8 +347,12 @@ class PlanetaryPainter:
                     pos_data = planet_positions[jd]
                     longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
                     distance = pos_data.get(Quantity.DELTA, 0.0)
-                    if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
-                        aspect_x, aspect_y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+                    if isinstance(longitude, (int, float)) and isinstance(
+                        distance, (int, float)
+                    ):
+                        aspect_x, aspect_y = self._normalize_coordinates(
+                            longitude, distance, sun_aspect_longitude
+                        )
 
         # Add padding (10% of the range)
         x_range = max_x - min_x
@@ -350,7 +373,20 @@ class PlanetaryPainter:
             output_path,
             size=(self.width, self.height),
             viewBox=f"{min_x} {min_y} {viewbox_width} {viewbox_height}",
-            style=f"background-color: {self.background_color}",
+            style="background-color: transparent",
+        )
+
+        # Add rounded rectangle background
+        corner_radius = 5  # Reduced from 20 to 5 for more subtle rounding
+        dwg.add(
+            dwg.rect(
+                insert=(min_x, min_y),
+                size=(viewbox_width, viewbox_height),
+                rx=corner_radius,
+                ry=corner_radius,
+                fill=self.background_color,
+                stroke="none",
+            )
         )
 
         # Draw planet positions and path
@@ -368,12 +404,20 @@ class PlanetaryPainter:
             ):
                 continue
 
-            x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+            x, y = self._normalize_coordinates(
+                longitude, distance, sun_aspect_longitude
+            )
 
             # Draw grey dots for pre/post period
             if not (shadow_start_jd <= jd <= shadow_end_jd):
                 dwg.add(
-                    dwg.circle(center=(x, y), r=0.25, fill="#FFFFFF", stroke="none", opacity=0.3)
+                    dwg.circle(
+                        center=(x, y),
+                        r=0.25,
+                        fill="#FFFFFF",
+                        stroke="none",
+                        opacity=0.3,
+                    )
                 )
 
         # Second pass: draw colored dots for retrograde period
@@ -390,25 +434,53 @@ class PlanetaryPainter:
             ):
                 continue
 
-            x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+            x, y = self._normalize_coordinates(
+                longitude, distance, sun_aspect_longitude
+            )
 
             # Draw colored dots for retrograde period
             if shadow_start_jd <= jd <= shadow_end_jd:
                 # Different shades for different periods
-                if jd <= retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5:
+                if (
+                    jd
+                    <= retrograde_period.station_retrograde_date.timestamp() / 86400
+                    + 2440587.5
+                ):
                     # Pre-shadow period
                     dwg.add(
-                        dwg.circle(center=(x, y), r=0.25, fill="#FFFFFF", stroke="none", opacity=0.5)
+                        dwg.circle(
+                            center=(x, y),
+                            r=0.25,
+                            fill="#FFFFFF",
+                            stroke="none",
+                            opacity=0.5,
+                        )
                     )
-                elif jd >= retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5:
+                elif (
+                    jd
+                    >= retrograde_period.station_direct_date.timestamp() / 86400
+                    + 2440587.5
+                ):
                     # Post-shadow period
                     dwg.add(
-                        dwg.circle(center=(x, y), r=0.25, fill="#FFFFFF", stroke="none", opacity=0.5)
+                        dwg.circle(
+                            center=(x, y),
+                            r=0.25,
+                            fill="#FFFFFF",
+                            stroke="none",
+                            opacity=0.5,
+                        )
                     )
                 else:
                     # Main retrograde period
                     dwg.add(
-                        dwg.circle(center=(x, y), r=0.25, fill="#FFFFFF", stroke="none", opacity=0.8)
+                        dwg.circle(
+                            center=(x, y),
+                            r=0.25,
+                            fill="#FFFFFF",
+                            stroke="none",
+                            opacity=0.8,
+                        )
                     )
 
         # Draw Sun positions
@@ -425,11 +497,15 @@ class PlanetaryPainter:
             ):
                 continue
 
-            x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+            x, y = self._normalize_coordinates(
+                longitude, distance, sun_aspect_longitude
+            )
 
             # Draw Sun dot
             dwg.add(
-                dwg.circle(center=(x, y), r=0.375, fill="#FFD700", stroke="none", opacity=0.6)
+                dwg.circle(
+                    center=(x, y), r=0.375, fill="#FFD700", stroke="none", opacity=0.6
+                )
             )
 
         # Add date labels for key points
@@ -445,7 +521,9 @@ class PlanetaryPainter:
                 pos_data = positions[jd]
                 longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
                 distance = pos_data.get(Quantity.DELTA, 0.0)
-                x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+                x, y = self._normalize_coordinates(
+                    longitude, distance, sun_aspect_longitude
+                )
                 dwg.add(
                     dwg.text(
                         f"{label}\n{date.strftime('%Y-%m-%d')}",
