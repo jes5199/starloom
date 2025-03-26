@@ -304,9 +304,37 @@ class PlanetaryPainter:
                 dwg.line(start=(x1, y1), end=(x2, y2), stroke="#CCCCCC", stroke_width=1)
             )
 
-        # Create path data for the entire orbit
-        path_data = []
-        for jd, pos_data in sorted(positions.items()):
+        # Convert retrograde period dates to Julian dates
+        shadow_start_jd = retrograde_period.pre_shadow_start_date.timestamp() / 86400 + 2440587.5
+        shadow_end_jd = retrograde_period.post_shadow_end_date.timestamp() / 86400 + 2440587.5
+
+        # Get daily positions for both planet and Sun
+        from ..weft_ephemeris.ephemeris import WeftEphemeris
+        from ..ephemeris.time_spec import TimeSpec
+
+        # Load ephemeris data
+        planet_ephemeris = WeftEphemeris(data_dir=f"weftballs/{planet.name.lower()}_weftball.tar.gz")
+        sun_ephemeris = WeftEphemeris(data_dir="weftballs/sun_weftball.tar.gz")
+
+        # Generate daily timestamps at midnight UTC
+        daily_times = []
+        current_jd = shadow_start_jd
+        while current_jd <= shadow_end_jd:
+            daily_times.append(current_jd)
+            current_jd += 1.0  # Add one day
+
+        # Get positions for both planet and Sun
+        time_spec = TimeSpec.from_dates(daily_times)
+        planet_positions = planet_ephemeris.get_planet_positions(planet.name, time_spec)
+        sun_positions = sun_ephemeris.get_planet_positions("SUN", time_spec)
+
+        # Draw planet positions and path
+        planet_path_data = []
+        for jd in daily_times:
+            if jd not in planet_positions:
+                continue
+
+            pos_data = planet_positions[jd]
             longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
             distance = pos_data.get(Quantity.DELTA, 0.0)
 
@@ -317,57 +345,61 @@ class PlanetaryPainter:
 
             x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
 
-            if not path_data:
-                path_data.append(f"M {x} {y}")
+            if not planet_path_data:
+                planet_path_data.append(f"M {x} {y}")
             else:
-                path_data.append(f"L {x} {y}")
+                planet_path_data.append(f"L {x} {y}")
 
-        # Draw the path in a lighter color
-        if path_data:
+            # Draw planet dot
+            dwg.add(
+                dwg.circle(center=(x, y), r=2, fill=self.planet_color, stroke="none")
+            )
+
+        # Draw planet path
+        if planet_path_data:
             dwg.add(
                 dwg.path(
-                    d=" ".join(path_data),
+                    d=" ".join(planet_path_data),
                     fill="none",
-                    stroke="#CCCCCC",
-                    stroke_width=1,
+                    stroke=self.planet_color,
+                    stroke_width=2,
                 )
             )
 
-        # Convert retrograde period dates to Julian dates
-        shadow_start_jd = retrograde_period.pre_shadow_start_date.timestamp() / 86400 + 2440587.5
-        shadow_end_jd = retrograde_period.post_shadow_end_date.timestamp() / 86400 + 2440587.5
+        # Draw Sun positions and path
+        sun_path_data = []
+        for jd in daily_times:
+            if jd not in sun_positions:
+                continue
 
-        # Find and highlight retrograde motion
-        retrograde_data = []
-        for jd, pos_data in sorted(positions.items()):
-            if shadow_start_jd <= jd <= shadow_end_jd:
-                longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-                distance = pos_data.get(Quantity.DELTA, 0.0)
+            pos_data = sun_positions[jd]
+            longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+            distance = pos_data.get(Quantity.DELTA, 0.0)
 
-                if not isinstance(longitude, (int, float)) or not isinstance(
-                    distance, (int, float)
-                ):
-                    continue
+            if not isinstance(longitude, (int, float)) or not isinstance(
+                distance, (int, float)
+            ):
+                continue
 
-                x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+            x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
 
-                if not retrograde_data:
-                    retrograde_data.append(f"M {x} {y}")
-                else:
-                    retrograde_data.append(f"L {x} {y}")
+            if not sun_path_data:
+                sun_path_data.append(f"M {x} {y}")
+            else:
+                sun_path_data.append(f"L {x} {y}")
 
-                # Draw planet dot
-                dwg.add(
-                    dwg.circle(center=(x, y), r=2, fill=self.planet_color, stroke="none")
-                )
+            # Draw Sun dot
+            dwg.add(
+                dwg.circle(center=(x, y), r=3, fill="#FFD700", stroke="none")  # Gold color for Sun
+            )
 
-        # Draw retrograde path in highlighted color
-        if retrograde_data:
+        # Draw Sun path
+        if sun_path_data:
             dwg.add(
                 dwg.path(
-                    d=" ".join(retrograde_data),
+                    d=" ".join(sun_path_data),
                     fill="none",
-                    stroke=self.planet_color,
+                    stroke="#FFD700",  # Gold color for Sun
                     stroke_width=2,
                 )
             )
