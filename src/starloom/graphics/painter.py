@@ -529,6 +529,36 @@ class PlanetaryPainter:
             )
         )
 
+        # Draw lines for nearby zodiac sign boundaries
+        min_longitude = min(retrograde_period.station_retrograde_longitude, retrograde_period.station_direct_longitude)
+        max_longitude = max(retrograde_period.station_retrograde_longitude, retrograde_period.station_direct_longitude)
+        longitude_range = max_longitude - min_longitude
+        
+        # Check each zodiac boundary (0, 30, 60, ..., 330)
+        for zodiac_boundary in range(0, 360, 30):
+            # Calculate the shortest angular distance to the retrograde range
+            dist_to_min = min(abs(zodiac_boundary - min_longitude), 360 - abs(zodiac_boundary - min_longitude))
+            dist_to_max = min(abs(zodiac_boundary - max_longitude), 360 - abs(zodiac_boundary - max_longitude))
+            
+            # If the boundary is within 20 degrees of either end of the range
+            if dist_to_min <= 20 or dist_to_max <= 20:
+                # Where is this zodiac boundary at 1 AU, in final coords?
+                zx, zy = self._normalize_coordinates(
+                    zodiac_boundary,
+                    1.0,
+                    sun_aspect_longitude
+                )
+                # Draw solid line from Earth center to zodiac boundary
+                dwg.add(
+                    dwg.line(
+                        start=(earth_x, earth_y),
+                        end=(zx, zy),
+                        stroke="#000000",
+                        stroke_width=0.15,
+                        opacity=0.3
+                    )
+                )
+
         # Add date labels for key points
         key_dates = [
             (retrograde_period.station_retrograde_date, "Station Retrograde"),
