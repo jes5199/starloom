@@ -357,8 +357,8 @@ class PlanetaryPainter:
         # Add padding (10% of the range)
         x_range = max_x - min_x
         y_range = max_y - min_y
-        padding_x = x_range * 0.1  # Increased to 10%
-        padding_y = y_range * 0.1  # Increased to 10%
+        padding_x = x_range * 0.4  # Increased to 20% for more horizontal space
+        padding_y = y_range * 0.2  # Keep vertical padding at 10%
         min_x -= padding_x
         max_x += padding_x
         min_y -= padding_y
@@ -390,7 +390,7 @@ class PlanetaryPainter:
         )
 
         # Draw planet positions and path
-        # First pass: draw grey dots for pre/post period
+        # Single pass for planet dots
         for jd in daily_times:
             if jd not in planet_positions:
                 continue
@@ -408,8 +408,9 @@ class PlanetaryPainter:
                 longitude, distance, sun_aspect_longitude
             )
 
-            # Draw grey dots for pre/post period
+            # Draw dot based on period
             if not (shadow_start_jd <= jd <= shadow_end_jd):
+                # Pre/post period
                 dwg.add(
                     dwg.circle(
                         center=(x, y),
@@ -419,28 +420,8 @@ class PlanetaryPainter:
                         opacity=0.3,
                     )
                 )
-
-        # Second pass: draw colored dots for retrograde period
-        for jd in daily_times:
-            if jd not in planet_positions:
-                continue
-
-            pos_data = planet_positions[jd]
-            longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-            distance = pos_data.get(Quantity.DELTA, 0.0)
-
-            if not isinstance(longitude, (int, float)) or not isinstance(
-                distance, (int, float)
-            ):
-                continue
-
-            x, y = self._normalize_coordinates(
-                longitude, distance, sun_aspect_longitude
-            )
-
-            # Draw colored dots for retrograde period
-            if shadow_start_jd <= jd <= shadow_end_jd:
-                # Different shades for different periods
+            else:
+                # Inside shadow period
                 if (
                     jd
                     <= retrograde_period.station_retrograde_date.timestamp() / 86400
@@ -451,7 +432,7 @@ class PlanetaryPainter:
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
-                            fill="#FFFFFF",
+                            fill="#4169E1",  # Royal blue
                             stroke="none",
                             opacity=0.5,
                         )
@@ -466,7 +447,7 @@ class PlanetaryPainter:
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
-                            fill="#FFFFFF",
+                            fill="#4169E1",  # Royal blue
                             stroke="none",
                             opacity=0.5,
                         )
