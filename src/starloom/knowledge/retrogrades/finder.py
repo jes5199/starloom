@@ -19,11 +19,14 @@ class RetrogradePeriod:
     """Represents a period of retrograde motion for a planet."""
 
     planet: Planet
-    station_retrograde: datetime
-    opposition: Optional[datetime]  # None for inner planets
-    station_direct: datetime
-    shadow_start: datetime
-    shadow_end: datetime
+    pre_shadow_start_date: datetime
+    station_retrograde_date: datetime
+    station_retrograde_longitude: float
+    sun_aspect_date: datetime
+    sun_aspect_longitude: float
+    station_direct_date: datetime
+    station_direct_longitude: float
+    post_shadow_end_date: datetime
 
 
 def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[RetrogradePeriod]:
@@ -75,20 +78,19 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
                 station_retrograde = parse_date(row["station_retrograde_date"])
                 station_direct = parse_date(row["station_direct_date"])
                 shadow_start = parse_date(row["pre_shadow_start_date"])
-                shadow_end = parse_date(row["post_shadow_end_date"])
-                
-                # Handle opposition date (may be empty for inner planets)
-                opposition = None
-                if "sun_aspect_date" in row and row["sun_aspect_date"]:
-                    opposition = parse_date(row["sun_aspect_date"])
+                shadow_end = parse_date(row["post_shadow_end_date"])                
+                sun_event = parse_date(row["sun_aspect_date"])
 
                 period = RetrogradePeriod(
                     planet=planet,
-                    station_retrograde=station_retrograde,
-                    opposition=opposition,
-                    station_direct=station_direct,
-                    shadow_start=shadow_start,
-                    shadow_end=shadow_end,
+                    pre_shadow_start_date=shadow_start,
+                    station_retrograde_date=station_retrograde,
+                    station_retrograde_longitude=float(row["station_retrograde_longitude"]),
+                    sun_aspect_date=sun_event,
+                    sun_aspect_longitude=float(row["sun_aspect_longitude"]),
+                    station_direct_date=station_direct,
+                    station_direct_longitude=float(row["station_direct_longitude"]),
+                    post_shadow_end_date=shadow_end,
                 )
                 periods.append(period)
                 logger.debug(f"Found period: {shadow_start} to {shadow_end}")
@@ -105,19 +107,19 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
 
     # Find the period where the target date falls between shadow_start and shadow_end
     for period in periods:
-        if period.shadow_start <= target_date <= period.shadow_end:
-            logger.debug(f"Found containing period: {period.shadow_start} to {period.shadow_end}")
+        if period.pre_shadow_start_date <= target_date <= period.post_shadow_end_date:
+            logger.debug(f"Found containing period: {period.pre_shadow_start_date} to {period.post_shadow_end_date}")
             return period
 
     # If no period contains the target date, find the closest one
     def get_distance(period: RetrogradePeriod) -> float:
-        # If the target date is before the period, use the distance to shadow_start
-        if target_date < period.shadow_start:
-            return (period.shadow_start - target_date).total_seconds()
-        # If the target date is after the period, use the distance to shadow_end
+        # If the target date is before the period, use the distance to pre_shadow_start_date
+        if target_date < period.pre_shadow_start_date:
+            return (period.pre_shadow_start_date - target_date).total_seconds()
+        # If the target date is after the period, use the distance to post_shadow_end_date
         else:
-            return (target_date - period.shadow_end).total_seconds()
+            return (target_date - period.post_shadow_end_date).total_seconds()
 
     nearest = min(periods, key=get_distance)
-    logger.debug(f"Found nearest period: {nearest.shadow_start} to {nearest.shadow_end}")
+    logger.debug(f"Found nearest period: {nearest.pre_shadow_start_date} to {nearest.post_shadow_end_date}")
     return nearest 
