@@ -275,38 +275,6 @@ class PlanetaryPainter:
         # Add 90 degrees to rotate counterclockwise
         sun_aspect_longitude += 90.0
 
-        # Create SVG drawing
-        dwg = svgwrite.Drawing(
-            output_path,
-            size=(self.width, self.height),
-            style=f"background-color: {self.background_color}",
-        )
-
-        # Draw zodiac circle
-        center_x = self.width / 2
-        center_y = self.height / 2
-        radius = min(self.plot_width, self.plot_height) / 2
-        dwg.add(
-            dwg.circle(
-                center=(center_x, center_y),
-                r=radius,
-                fill="none",
-                stroke="#CCCCCC",
-                stroke_width=1,
-            )
-        )
-
-        # Draw zodiac divisions with rotation
-        for i in range(12):
-            angle = math.radians(i * 30 - sun_aspect_longitude)
-            x1 = center_x + radius * math.cos(angle)
-            y1 = center_y + radius * math.sin(angle)
-            x2 = center_x + (radius - 20) * math.cos(angle)
-            y2 = center_y + (radius - 20) * math.sin(angle)
-            dwg.add(
-                dwg.line(start=(x1, y1), end=(x2, y2), stroke="#CCCCCC", stroke_width=1)
-            )
-
         # Convert retrograde period dates to Julian dates
         shadow_start_jd = retrograde_period.pre_shadow_start_date.timestamp() / 86400 + 2440587.5
         shadow_end_jd = retrograde_period.post_shadow_end_date.timestamp() / 86400 + 2440587.5
@@ -330,6 +298,96 @@ class PlanetaryPainter:
         time_spec = TimeSpec.from_dates(daily_times)
         planet_positions = planet_ephemeris.get_planet_positions(planet.name, time_spec)
         sun_positions = sun_ephemeris.get_planet_positions("SUN", time_spec)
+
+        # Track min/max coordinates for viewbox calculation
+        min_x = float('inf')
+        max_x = float('-inf')
+        min_y = float('inf')
+        max_y = float('-inf')
+        aspect_x = 0
+        aspect_y = 0
+
+        # First pass: calculate coordinates and find bounds
+        for jd in daily_times:
+            # Planet coordinates
+            if jd in planet_positions:
+                pos_data = planet_positions[jd]
+                longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+                distance = pos_data.get(Quantity.DELTA, 0.0)
+                if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
+                    x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+                    min_x = min(min_x, x)
+                    max_x = max(max_x, x)
+                    min_y = min(min_y, y)
+                    max_y = max(max_y, y)
+
+            # Sun coordinates
+            if jd in sun_positions:
+                pos_data = sun_positions[jd]
+                longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+                distance = pos_data.get(Quantity.DELTA, 0.0)
+                if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
+                    x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+                    min_x = min(min_x, x)
+                    max_x = max(max_x, x)
+                    min_y = min(min_y, y)
+                    max_y = max(max_y, y)
+
+            # Store aspect coordinates
+            if jd == sun_aspect_jd:
+                if jd in planet_positions:
+                    pos_data = planet_positions[jd]
+                    longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+                    distance = pos_data.get(Quantity.DELTA, 0.0)
+                    if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
+                        aspect_x, aspect_y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+
+        # Add padding (10% of the range)
+        x_range = max_x - min_x
+        y_range = max_y - min_y
+        padding_x = x_range * 0.1
+        padding_y = y_range * 0.1
+        min_x -= padding_x
+        max_x += padding_x
+        min_y -= padding_y
+        max_y += padding_y
+
+        # Calculate viewbox dimensions
+        viewbox_width = max_x - min_x
+        viewbox_height = max_y - min_y
+
+        # Create SVG drawing with dynamic viewbox
+        dwg = svgwrite.Drawing(
+            output_path,
+            size=(self.width, self.height),
+            viewBox=f"{min_x} {min_y} {viewbox_width} {viewbox_height}",
+            style=f"background-color: {self.background_color}",
+        )
+
+        # Draw zodiac circle
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+        radius = min(viewbox_width, viewbox_height) / 2
+        dwg.add(
+            dwg.circle(
+                center=(center_x, center_y),
+                r=radius,
+                fill="none",
+                stroke="#CCCCCC",
+                stroke_width=1,
+            )
+        )
+
+        # Draw zodiac divisions with rotation
+        for i in range(12):
+            angle = math.radians(i * 30 - sun_aspect_longitude)
+            x1 = center_x + radius * math.cos(angle)
+            y1 = center_y + radius * math.sin(angle)
+            x2 = center_x + (radius - 20) * math.cos(angle)
+            y2 = center_y + (radius - 20) * math.sin(angle)
+            dwg.add(
+                dwg.line(start=(x1, y1), end=(x2, y2), stroke="#CCCCCC", stroke_width=1)
+            )
 
         # Draw planet positions and path
         planet_path_data = []
