@@ -493,20 +493,38 @@ class PlanetaryPainter:
         station_retrograde_jd = retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5
         # Where is Earth's center, in final coords?
         earth_x, earth_y = self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude)
-        # Where is the station longitude at 1 AU, in final coords?
+        # Where is the station retrograde longitude at 1 AU, in final coords?
         sx, sy = self._normalize_coordinates(
             retrograde_period.station_retrograde_longitude,
             1.0,
             sun_aspect_longitude
         )
-        # Draw dashed line from Earth center to station point
+        # Draw solid line from Earth center to station retrograde point
         dwg.add(
             dwg.line(
                 start=(earth_x, earth_y),
                 end=(sx, sy),
                 stroke="#FFD700",
-                stroke_width=0.5,
-                stroke_dasharray="2,2",
+                stroke_width=0.15,  # Made even thinner
+                opacity=0.6
+            )
+        )
+
+        # Draw line at station direct longitude
+        station_direct_jd = retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5
+        # Where is the station direct longitude at 1 AU, in final coords?
+        dx, dy = self._normalize_coordinates(
+            retrograde_period.station_direct_longitude,
+            1.0,
+            sun_aspect_longitude
+        )
+        # Draw solid line from Earth center to station direct point
+        dwg.add(
+            dwg.line(
+                start=(earth_x, earth_y),
+                end=(dx, dy),
+                stroke="#FFD700",
+                stroke_width=0.15,  # Made even thinner
                 opacity=0.6
             )
         )
