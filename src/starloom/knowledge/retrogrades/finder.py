@@ -41,8 +41,8 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
     """
     logger.debug(f"Finding nearest retrograde for {planet.name} at {target_date}")
     
-    # Get the CSV file path
-    csv_path = Path(__file__).parent.parent.parent.parent / "knowledge" / "retrogrades" / f"{planet.name.lower()}.csv"
+    # Get the CSV file path - look in knowledge/retrogrades instead of src/knowledge/retrogrades
+    csv_path = Path(__file__).parent.parent.parent.parent.parent / "knowledge" / "retrogrades" / f"{planet.name.lower()}.csv"
     logger.debug(f"Looking for CSV file at {csv_path}")
     
     if not csv_path.exists():
@@ -55,6 +55,9 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
         periods = []
         for row in reader:
             try:
+                # Debug log the raw row
+                logger.debug(f"Processing row: {row}")
+
                 # Convert dates to datetime objects
                 def parse_date(date_str: str) -> datetime:
                     # Strip any whitespace and ensure proper format
@@ -75,21 +78,41 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
                         dt = dt.replace(tzinfo=timezone.utc)
                     return dt
 
+                # Parse dates
                 station_retrograde = parse_date(row["station_retrograde_date"])
                 station_direct = parse_date(row["station_direct_date"])
                 shadow_start = parse_date(row["pre_shadow_start_date"])
                 shadow_end = parse_date(row["post_shadow_end_date"])                
                 sun_event = parse_date(row["sun_aspect_date"])
 
+                # Parse longitudes with error handling
+                try:
+                    station_retrograde_longitude = float(row["station_retrograde_longitude"])
+                    station_direct_longitude = float(row["station_direct_longitude"])
+                    sun_aspect_longitude = float(row["sun_aspect_longitude"])
+                except (ValueError, KeyError) as e:
+                    logger.error(f"Error parsing longitudes: {e}")
+                    logger.error(f"Row data: {row}")
+                    continue
+
+                # Validate the data
+                if not all(isinstance(x, datetime) for x in [station_retrograde, station_direct, shadow_start, shadow_end, sun_event]):
+                    logger.error("Invalid date format in row")
+                    continue
+
+                if not all(isinstance(x, float) for x in [station_retrograde_longitude, station_direct_longitude, sun_aspect_longitude]):
+                    logger.error("Invalid longitude format in row")
+                    continue
+
                 period = RetrogradePeriod(
                     planet=planet,
                     pre_shadow_start_date=shadow_start,
                     station_retrograde_date=station_retrograde,
-                    station_retrograde_longitude=float(row["station_retrograde_longitude"]),
+                    station_retrograde_longitude=station_retrograde_longitude,
                     sun_aspect_date=sun_event,
-                    sun_aspect_longitude=float(row["sun_aspect_longitude"]),
+                    sun_aspect_longitude=sun_aspect_longitude,
                     station_direct_date=station_direct,
-                    station_direct_longitude=float(row["station_direct_longitude"]),
+                    station_direct_longitude=station_direct_longitude,
                     post_shadow_end_date=shadow_end,
                 )
                 periods.append(period)

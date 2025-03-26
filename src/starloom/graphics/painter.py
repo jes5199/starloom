@@ -325,8 +325,8 @@ class PlanetaryPainter:
             )
 
         # Convert retrograde period dates to Julian dates
-        shadow_start_jd = retrograde_period.shadow_start.timestamp() / 86400 + 2440587.5
-        shadow_end_jd = retrograde_period.shadow_end.timestamp() / 86400 + 2440587.5
+        shadow_start_jd = retrograde_period.pre_shadow_start_date.timestamp() / 86400 + 2440587.5
+        shadow_end_jd = retrograde_period.post_shadow_end_date.timestamp() / 86400 + 2440587.5
 
         # Find and highlight retrograde motion
         retrograde_data = []
@@ -365,12 +365,10 @@ class PlanetaryPainter:
 
         # Add date labels for key points
         key_dates = [
-            (retrograde_period.station_retrograde, "Station Retrograde"),
-            (retrograde_period.station_direct, "Station Direct"),
+            (retrograde_period.station_retrograde_date, "Station Retrograde"),
+            (retrograde_period.station_direct_date, "Station Direct"),
+            (retrograde_period.sun_aspect_date, "Sun Aspect"),
         ]
-        
-        if retrograde_period.opposition:
-            key_dates.append((retrograde_period.opposition, "Opposition"))
 
         for date, label in key_dates:
             jd = date.timestamp() / 86400 + 2440587.5
