@@ -340,13 +340,25 @@ def retrograde(
     except KeyError:
         raise click.BadParameter(f"Invalid planet: {planet}")
 
-    # Parse date
+    # Parse date and ensure it's timezone-aware
     target_date = parse_date_input(date)
+    if isinstance(target_date, datetime):
+        if target_date.tzinfo is None:
+            target_date = target_date.replace(tzinfo=timezone.utc)
 
-    # Create time specification for a 60-day range centered on the target date
-    start_date = target_date - timedelta(days=30)
-    stop_date = target_date + timedelta(days=30)
-    time_spec = TimeSpec.from_range(start_date, stop_date, "1d")
+        # Create time specification for a 60-day range centered on the target date
+        # Ensure all datetime objects are timezone-aware
+        start_date = (target_date - timedelta(days=30)).astimezone(timezone.utc)
+        stop_date = (target_date + timedelta(days=30)).astimezone(timezone.utc)
+        time_spec = TimeSpec.from_range(start_date, stop_date, "1d")
+    else:
+        # If target_date is a Julian date, convert to datetime for range calculation
+        dt = datetime.fromtimestamp(
+            (target_date - 2440587.5) * 86400, tz=timezone.utc
+        )
+        start_date = (dt - timedelta(days=30)).astimezone(timezone.utc)
+        stop_date = (dt + timedelta(days=30)).astimezone(timezone.utc)
+        time_spec = TimeSpec.from_range(start_date, stop_date, "1d")
 
     try:
         # Create appropriate ephemeris instance based on source

@@ -2,7 +2,7 @@
 
 import svgwrite
 from typing import Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 import math
 
 from ..ephemeris.quantities import Quantity
@@ -133,7 +133,7 @@ class PlanetaryPainter:
 
             # Add date label for first and last points
             if jd == min(positions.keys()) or jd == max(positions.keys()):
-                dt = datetime.fromtimestamp(jd * 86400 - 2440587.5 * 86400)
+                dt = datetime.fromtimestamp(jd * 86400 - 2440587.5 * 86400, tz=timezone.utc)
                 date_str = dt.strftime("%Y-%m-%d")
                 dwg.add(
                     dwg.text(
@@ -230,7 +230,7 @@ class PlanetaryPainter:
                 continue
 
             x, y = self._normalize_coordinates(longitude, distance)
-            dt = datetime.fromtimestamp(jd * 86400 - 2440587.5 * 86400)
+            dt = datetime.fromtimestamp(jd * 86400 - 2440587.5 * 86400, tz=timezone.utc)
             date_str = dt.strftime("%Y-%m-%d")
             dwg.add(
                 dwg.text(date_str, insert=(x + 8, y), fill="#666666", font_size="12px")
@@ -254,8 +254,8 @@ class PlanetaryPainter:
             output_path: Path to save the SVG file
             target_date: Julian date of the target date to analyze
         """
-        # Convert target_date to datetime
-        target_datetime = datetime.fromtimestamp(target_date * 86400 - 2440587.5 * 86400)
+        # Convert target_date to datetime with UTC timezone
+        target_datetime = datetime.fromtimestamp(target_date * 86400 - 2440587.5 * 86400, tz=timezone.utc)
 
         # Find the nearest retrograde period
         from ..knowledge.retrogrades import find_nearest_retrograde

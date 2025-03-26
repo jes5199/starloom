@@ -572,3 +572,34 @@ Add a new CLI command `graphics retrograde` that will:
    - Option to show/hide date labels
    - Option to show/hide shadow periods
    - Option to show/hide opposition points
+
+# Debug Retrograde Visualization for Mars
+
+## Task
+Run and debug the command: `starloom graphics retrograde mars --date 2025-03-19T20:00:00`
+
+## Goal
+Successfully generate a visualization of Mars' retrograde motion around the specified date.
+
+## TODOs
+[X] Run the command and observe any errors
+[X] Check the implementation of the retrograde visualization
+[X] Verify the date handling and conversion
+[X] Ensure proper SVG generation
+[X] Test the output visualization
+
+## Implementation Notes
+- Using the PlanetaryPainter class for SVG generation
+- Fixed timezone handling in multiple places:
+  1. Made parse_date in finder.py more robust to handle space-separated dates
+  2. Added UTC timezone to all datetime conversions in PlanetaryPainter
+  3. Fixed Julian date to datetime conversions to use UTC
+- Successfully generated visualization showing:
+  - Full orbit in light gray
+  - Retrograde motion highlighted
+  - Key points labeled (station retrograde, station direct, opposition)
+
+## Fixed Issues
+1. CSV date format compatibility - modified parse_date to handle space-separated dates without changing the CSV format
+2. Timezone consistency - ensured all datetime objects use UTC timezone
+3. Julian date conversions - added UTC timezone to all fromtimestamp calls
