@@ -376,6 +376,17 @@ class PlanetaryPainter:
             style="background-color: transparent",
         )
 
+        # Create clip path for rounded rectangle
+        clip_path = dwg.defs.add(dwg.clipPath(id='rounded-rect'))
+        clip_path.add(
+            dwg.rect(
+                insert=(min_x, min_y),
+                size=(viewbox_width, viewbox_height),
+                rx=5,
+                ry=5,
+            )
+        )
+
         # Add rounded rectangle background
         corner_radius = 5  # Reduced from 20 to 5 for more subtle rounding
         dwg.add(
@@ -388,6 +399,9 @@ class PlanetaryPainter:
                 stroke="none",
             )
         )
+
+        # Create a group for all elements that should be clipped
+        clip_group = dwg.g(clip_path='url(#rounded-rect)')
 
         # Draw planet positions and path
         # Single pass for planet dots
@@ -411,7 +425,7 @@ class PlanetaryPainter:
             # Draw dot based on period
             if not (shadow_start_jd <= jd <= shadow_end_jd):
                 # Pre/post period
-                dwg.add(
+                clip_group.add(
                     dwg.circle(
                         center=(x, y),
                         r=0.25,
@@ -428,7 +442,7 @@ class PlanetaryPainter:
                     + 2440587.5
                 ):
                     # Pre-shadow period
-                    dwg.add(
+                    clip_group.add(
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
@@ -443,7 +457,7 @@ class PlanetaryPainter:
                     + 2440587.5
                 ):
                     # Post-shadow period
-                    dwg.add(
+                    clip_group.add(
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
@@ -454,7 +468,7 @@ class PlanetaryPainter:
                     )
                 else:
                     # Main retrograde period
-                    dwg.add(
+                    clip_group.add(
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
@@ -483,7 +497,7 @@ class PlanetaryPainter:
             )
 
             # Draw Sun dot
-            dwg.add(
+            clip_group.add(
                 dwg.circle(
                     center=(x, y), r=0.375, fill="#FFD700", stroke="none", opacity=0.6
                 )
@@ -500,7 +514,7 @@ class PlanetaryPainter:
             sun_aspect_longitude
         )
         # Draw solid line from Earth center to station retrograde point
-        dwg.add(
+        clip_group.add(
             dwg.line(
                 start=(earth_x, earth_y),
                 end=(sx, sy),
@@ -519,7 +533,7 @@ class PlanetaryPainter:
             sun_aspect_longitude
         )
         # Draw solid line from Earth center to station direct point
-        dwg.add(
+        clip_group.add(
             dwg.line(
                 start=(earth_x, earth_y),
                 end=(dx, dy),
@@ -536,12 +550,19 @@ class PlanetaryPainter:
         
         # Check each zodiac boundary (0, 30, 60, ..., 330)
         for zodiac_boundary in range(0, 360, 30):
-            # Calculate the shortest angular distance to the retrograde range
+            # Check if boundary is within the range or near either end
+            if max_longitude < min_longitude:
+                # Range crosses 0/360 boundary
+                is_in_range = zodiac_boundary >= min_longitude or zodiac_boundary <= max_longitude
+            else:
+                # Normal case
+                is_in_range = min_longitude <= zodiac_boundary <= max_longitude
+                
             dist_to_min = min(abs(zodiac_boundary - min_longitude), 360 - abs(zodiac_boundary - min_longitude))
             dist_to_max = min(abs(zodiac_boundary - max_longitude), 360 - abs(zodiac_boundary - max_longitude))
+            is_near_end = dist_to_min <= 10 or dist_to_max <= 10
             
-            # If the boundary is within 20 degrees of either end of the range
-            if dist_to_min <= 20 or dist_to_max <= 20:
+            if is_in_range or is_near_end:
                 # Where is this zodiac boundary at 1 AU, in final coords?
                 zx, zy = self._normalize_coordinates(
                     zodiac_boundary,
@@ -549,7 +570,7 @@ class PlanetaryPainter:
                     sun_aspect_longitude
                 )
                 # Draw solid line from Earth center to zodiac boundary
-                dwg.add(
+                clip_group.add(
                     dwg.line(
                         start=(earth_x, earth_y),
                         end=(zx, zy),
@@ -559,7 +580,10 @@ class PlanetaryPainter:
                     )
                 )
 
-        # Add date labels for key points
+        # Add the clipped group to the drawing
+        dwg.add(clip_group)
+
+        # Add date labels for key points (outside the clip path so they're always visible)
         key_dates = [
             (retrograde_period.station_retrograde_date, "Station Retrograde"),
             (retrograde_period.station_direct_date, "Station Direct"),
