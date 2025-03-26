@@ -432,7 +432,7 @@ class PlanetaryPainter:
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
-                            fill="#4169E1",  # Royal blue
+                            fill="#00FFFF",  # Cyan (bright, high contrast)
                             stroke="none",
                             opacity=0.5,
                         )
@@ -447,7 +447,7 @@ class PlanetaryPainter:
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
-                            fill="#4169E1",  # Royal blue
+                            fill="#0088FF",  # Bright blue (high contrast)
                             stroke="none",
                             opacity=0.5,
                         )
@@ -488,6 +488,28 @@ class PlanetaryPainter:
                     center=(x, y), r=0.375, fill="#FFD700", stroke="none", opacity=0.6
                 )
             )
+
+        # Draw line at station retrograde longitude
+        station_retrograde_jd = retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5
+        # Where is Earth's center, in final coords?
+        earth_x, earth_y = self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude)
+        # Where is the station longitude at 1 AU, in final coords?
+        sx, sy = self._normalize_coordinates(
+            retrograde_period.station_retrograde_longitude,
+            1.0,
+            sun_aspect_longitude
+        )
+        # Draw dashed line from Earth center to station point
+        dwg.add(
+            dwg.line(
+                start=(earth_x, earth_y),
+                end=(sx, sy),
+                stroke="#FFD700",
+                stroke_width=0.5,
+                stroke_dasharray="2,2",
+                opacity=0.6
+            )
+        )
 
         # Add date labels for key points
         key_dates = [
