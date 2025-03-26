@@ -309,27 +309,18 @@ class PlanetaryPainter:
 
         # First pass: calculate coordinates and find bounds
         for jd in daily_times:
-            # Planet coordinates for horizontal bounds
-            if jd in planet_positions:
-                pos_data = planet_positions[jd]
-                longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-                distance = pos_data.get(Quantity.DELTA, 0.0)
-                if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
-                    x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
-                    min_x = min(min_x, x)
-                    max_x = max(max_x, x)
-                    min_y = min(min_y, y)
-                    max_y = max(max_y, y)
-
-            # Sun coordinates for vertical bounds only
-            if jd in sun_positions:
-                pos_data = sun_positions[jd]
-                longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-                distance = pos_data.get(Quantity.DELTA, 0.0)
-                if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
-                    x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
-                    min_y = min(min_y, y)
-                    max_y = max(max_y, y)
+            # Only use planet dots during retrograde period for bounds
+            if shadow_start_jd <= jd <= shadow_end_jd:
+                if jd in planet_positions:
+                    pos_data = planet_positions[jd]
+                    longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+                    distance = pos_data.get(Quantity.DELTA, 0.0)
+                    if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
+                        x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
+                        min_x = min(min_x, x)
+                        max_x = max(max_x, x)
+                        min_y = min(min_y, y)
+                        max_y = max(max_y, y)
 
             # Store aspect coordinates
             if jd == sun_aspect_jd:
@@ -343,8 +334,8 @@ class PlanetaryPainter:
         # Add padding (10% of the range)
         x_range = max_x - min_x
         y_range = max_y - min_y
-        padding_x = x_range * 0.1
-        padding_y = y_range * 0.1
+        padding_x = x_range * 0.1  # Increased to 10%
+        padding_y = y_range * 0.1  # Increased to 10%
         min_x -= padding_x
         max_x += padding_x
         min_y -= padding_y
@@ -363,8 +354,7 @@ class PlanetaryPainter:
         )
 
         # Draw planet positions and path
-        planet_path_data = []
-        # First pass: draw grey dots and path for pre/post period
+        # First pass: draw grey dots for pre/post period
         for jd in daily_times:
             if jd not in planet_positions:
                 continue
@@ -380,27 +370,11 @@ class PlanetaryPainter:
 
             x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
 
-            if not planet_path_data:
-                planet_path_data.append(f"M {x} {y}")
-            else:
-                planet_path_data.append(f"L {x} {y}")
-
             # Draw grey dots for pre/post period
             if not (shadow_start_jd <= jd <= shadow_end_jd):
                 dwg.add(
-                    dwg.circle(center=(x, y), r=0.5, fill="#CCCCCC", stroke="none")
+                    dwg.circle(center=(x, y), r=0.25, fill="#CCCCCC", stroke="none")
                 )
-
-        # Draw planet path
-        if planet_path_data:
-            dwg.add(
-                dwg.path(
-                    d=" ".join(planet_path_data),
-                    fill="none",
-                    stroke="#CCCCCC",
-                    stroke_width=1,
-                )
-            )
 
         # Second pass: draw colored dots for retrograde period
         for jd in daily_times:
@@ -421,11 +395,10 @@ class PlanetaryPainter:
             # Draw colored dots for retrograde period
             if shadow_start_jd <= jd <= shadow_end_jd:
                 dwg.add(
-                    dwg.circle(center=(x, y), r=0.5, fill=self.planet_color, stroke="none")
+                    dwg.circle(center=(x, y), r=0.25, fill=self.planet_color, stroke="none")
                 )
 
-        # Draw Sun positions and path
-        sun_path_data = []
+        # Draw Sun positions
         for jd in daily_times:
             if jd not in sun_positions:
                 continue
@@ -441,25 +414,9 @@ class PlanetaryPainter:
 
             x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
 
-            if not sun_path_data:
-                sun_path_data.append(f"M {x} {y}")
-            else:
-                sun_path_data.append(f"L {x} {y}")
-
             # Draw Sun dot
             dwg.add(
-                dwg.circle(center=(x, y), r=0.75, fill="#FFD700", stroke="none")  # Gold color for Sun
-            )
-
-        # Draw Sun path
-        if sun_path_data:
-            dwg.add(
-                dwg.path(
-                    d=" ".join(sun_path_data),
-                    fill="none",
-                    stroke="#FFD700",  # Gold color for Sun
-                    stroke_width=1,
-                )
+                dwg.circle(center=(x, y), r=0.375, fill="#FFD700", stroke="none")  # Gold color for Sun
             )
 
         # Add date labels for key points
