@@ -299,7 +299,7 @@ def positions(
 )
 @click.option(
     "--background",
-    default="#FFFFFF",
+    default="#000000",
     help="Background color of the canvas",
 )
 def retrograde(
@@ -312,7 +312,7 @@ def retrograde(
     height: int = 600,
     margin: int = 50,
     color: str = "#FF0000",
-    background: str = "#FFFFFF",
+    background: str = "#000000",
 ) -> None:
     """Generate SVG visualization of planetary retrograde motion.
 

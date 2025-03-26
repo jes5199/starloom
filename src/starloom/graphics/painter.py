@@ -17,8 +17,8 @@ class PlanetaryPainter:
         width: int = 800,
         height: int = 600,
         margin: int = 50,
-        planet_color: str = "#FF0000",
-        background_color: str = "#FFFFFF",
+        planet_color: str = "#FFFFFF",  # White
+        background_color: str = "#000000",  # Black
     ):
         """Initialize the painter.
 
@@ -373,7 +373,7 @@ class PlanetaryPainter:
             # Draw grey dots for pre/post period
             if not (shadow_start_jd <= jd <= shadow_end_jd):
                 dwg.add(
-                    dwg.circle(center=(x, y), r=0.25, fill="#CCCCCC", stroke="none")
+                    dwg.circle(center=(x, y), r=0.25, fill="#FFFFFF", stroke="none", opacity=0.3)
                 )
 
         # Second pass: draw colored dots for retrograde period
@@ -394,9 +394,22 @@ class PlanetaryPainter:
 
             # Draw colored dots for retrograde period
             if shadow_start_jd <= jd <= shadow_end_jd:
-                dwg.add(
-                    dwg.circle(center=(x, y), r=0.25, fill=self.planet_color, stroke="none")
-                )
+                # Different shades for different periods
+                if jd <= retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5:
+                    # Pre-shadow period
+                    dwg.add(
+                        dwg.circle(center=(x, y), r=0.25, fill="#FFFFFF", stroke="none", opacity=0.5)
+                    )
+                elif jd >= retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5:
+                    # Post-shadow period
+                    dwg.add(
+                        dwg.circle(center=(x, y), r=0.25, fill="#FFFFFF", stroke="none", opacity=0.5)
+                    )
+                else:
+                    # Main retrograde period
+                    dwg.add(
+                        dwg.circle(center=(x, y), r=0.25, fill="#FFFFFF", stroke="none", opacity=0.8)
+                    )
 
         # Draw Sun positions
         for jd in daily_times:
@@ -416,7 +429,7 @@ class PlanetaryPainter:
 
             # Draw Sun dot
             dwg.add(
-                dwg.circle(center=(x, y), r=0.375, fill="#FFD700", stroke="none")  # Gold color for Sun
+                dwg.circle(center=(x, y), r=0.375, fill="#FFD700", stroke="none", opacity=0.6)
             )
 
         # Add date labels for key points
