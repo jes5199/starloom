@@ -603,3 +603,30 @@ Successfully generate a visualization of Mars' retrograde motion around the spec
 1. CSV date format compatibility - modified parse_date to handle space-separated dates without changing the CSV format
 2. Timezone consistency - ensured all datetime objects use UTC timezone
 3. Julian date conversions - added UTC timezone to all fromtimestamp calls
+
+# Modify draw_retrograde to Align Sun Aspect Longitude Vertically
+
+## Task
+Modify the draw_retrograde method in PlanetaryPainter to align the sun aspect longitude vertically (straight up) in the visualization.
+
+## Goal
+Ensure that when visualizing retrograde motion, the sun aspect longitude is always at the top (12 o'clock position) of the circle, making it easier to understand the planet's motion relative to this key point.
+
+## TODOs
+[X] Modify _normalize_coordinates to account for sun aspect longitude offset
+[X] Update draw_retrograde to pass sun aspect longitude to _normalize_coordinates
+[X] Ensure all coordinate transformations maintain proper relative positions
+[ ] Test with various planets and dates to verify alignment
+
+## Implementation Notes
+- Need to rotate all coordinates by -sun_aspect_longitude to align it vertically
+- Must maintain proper scaling and relative positions
+- Should preserve all existing functionality (zodiac divisions, labels, etc.)
+- Need to ensure date labels remain readable after rotation
+
+## Completed Changes
+1. Added rotation_offset parameter to _normalize_coordinates
+2. Updated coordinate transformation to apply rotation
+3. Added sun aspect longitude calculation in draw_retrograde
+4. Applied rotation to all coordinate transformations
+5. Updated zodiac divisions to match the new coordinate system

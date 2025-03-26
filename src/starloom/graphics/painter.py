@@ -38,19 +38,20 @@ class PlanetaryPainter:
         self.plot_height = height - 2 * margin
 
     def _normalize_coordinates(
-        self, longitude: float, distance: float
+        self, longitude: float, distance: float, rotation_offset: float = 0.0
     ) -> Tuple[float, float]:
         """Convert ecliptic coordinates to SVG coordinates.
 
         Args:
             longitude: Ecliptic longitude in degrees
             distance: Distance from Earth in AU
+            rotation_offset: Degrees to rotate the coordinate system (default: 0)
 
         Returns:
             Tuple of (x, y) coordinates in SVG space
         """
-        # Convert longitude to radians
-        lon_rad = math.radians(longitude)
+        # Convert longitude to radians, applying rotation offset
+        lon_rad = math.radians(longitude - rotation_offset)
 
         # Scale distance to fit in plot (now using 2 AU as max for better visibility)
         max_distance = 2.0  # Reduced from 5 AU to 2 AU to make planets appear larger
@@ -263,6 +264,14 @@ class PlanetaryPainter:
         if not retrograde_period:
             raise ValueError(f"No retrograde periods found for {planet.name}")
 
+        # Get the sun aspect longitude for rotation offset
+        sun_aspect_jd = retrograde_period.sun_aspect_date.timestamp() / 86400 + 2440587.5
+        
+        # Find the closest available Julian date in positions
+        available_jds = sorted(positions.keys())
+        closest_jd = min(available_jds, key=lambda x: abs(x - sun_aspect_jd))
+        sun_aspect_longitude = positions[closest_jd].get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+
         # Create SVG drawing
         dwg = svgwrite.Drawing(
             output_path,
@@ -284,9 +293,9 @@ class PlanetaryPainter:
             )
         )
 
-        # Draw zodiac divisions
+        # Draw zodiac divisions with rotation
         for i in range(12):
-            angle = math.radians(i * 30)
+            angle = math.radians(i * 30 - sun_aspect_longitude)
             x1 = center_x + radius * math.cos(angle)
             y1 = center_y + radius * math.sin(angle)
             x2 = center_x + (radius - 20) * math.cos(angle)
@@ -306,7 +315,7 @@ class PlanetaryPainter:
             ):
                 continue
 
-            x, y = self._normalize_coordinates(longitude, distance)
+            x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
 
             if not path_data:
                 path_data.append(f"M {x} {y}")
@@ -340,7 +349,7 @@ class PlanetaryPainter:
                 ):
                     continue
 
-                x, y = self._normalize_coordinates(longitude, distance)
+                x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
 
                 if not retrograde_data:
                     retrograde_data.append(f"M {x} {y}")
@@ -376,7 +385,7 @@ class PlanetaryPainter:
                 pos_data = positions[jd]
                 longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
                 distance = pos_data.get(Quantity.DELTA, 0.0)
-                x, y = self._normalize_coordinates(longitude, distance)
+                x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
                 dwg.add(
                     dwg.text(
                         f"{label}\n{date.strftime('%Y-%m-%d')}",
