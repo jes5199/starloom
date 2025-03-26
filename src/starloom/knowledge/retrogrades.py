@@ -42,7 +42,7 @@ def find_nearest_retrograde(planet: Planet, target_date: datetime) -> Optional[R
     logger.debug(f"Finding nearest retrograde for {planet.name} at {target_date}")
     
     # Get the CSV file path - look in knowledge/retrogrades instead of src/knowledge/retrogrades
-    csv_path = Path(__file__).parent.parent.parent.parent.parent / "knowledge" / "retrogrades" / f"{planet.name.lower()}.csv"
+    csv_path = Path(__file__).parent.parent.parent.parent / "knowledge" / "retrogrades" / f"{planet.name.lower()}.csv"
     logger.debug(f"Looking for CSV file at {csv_path}")
     
     if not csv_path.exists():
