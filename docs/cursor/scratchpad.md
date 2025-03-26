@@ -528,3 +528,47 @@ Add default weftball paths for when no data file is supplied on the command line
 - Pluto: ./weftballs/pluto_weftball.tar.gz
 - Moon: ./weftballs/moon_weftball.tar.gz
 - Sun: ./weftballs/sun_weftball.tar.gz
+
+# Current Task: Add graphics retrograde command
+
+## Task Description
+Add a new CLI command `graphics retrograde` that will:
+1. Take a planet and date as input
+2. Call a new `draw_retrograde` method on the PlanetaryPainter class
+3. Generate a visualization showing retrograde motion
+
+## Steps
+[X] Create new module structure for retrogrades
+[X] Implement RetrogradePeriod class and find_nearest_retrograde function
+[X] Add new `draw_retrograde` method to PlanetaryPainter class
+[X] Add new `retrograde` command to graphics.py
+[X] Update documentation and examples
+[ ] Test the new functionality
+
+## Implementation Details
+1. Created new module `starloom.knowledge.retrogrades`:
+   - `RetrogradePeriod` dataclass to represent retrograde periods
+   - `find_nearest_retrograde` function to find the nearest period to a given date
+   - Reads data from CSV files in knowledge/retrogrades/
+
+2. Updated `draw_retrograde` method to:
+   - Find the nearest retrograde period using the new finder
+   - Show the full orbit in light gray
+   - Highlight the retrograde motion portion (shadow period) in the specified color
+   - Show planet positions as dots
+   - Add date labels for key points (station retrograde, station direct, opposition)
+
+3. Added new `retrograde` command that:
+   - Takes a planet and date as input
+   - Uses a 60-day range centered on the target date
+   - Supports all the same styling options as the main graphics command
+   - Provides clear examples in the help text
+
+## Next Steps
+1. Test the new command with various planets and dates
+2. Consider adding additional features like:
+   - Option to adjust the time range around the target date
+   - Option to show/hide the full orbit
+   - Option to show/hide date labels
+   - Option to show/hide shadow periods
+   - Option to show/hide opposition points

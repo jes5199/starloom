@@ -238,3 +238,155 @@ class PlanetaryPainter:
 
         # Save the SVG
         dwg.save()
+
+    def draw_retrograde(
+        self,
+        positions: dict[float, dict[str, float]],
+        planet: Planet,
+        output_path: str,
+        target_date: float,
+    ) -> None:
+        """Draw planet positions with retrograde motion highlighted.
+
+        Args:
+            positions: Dictionary mapping Julian dates to position data
+            planet: The planet being plotted
+            output_path: Path to save the SVG file
+            target_date: Julian date of the target date to analyze
+        """
+        # Convert target_date to datetime
+        target_datetime = datetime.fromtimestamp(target_date * 86400 - 2440587.5 * 86400)
+
+        # Find the nearest retrograde period
+        from ..knowledge.retrogrades import find_nearest_retrograde
+        retrograde_period = find_nearest_retrograde(planet, target_datetime)
+        if not retrograde_period:
+            raise ValueError(f"No retrograde periods found for {planet.name}")
+
+        # Create SVG drawing
+        dwg = svgwrite.Drawing(
+            output_path,
+            size=(self.width, self.height),
+            style=f"background-color: {self.background_color}",
+        )
+
+        # Draw zodiac circle
+        center_x = self.width / 2
+        center_y = self.height / 2
+        radius = min(self.plot_width, self.plot_height) / 2
+        dwg.add(
+            dwg.circle(
+                center=(center_x, center_y),
+                r=radius,
+                fill="none",
+                stroke="#CCCCCC",
+                stroke_width=1,
+            )
+        )
+
+        # Draw zodiac divisions
+        for i in range(12):
+            angle = math.radians(i * 30)
+            x1 = center_x + radius * math.cos(angle)
+            y1 = center_y + radius * math.sin(angle)
+            x2 = center_x + (radius - 20) * math.cos(angle)
+            y2 = center_y + (radius - 20) * math.sin(angle)
+            dwg.add(
+                dwg.line(start=(x1, y1), end=(x2, y2), stroke="#CCCCCC", stroke_width=1)
+            )
+
+        # Create path data for the entire orbit
+        path_data = []
+        for jd, pos_data in sorted(positions.items()):
+            longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+            distance = pos_data.get(Quantity.DELTA, 0.0)
+
+            if not isinstance(longitude, (int, float)) or not isinstance(
+                distance, (int, float)
+            ):
+                continue
+
+            x, y = self._normalize_coordinates(longitude, distance)
+
+            if not path_data:
+                path_data.append(f"M {x} {y}")
+            else:
+                path_data.append(f"L {x} {y}")
+
+        # Draw the path in a lighter color
+        if path_data:
+            dwg.add(
+                dwg.path(
+                    d=" ".join(path_data),
+                    fill="none",
+                    stroke="#CCCCCC",
+                    stroke_width=1,
+                )
+            )
+
+        # Convert retrograde period dates to Julian dates
+        shadow_start_jd = retrograde_period.shadow_start.timestamp() / 86400 + 2440587.5
+        shadow_end_jd = retrograde_period.shadow_end.timestamp() / 86400 + 2440587.5
+
+        # Find and highlight retrograde motion
+        retrograde_data = []
+        for jd, pos_data in sorted(positions.items()):
+            if shadow_start_jd <= jd <= shadow_end_jd:
+                longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+                distance = pos_data.get(Quantity.DELTA, 0.0)
+
+                if not isinstance(longitude, (int, float)) or not isinstance(
+                    distance, (int, float)
+                ):
+                    continue
+
+                x, y = self._normalize_coordinates(longitude, distance)
+
+                if not retrograde_data:
+                    retrograde_data.append(f"M {x} {y}")
+                else:
+                    retrograde_data.append(f"L {x} {y}")
+
+                # Draw planet dot
+                dwg.add(
+                    dwg.circle(center=(x, y), r=2, fill=self.planet_color, stroke="none")
+                )
+
+        # Draw retrograde path in highlighted color
+        if retrograde_data:
+            dwg.add(
+                dwg.path(
+                    d=" ".join(retrograde_data),
+                    fill="none",
+                    stroke=self.planet_color,
+                    stroke_width=2,
+                )
+            )
+
+        # Add date labels for key points
+        key_dates = [
+            (retrograde_period.station_retrograde, "Station Retrograde"),
+            (retrograde_period.station_direct, "Station Direct"),
+        ]
+        
+        if retrograde_period.opposition:
+            key_dates.append((retrograde_period.opposition, "Opposition"))
+
+        for date, label in key_dates:
+            jd = date.timestamp() / 86400 + 2440587.5
+            if jd in positions:
+                pos_data = positions[jd]
+                longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+                distance = pos_data.get(Quantity.DELTA, 0.0)
+                x, y = self._normalize_coordinates(longitude, distance)
+                dwg.add(
+                    dwg.text(
+                        f"{label}\n{date.strftime('%Y-%m-%d')}",
+                        insert=(x + 8, y),
+                        fill="#666666",
+                        font_size="12px",
+                    )
+                )
+
+        # Save the SVG
+        dwg.save()
