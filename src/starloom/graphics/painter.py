@@ -309,7 +309,7 @@ class PlanetaryPainter:
 
         # First pass: calculate coordinates and find bounds
         for jd in daily_times:
-            # Planet coordinates
+            # Planet coordinates for horizontal bounds
             if jd in planet_positions:
                 pos_data = planet_positions[jd]
                 longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
@@ -321,15 +321,13 @@ class PlanetaryPainter:
                     min_y = min(min_y, y)
                     max_y = max(max_y, y)
 
-            # Sun coordinates
+            # Sun coordinates for vertical bounds only
             if jd in sun_positions:
                 pos_data = sun_positions[jd]
                 longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
                 distance = pos_data.get(Quantity.DELTA, 0.0)
                 if isinstance(longitude, (int, float)) and isinstance(distance, (int, float)):
                     x, y = self._normalize_coordinates(longitude, distance, sun_aspect_longitude)
-                    min_x = min(min_x, x)
-                    max_x = max(max_x, x)
                     min_y = min(min_y, y)
                     max_y = max(max_y, y)
 
@@ -364,31 +362,6 @@ class PlanetaryPainter:
             style=f"background-color: {self.background_color}",
         )
 
-        # Draw zodiac circle
-        center_x = (min_x + max_x) / 2
-        center_y = (min_y + max_y) / 2
-        radius = min(viewbox_width, viewbox_height) / 2
-        dwg.add(
-            dwg.circle(
-                center=(center_x, center_y),
-                r=radius,
-                fill="none",
-                stroke="#CCCCCC",
-                stroke_width=1,
-            )
-        )
-
-        # Draw zodiac divisions with rotation
-        for i in range(12):
-            angle = math.radians(i * 30 - sun_aspect_longitude)
-            x1 = center_x + radius * math.cos(angle)
-            y1 = center_y + radius * math.sin(angle)
-            x2 = center_x + (radius - 20) * math.cos(angle)
-            y2 = center_y + (radius - 20) * math.sin(angle)
-            dwg.add(
-                dwg.line(start=(x1, y1), end=(x2, y2), stroke="#CCCCCC", stroke_width=1)
-            )
-
         # Draw planet positions and path
         planet_path_data = []
         for jd in daily_times:
@@ -413,7 +386,7 @@ class PlanetaryPainter:
 
             # Draw planet dot
             dwg.add(
-                dwg.circle(center=(x, y), r=2, fill=self.planet_color, stroke="none")
+                dwg.circle(center=(x, y), r=1, fill=self.planet_color, stroke="none")
             )
 
         # Draw planet path
@@ -423,7 +396,7 @@ class PlanetaryPainter:
                     d=" ".join(planet_path_data),
                     fill="none",
                     stroke=self.planet_color,
-                    stroke_width=2,
+                    stroke_width=1,
                 )
             )
 
@@ -451,7 +424,7 @@ class PlanetaryPainter:
 
             # Draw Sun dot
             dwg.add(
-                dwg.circle(center=(x, y), r=3, fill="#FFD700", stroke="none")  # Gold color for Sun
+                dwg.circle(center=(x, y), r=1.5, fill="#FFD700", stroke="none")  # Gold color for Sun
             )
 
         # Draw Sun path
@@ -461,7 +434,7 @@ class PlanetaryPainter:
                     d=" ".join(sun_path_data),
                     fill="none",
                     stroke="#FFD700",  # Gold color for Sun
-                    stroke_width=2,
+                    stroke_width=1,
                 )
             )
 
