@@ -845,9 +845,10 @@ class RetrogradeFinder:
                     Planet.SATURN,
                     Planet.URANUS,
                     Planet.NEPTUNE,
-                    Planet.PLUTO,
                 ]:
                     lookback_days = 120  # Outer planets move more slowly
+                elif planet == Planet.PLUTO:
+                    lookback_days = 600  # Pluto needs a much longer window
                 elif planet == Planet.MARS:
                     lookback_days = 90  # Mars needs a longer window too
 
