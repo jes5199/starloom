@@ -1114,7 +1114,6 @@ class PlanetaryPainter:
         cazimi_date = retrograde_period.sun_aspect_date.strftime("%B %-d")
         cazimi_time = retrograde_period.sun_aspect_date.strftime("%-H:%M UTC")
         
-        # Add centered text at the bottom of the rounded rectangle
         # Calculate center for text alignment
         center_x = viewbox_width / 2
         
@@ -1125,14 +1124,48 @@ class PlanetaryPainter:
         # Calculate total height of text block (4 lines with 1.5em spacing = ~7.5em total)
         text_block_height = 7.5
         
-        # Create text element for the bottom information, positioned so the last line is visible but near the bottom
-        bottom_text = dwg.text("", insert=(center_x, bottom_y - text_block_height), fill="#FFFFFF", font_size="3", text_anchor="middle")
+        # Calculate exact positions relative to the rounded rectangle
+        rectangle_bottom = viewbox_height - 5  # Bottom edge of the rounded rectangle
+        bottom_padding = 0.5  # Fixed padding from the bottom edge
+        
+        # Calculate line heights and spacing
+        cazimi_line_height = 2.5  # Font size of cazimi text
+        heading_line_height = 4.5  # Font size of heading
+        subheading_line_height = 3.5  # Font size of subheading
+        url_line_height = 2.5  # Font size of URL text
+        
+        # Calculate spacings
+        first_spacing = 1.25  # Space between cazimi and heading
+        second_spacing = 1.5  # Space between heading and subheading
+        third_spacing = 1.75  # Space between subheading and URL
+        
+        # Calculate total text block height
+        total_height = cazimi_line_height + heading_line_height + subheading_line_height + url_line_height + first_spacing + second_spacing + third_spacing
+        
+        # Calculate the y position for the first line so that the bottom of the text block
+        # is exactly at rectangle_bottom - bottom_padding
+        first_line_y = rectangle_bottom - bottom_padding - total_height
+        
+        # Create text element for the bottom information
+        bottom_text = dwg.text("", insert=(center_x, first_line_y), fill="#FFFFFF", font_size="3", text_anchor="middle")
+        
+        # First line - Cazimi info (smaller)
+        bottom_text.add(dwg.tspan(f"Cazimi {cazimi_date} {cazimi_time}", 
+                                 x=[center_x], dy=['0em'], font_size="2.5"))
+        
+        # Second line - Planet Retrograde heading (larger)
         bottom_text.add(dwg.tspan(f"{planet.name.capitalize()} Retrograde in {station_retro_sign}" + 
                                  (f" & {station_direct_sign}" if station_retro_sign != station_direct_sign else ""), 
-                                 x=[center_x], dy=['0em']))
-        bottom_text.add(dwg.tspan(month_range, x=[center_x], dy=['1.5em']))
-        bottom_text.add(dwg.tspan(f"Cazimi {cazimi_date} {cazimi_time}", x=[center_x], dy=['1.5em']))
-        bottom_text.add(dwg.tspan("retrograde.observer", x=[center_x], dy=['1.5em']))
+                                 x=[center_x], dy=[f'{first_spacing}em'], font_size=f"{heading_line_height}", font_weight="bold"))
+        
+        # Third line - Month-year subheading
+        bottom_text.add(dwg.tspan(month_range, x=[center_x], dy=['1.5em'], font_size=f"{subheading_line_height}"))
+        
+        # Fourth line - retrograde.observer (blue, like a hyperlink, fixed width font)
+        url_text = dwg.tspan("retrograde.observer", x=[center_x], dy=[f'{third_spacing}em'], font_size="2.5", font_family="monospace", font_weight="bold")
+        url_text['fill'] = "#5599FF"  # Blue color
+        url_text['style'] = "text-shadow: 1px 1px 2px #000000;"  # Add drop shadow
+        bottom_text.add(url_text)
         
         # Add the text to the drawing
         dwg.add(bottom_text)
