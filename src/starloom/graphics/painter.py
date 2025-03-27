@@ -596,31 +596,30 @@ class PlanetaryPainter:
 
         zodiac_distance = shadow_max_distance + sun_aspect_distance * 0.1
 
-        # Draw all zodiac sign boundaries
-        for zodiac_boundary in range(0, 360, 1):
-            # Where is this zodiac boundary at 1 AU, in final coords?
-            inner_distance = zodiac_distance - 0.005
+        for ecliptic_degrees in range(0, 360, 1):
+            inner_distance = zodiac_distance - 0.005 # short tick default
 
-            if zodiac_boundary % 30 == 0:
+            if ecliptic_degrees % 30 == 0:
+                # Zodiac sign boundaries
                 inner_distance = 0
-            elif zodiac_boundary % 10 == 0:
+            elif ecliptic_degrees % 10 == 0:
+                # Decan boundaries, longer tick
                 inner_distance = zodiac_distance - 0.01
 
             inner_x, inner_y = self._normalize_coordinates(
-                zodiac_boundary,
+                ecliptic_degrees,
                 inner_distance,
                 sun_aspect_longitude
             )
 
             zx, zy = self._normalize_coordinates(
-                zodiac_boundary,
+                ecliptic_degrees,
                 zodiac_distance,
                 sun_aspect_longitude
             )
 
             stroke_width = 0.15
 
-            # Draw solid line from Earth center to zodiac boundary
             clip_group.add(
                 dwg.line(
                     start=(inner_x, inner_y),
