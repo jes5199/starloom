@@ -456,13 +456,26 @@ class PlanetaryPainter:
 
         # Add rounded rectangle background
         corner_radius = 5  # Reduced from 20 to 5 for more subtle rounding
+        
+        # Create gradient for background
+        bg_gradient = dwg.defs.add(dwg.linearGradient(id='bg-gradient'))
+        base_color = self._get_background_color(planet)
+        # Create a darker version of the base color by reducing RGB values by 20%
+        darker_color = f"#{int(int(base_color[1:3], 16) * 0.8):02x}{int(int(base_color[3:5], 16) * 0.8):02x}{int(int(base_color[5:7], 16) * 0.8):02x}"
+        bg_gradient.add_stop_color(offset=0, color=base_color)
+        bg_gradient.add_stop_color(offset=1, color=darker_color)
+        bg_gradient['x1'] = '0%'
+        bg_gradient['y1'] = '0%'
+        bg_gradient['x2'] = '0%'
+        bg_gradient['y2'] = '100%'
+        
         dwg.add(
             dwg.rect(
                 insert=(min_x, min_y),
                 size=(max_x - min_x, max_y - min_y),
                 rx=corner_radius,
                 ry=corner_radius,
-                fill=self._get_background_color(planet),
+                fill=bg_gradient.get_paint_server(),
                 stroke="none",
             )
         )
