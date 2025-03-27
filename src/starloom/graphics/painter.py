@@ -38,8 +38,8 @@ class PlanetaryPainter:
     PLANET_BACKGROUND_COLORS = {
         Planet.VENUS: "#00AF00",  # Green for Venus
         Planet.MARS: "#8B0000",   # Dark red for Mars
+        Planet.MERCURY: "#AAAA00", # Yellow for Mercury
         # Default to black for other planets
-        Planet.MERCURY: "#000000",
         Planet.JUPITER: "#000000",
         Planet.SATURN: "#000000",
         Planet.URANUS: "#000000",
