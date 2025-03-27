@@ -784,7 +784,7 @@ class PlanetaryPainter:
                             r=0.25,
                             fill="#00FFFF",  # Cyan (bright, high contrast)
                             stroke="none",
-                            opacity=0.8,
+                            opacity=0.9,
                         )
                     )
                 elif (
@@ -797,9 +797,9 @@ class PlanetaryPainter:
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
-                            fill="#0088FF",  # Bright blue (high contrast)
+                            fill="#3399FF",  # Bright blue (high contrast)
                             stroke="none",
-                            opacity=0.8,
+                            opacity=0.9,
                         )
                     )
                 else:
