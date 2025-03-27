@@ -742,13 +742,14 @@ class PlanetaryPainter:
             ext_sun_x = sun_x - norm_vec_x * ext_distance
             ext_sun_y = sun_y - norm_vec_y * ext_distance
 
-            # Choose gradient directions based on planet
-            if planet.name.lower() == "mercury":
-                # For Mercury, swap the gradients
+            # Choose gradient directions based on relative positions
+            # Sun is at 1 AU, so if zodiac_distance > 1, wheel is outside sun orbit
+            if zodiac_distance > 1:
+                # Wheel is outside sun orbit
                 wheel_gradient = 'url(#sun-fade-up)'
                 sun_gradient = 'url(#sun-fade-down)'
             else:
-                # For Venus (and others), use normal gradient directions
+                # Wheel is inside sun orbit
                 wheel_gradient = 'url(#sun-fade-down)'
                 sun_gradient = 'url(#sun-fade-up)'
 
