@@ -424,32 +424,27 @@ class PlanetaryPainter:
                             longitude, distance, sun_aspect_longitude
                         )
 
-        # Add padding (10% of the range)
-        x_range = max_x - min_x
-        y_range = max_y - min_y
-        padding_x = x_range * 0.4  # Increased to 20% for more horizontal space
-        padding_y = y_range * 0.15  # Keep vertical padding at 15%
-        min_x -= padding_x
-        max_x += padding_x
-        min_y -= padding_y
-        max_y += padding_y
+        # Calculate the center and radius of the astronomical elements
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+        radius = max(max_x - min_x, max_y - min_y) / 2
 
-        # Add additional padding for the outer background
-        outer_padding = 1  # Fixed padding in SVG units
-        outer_min_x = min_x - outer_padding
-        outer_max_x = max_x + outer_padding
-        outer_min_y = min_y - outer_padding
-        outer_max_y = max_y + outer_padding
+        # Define a fixed square viewbox (100x100 units)
+        viewbox_size = 100
+        viewbox_min_x = 0
+        viewbox_min_y = 0
+        viewbox_max_x = viewbox_size
+        viewbox_max_y = viewbox_size
 
-        # Calculate viewbox dimensions
-        viewbox_width = outer_max_x - outer_min_x
-        viewbox_height = outer_max_y - outer_min_y
+        # Calculate scaling factor to fit astronomical elements in viewbox
+        # Leave 10% padding around the elements
+        scale = (viewbox_size * 0.9) / (radius * 2)
 
-        # Create SVG drawing with dynamic viewbox
+        # Create SVG drawing with fixed square viewbox
         dwg = svgwrite.Drawing(
             output_path,
             size=(self.width, self.height),
-            viewBox=f"{outer_min_x} {outer_min_y} {viewbox_width} {viewbox_height}",
+            viewBox=f"{viewbox_min_x} {viewbox_min_y} {viewbox_size} {viewbox_size}",
             style="background-color: transparent; font-family: Helvetica, Arial, sans-serif;",
         )
 
@@ -457,15 +452,15 @@ class PlanetaryPainter:
         clip_path = dwg.defs.add(dwg.clipPath(id='rounded-rect'))
         clip_path.add(
             dwg.rect(
-                insert=(min_x, min_y),
-                size=(max_x - min_x, max_y - min_y),
+                insert=(viewbox_min_x + 5, viewbox_min_y + 5),
+                size=(viewbox_size - 10, viewbox_size - 10),
                 rx=5,
                 ry=5,
             )
         )
 
         # Add rounded rectangle background
-        corner_radius = 5  # Reduced from 20 to 5 for more subtle rounding
+        corner_radius = 5
         
         # Create gradient for background
         bg_gradient = dwg.defs.add(dwg.linearGradient(id='bg-gradient'))
@@ -481,8 +476,8 @@ class PlanetaryPainter:
         
         dwg.add(
             dwg.rect(
-                insert=(min_x, min_y),
-                size=(max_x - min_x, max_y - min_y),
+                insert=(viewbox_min_x + 5, viewbox_min_y + 5),
+                size=(viewbox_size - 10, viewbox_size - 10),
                 rx=corner_radius,
                 ry=corner_radius,
                 fill=bg_gradient.get_paint_server(),
@@ -493,11 +488,23 @@ class PlanetaryPainter:
         # Create a group for all elements that should be clipped
         clip_group = dwg.g(clip_path='url(#rounded-rect)')
 
+        # Helper function to transform astronomical coordinates to viewbox coordinates
+        def transform_coordinates(x: float, y: float) -> Tuple[float, float]:
+            # Translate to origin
+            x = x - center_x
+            y = y - center_y
+            # Scale
+            x = x * scale
+            y = y * scale
+            # Translate to viewbox center
+            x = x + viewbox_size / 2
+            y = y + viewbox_size / 2
+            return x, y
+
         # Define gradients for sun fade in/out effects
         gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-out'))
         gradient.add_stop_color(offset=0, color='#FFD700', opacity=0)
         gradient.add_stop_color(offset=1, color='#FFD700', opacity=1)
-        # Set gradient direction from center to end of line
         gradient['x1'] = '0%'
         gradient['y1'] = '0%'
         gradient['x2'] = '0%'
@@ -506,49 +513,47 @@ class PlanetaryPainter:
         gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-in'))
         gradient.add_stop_color(offset=0, color='#FFD700', opacity=1)
         gradient.add_stop_color(offset=1, color='#FFD700', opacity=0)
-        # Set gradient direction from center to end of line
         gradient['x1'] = '0%'
         gradient['y1'] = '0%'
         gradient['x2'] = '0%'
         gradient['y2'] = '100%'
 
-
         # Draw line at station retrograde longitude
         # Where is Earth's center, in final coords?
-        earth_x, earth_y = self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude)
+        earth_x, earth_y = transform_coordinates(*self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude))
         # Where is the station retrograde longitude at 1 AU, in final coords?
-        sx, sy = self._normalize_coordinates(
+        sx, sy = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.station_retrograde_longitude,
             1,
             sun_aspect_longitude
-        )
+        ))
         # Draw solid line from Earth center to station retrograde point
         clip_group.add(
             dwg.line(
                 start=(earth_x, earth_y),
                 end=(sx, sy),
                 stroke="#000000",
-                stroke_width=0.15,  # Made even thinner
+                stroke_width=0.5,  # Adjusted for new scale
                 opacity=0.6
             )
         )
 
         # Add station retrograde label
         station_retrograde_date = retrograde_period.station_retrograde_date
-        station_retrograde_x, station_retrograde_y = self._normalize_coordinates(
+        station_retrograde_x, station_retrograde_y = transform_coordinates(*self._normalize_coordinates(
             station_retrograde_longitude,
             station_retrograde_distance,
             sun_aspect_longitude
-        )
+        ))
 
-        text_x = station_retrograde_x + 0.5
+        text_x = station_retrograde_x + 2
         text_y = station_retrograde_y
 
         text_elem = dwg.text(
             text="",
             insert=(text_x, text_y),
             fill="#FFFFFF",
-            font_size="0.8",
+            font_size="3",  # Adjusted for new scale
             dominant_baseline="hanging"
         )
 
@@ -558,24 +563,22 @@ class PlanetaryPainter:
 
         clip_group.add(text_elem)
 
-
-
         # Add station direct label
         station_direct_date = retrograde_period.station_direct_date
-        station_direct_x, station_direct_y = self._normalize_coordinates(
+        station_direct_x, station_direct_y = transform_coordinates(*self._normalize_coordinates(
             station_direct_longitude,
             station_direct_distance,
             sun_aspect_longitude
-        )
+        ))
 
-        text_x = station_direct_x - 0.5
+        text_x = station_direct_x - 2
         text_y = station_direct_y
 
         text_elem = dwg.text(
             text="",
             insert=(text_x, text_y),
             fill="#FFFFFF",
-            font_size="0.8",
+            font_size="3",  # Adjusted for new scale
             dominant_baseline="hanging",
             text_anchor="end"
         )
@@ -586,24 +589,23 @@ class PlanetaryPainter:
 
         clip_group.add(text_elem)
 
-
         # Add shadow period labels
         # Shadow start label
         shadow_start_date = retrograde_period.pre_shadow_start_date
-        shadow_start_x, shadow_start_y = self._normalize_coordinates(
+        shadow_start_x, shadow_start_y = transform_coordinates(*self._normalize_coordinates(
             station_direct_longitude,
             shadow_positions[shadow_start_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0),
             sun_aspect_longitude
-        )
+        ))
 
-        text_x = shadow_start_x - 0.25
+        text_x = shadow_start_x - 1
         text_y = shadow_start_y
 
         text_elem = dwg.text(
             text="",
             insert=(text_x, text_y),
             fill="#FFFFFF",
-            font_size="0.8",
+            font_size="3",  # Adjusted for new scale
             dominant_baseline="hanging",
             text_anchor="end"
         )
@@ -616,20 +618,20 @@ class PlanetaryPainter:
 
         # Shadow end label
         shadow_end_date = retrograde_period.post_shadow_end_date
-        shadow_end_x, shadow_end_y = self._normalize_coordinates(
+        shadow_end_x, shadow_end_y = transform_coordinates(*self._normalize_coordinates(
             station_retrograde_longitude,
             shadow_positions[shadow_end_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0),
             sun_aspect_longitude
-        )
+        ))
 
-        text_x = shadow_end_x + 0.25
+        text_x = shadow_end_x + 1
         text_y = shadow_end_y
 
         text_elem = dwg.text(
             text="",
             insert=(text_x, text_y),
             fill="#FFFFFF",
-            font_size="0.8",
+            font_size="3",  # Adjusted for new scale
             dominant_baseline="hanging",
         )
 
@@ -639,21 +641,20 @@ class PlanetaryPainter:
 
         clip_group.add(text_elem)
 
-
         # Draw line at station direct longitude
         # Where is the station direct longitude at 1 AU, in final coords?
-        dx, dy = self._normalize_coordinates(
+        dx, dy = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.station_direct_longitude,
             1,
             sun_aspect_longitude
-        )
+        ))
         # Draw solid line from Earth center to station direct point
         clip_group.add(
             dwg.line(
                 start=(earth_x, earth_y),
                 end=(dx, dy),
                 stroke="#000000",
-                stroke_width=0.15,  # Made even thinner
+                stroke_width=0.5,  # Adjusted for new scale
                 opacity=0.6
             )
         )
@@ -661,31 +662,31 @@ class PlanetaryPainter:
         # Sun aspect line in two sections
         # 1. from earth center to planet (solid yellow)
         # 2. from planet towards sun (gradient)
-        planet_x, planet_y = self._normalize_coordinates(
+        planet_x, planet_y = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.sun_aspect_longitude,
             sun_aspect_distance * 1.0,
             sun_aspect_longitude
-        )
+        ))
 
-        sun_x, sun_y = self._normalize_coordinates(
+        sun_x, sun_y = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.sun_aspect_longitude,
             1,
             sun_aspect_longitude
-        )
+        ))
 
-        dx, dy = self._normalize_coordinates(
+        dx, dy = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.sun_aspect_longitude,
             sun_aspect_distance * 1.1,
             sun_aspect_longitude
-        )
+        ))
 
         clip_group.add(
             dwg.line(
                 start=(earth_x, earth_y),
                 end=(planet_x, planet_y),
                 stroke='#FFD700',
-                stroke_width=0.15,
-                opacity=1.0  # Set to 1.0 since opacity is handled by gradient
+                stroke_width=0.5,  # Adjusted for new scale
+                opacity=1.0
             )
         )
 
@@ -694,18 +695,8 @@ class PlanetaryPainter:
                 start=(planet_x, planet_y),
                 end=(dx, dy),
                 stroke='url(#sun-fade-out)',
-                stroke_width=0.15,
-                opacity=1.0  # Set to 1.0 since opacity is handled by gradient
-            )
-        )
-
-        clip_group.add(
-            dwg.line(
-                start=(planet_x, planet_y),
-                end=(dx, dy),
-                stroke='url(#sun-fade-out)',
-                stroke_width=0.15,
-                opacity=1.0  # Set to 1.0 since opacity is handled by gradient
+                stroke_width=0.5,  # Adjusted for new scale
+                opacity=1.0
             )
         )
 
@@ -715,36 +706,34 @@ class PlanetaryPainter:
                 f"Cazimi {retrograde_period.sun_aspect_date.strftime('%Y-%m-%d')}",
                 insert=(dx, dy),
                 fill="#FFFFFF",
-                font_size="0.8",
+                font_size="3",  # Adjusted for new scale
                 dominant_baseline="middle",
                 text_anchor="start",
                 transform=f"rotate({-90}, {dx}, {dy})",
             )
         )
 
-
         if planet.name.lower() in ["venus", "mercury"]:
             # draw spark towards sun
-
-            dx, dy = self._normalize_coordinates(
+            dx, dy = transform_coordinates(*self._normalize_coordinates(
                 retrograde_period.sun_aspect_longitude,
                 shadow_average_distance,
                 sun_aspect_longitude
-            )
+            ))
 
-            d2x, d2y = self._normalize_coordinates(
+            d2x, d2y = transform_coordinates(*self._normalize_coordinates(
                 retrograde_period.sun_aspect_longitude,
                 shadow_max_distance + sun_aspect_distance * 0.1,
                 sun_aspect_longitude
-            )
+            ))
 
             clip_group.add(
                 dwg.line(
                     start=(dx, dy),
                     end=(d2x, d2y),
                     stroke='url(#sun-fade-in)',
-                    stroke_width=0.15,
-                    opacity=1.0  # Set to 1.0 since opacity is handled by gradient
+                    stroke_width=0.5,  # Adjusted for new scale
+                    opacity=1.0
                 )
             )
 
@@ -753,7 +742,7 @@ class PlanetaryPainter:
                     start=(sun_x, sun_y),
                     end=(d2x, d2y),
                     stroke='#FFD700',
-                    stroke_width=0.15,
+                    stroke_width=0.5,  # Adjusted for new scale
                     opacity=1.0
                 )
             )
@@ -787,11 +776,11 @@ class PlanetaryPainter:
                 if ecliptic_degrees in zodiac_signs:
                     # Calculate text position slightly inward from the line
                     text_distance = zodiac_distance - 0.010
-                    text_x, text_y = self._normalize_coordinates(
+                    text_x, text_y = transform_coordinates(*self._normalize_coordinates(
                         ecliptic_degrees + 0.25,
                         text_distance,
                         sun_aspect_longitude
-                    )
+                    ))
                     
                     # Calculate text rotation based on angle
                     text_angle = ecliptic_degrees - sun_aspect_longitude + 180
@@ -802,7 +791,7 @@ class PlanetaryPainter:
                             zodiac_signs[ecliptic_degrees],
                             insert=(text_x, text_y),
                             fill="#A52A2A",
-                            font_size="1.5",
+                            font_size="4",  # Adjusted for new scale
                             opacity=0.5,
                             transform=f"rotate({text_angle}, {text_x}, {text_y})",
                             text_anchor="start",
@@ -810,18 +799,18 @@ class PlanetaryPainter:
                         )
                     )
 
-                    text2_x, text2_y = self._normalize_coordinates(
+                    text2_x, text2_y = transform_coordinates(*self._normalize_coordinates(
                         ecliptic_degrees - 0.25,
                         text_distance,
                         sun_aspect_longitude
-                    )
+                    ))
 
                     clip_group.add(
                         dwg.text(
                             zodiac_signs[(ecliptic_degrees - 30) % 360],
                             insert=(text2_x, text2_y),
                             fill="#A52A2A",
-                            font_size="1.5",
+                            font_size="4",  # Adjusted for new scale
                             opacity=0.5,
                             transform=f"rotate({text_angle}, {text2_x}, {text2_y})",
                             text_anchor="start",
@@ -829,24 +818,23 @@ class PlanetaryPainter:
                         )
                     )
 
-
             elif ecliptic_degrees % 10 == 0:
                 # Decan boundaries, longer tick
                 inner_distance = zodiac_distance - 0.01
 
-            inner_x, inner_y = self._normalize_coordinates(
+            inner_x, inner_y = transform_coordinates(*self._normalize_coordinates(
                 ecliptic_degrees,
                 inner_distance,
                 sun_aspect_longitude
-            )
+            ))
 
-            zx, zy = self._normalize_coordinates(
+            zx, zy = transform_coordinates(*self._normalize_coordinates(
                 ecliptic_degrees,
                 zodiac_distance,
                 sun_aspect_longitude
-            )
+            ))
 
-            stroke_width = 0.15
+            stroke_width = 0.5  # Adjusted for new scale
 
             clip_group.add(
                 dwg.line(
@@ -857,13 +845,14 @@ class PlanetaryPainter:
                     opacity=0.5
                 )
             )
+
         # Draw a circle at maximum shadow distance
         clip_group.add(
             dwg.circle(
                 center=(earth_x, earth_y),
-                r=self._normalize_distance(zodiac_distance),
+                r=self._normalize_distance(zodiac_distance) * scale,
                 stroke="#A52A2A",
-                stroke_width=0.15,
+                stroke_width=0.5,  # Adjusted for new scale
                 opacity=0.5,
                 fill="none"
             )
@@ -884,9 +873,9 @@ class PlanetaryPainter:
             ):
                 continue
 
-            x, y = self._normalize_coordinates(
+            x, y = transform_coordinates(*self._normalize_coordinates(
                 longitude, distance, sun_aspect_longitude
-            )
+            ))
 
             # Draw dot based on period
             if not (shadow_start_jd <= jd <= shadow_end_jd):
@@ -894,7 +883,7 @@ class PlanetaryPainter:
                 clip_group.add(
                     dwg.circle(
                         center=(x, y),
-                        r=0.25,
+                        r=0.75,  # Adjusted for new scale
                         fill="#FFFFFF",
                         stroke="none",
                         opacity=0.3,
@@ -911,10 +900,10 @@ class PlanetaryPainter:
                     clip_group.add(
                         dwg.circle(
                             center=(x, y),
-                            r=0.25,
+                            r=0.75,  # Adjusted for new scale
                             fill="#00DDDD",  # Cyan (bright, high contrast)
                             stroke="#FFFFFF",
-                            stroke_width=0.05,
+                            stroke_width=0.15,  # Adjusted for new scale
                             opacity=0.9,
                         )
                     )
@@ -927,10 +916,10 @@ class PlanetaryPainter:
                     clip_group.add(
                         dwg.circle(
                             center=(x, y),
-                            r=0.25,
+                            r=0.75,  # Adjusted for new scale
                             fill="#3399FF",  # Bright blue (high contrast)
                             stroke="#FFFFFF",
-                            stroke_width=0.05,
+                            stroke_width=0.15,  # Adjusted for new scale
                             opacity=0.9,
                         )
                     )
@@ -939,7 +928,7 @@ class PlanetaryPainter:
                     clip_group.add(
                         dwg.circle(
                             center=(x, y),
-                            r=0.25,
+                            r=0.75,  # Adjusted for new scale
                             fill="#FFFFFF",
                             stroke="none",
                             opacity=0.8,
@@ -960,17 +949,16 @@ class PlanetaryPainter:
             ):
                 continue
 
-            x, y = self._normalize_coordinates(
+            x, y = transform_coordinates(*self._normalize_coordinates(
                 longitude, distance, sun_aspect_longitude
-            )
+            ))
 
             # Draw Sun dot
             clip_group.add(
                 dwg.circle(
-                    center=(x, y), r=0.375, fill="#FFD700", stroke="none", opacity=0.6
+                    center=(x, y), r=1.0, fill="#FFD700", stroke="none", opacity=0.6  # Adjusted for new scale
                 )
             )
-
 
         # Add the clipped group to the drawing
         dwg.add(clip_group)
@@ -988,15 +976,15 @@ class PlanetaryPainter:
                 pos_data = positions[jd]
                 longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
                 distance = pos_data.get(Quantity.DELTA, 0.0)
-                x, y = self._normalize_coordinates(
+                x, y = transform_coordinates(*self._normalize_coordinates(
                     longitude, distance, sun_aspect_longitude
-                )
+                ))
                 dwg.add(
                     dwg.text(
                         f"{label}\n{date.strftime('%Y-%m-%d')}",
-                        insert=(x + 8, y),
+                        insert=(x + 4, y),  # Adjusted for new scale
                         fill="#666666",
-                        font_size="12px",
+                        font_size="3",  # Adjusted for new scale
                         font_family="Helvetica, Arial, sans-serif"
                     )
                 )
