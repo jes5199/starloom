@@ -587,6 +587,59 @@ class PlanetaryPainter:
         clip_group.add(text_elem)
 
 
+        # Add shadow period labels
+        # Shadow start label
+        shadow_start_date = retrograde_period.pre_shadow_start_date
+        shadow_start_x, shadow_start_y = self._normalize_coordinates(
+            station_direct_longitude,
+            shadow_positions[shadow_start_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0),
+            sun_aspect_longitude
+        )
+
+        text_x = shadow_start_x - 0.25
+        text_y = shadow_start_y
+
+        text_elem = dwg.text(
+            text="",
+            insert=(text_x, text_y),
+            fill="#FFFFFF",
+            font_size="0.8",
+            dominant_baseline="hanging",
+            text_anchor="end"
+        )
+
+        text_elem.add(dwg.tspan("Shadow Begins", x=[text_x], dy=['0em']))
+        text_elem.add(dwg.tspan(shadow_start_date.strftime('%Y-%m-%d'), x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(shadow_start_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
+
+        clip_group.add(text_elem)
+
+        # Shadow end label
+        shadow_end_date = retrograde_period.post_shadow_end_date
+        shadow_end_x, shadow_end_y = self._normalize_coordinates(
+            station_retrograde_longitude,
+            shadow_positions[shadow_end_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0),
+            sun_aspect_longitude
+        )
+
+        text_x = shadow_end_x + 0.25
+        text_y = shadow_end_y
+
+        text_elem = dwg.text(
+            text="",
+            insert=(text_x, text_y),
+            fill="#FFFFFF",
+            font_size="0.8",
+            dominant_baseline="hanging",
+        )
+
+        text_elem.add(dwg.tspan("Shadow Ends", x=[text_x], dy=['0em']))
+        text_elem.add(dwg.tspan(shadow_end_date.strftime('%Y-%m-%d'), x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(shadow_end_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
+
+        clip_group.add(text_elem)
+
+
         # Draw line at station direct longitude
         # Where is the station direct longitude at 1 AU, in final coords?
         dx, dy = self._normalize_coordinates(
