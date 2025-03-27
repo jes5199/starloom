@@ -628,30 +628,20 @@ class PlanetaryPainter:
 
         clip_group.add(text_elem)
 
-        # Draw line at station direct longitude
-        # Where is the station direct longitude at 1 AU, in final coords?
-        dx, dy = transform_coordinates(*self._normalize_coordinates(
-            retrograde_period.station_direct_longitude,
-            10,
-            sun_aspect_longitude
-        ))
-        # Draw solid line from Earth center to station direct point
-        clip_group.add(
-            dwg.line(
-                start=(earth_x, earth_y),
-                end=(dx, dy),
-                stroke="#000000",
-                stroke_width=0.5,  # Adjusted for new scale
-                opacity=0.6
-            )
-        )
-
-        # Sun aspect line in two sections
-        # 1. from earth center to planet (solid yellow)
-        # 2. from planet towards sun (gradient)
+        # Sun aspect line from earth center to planet (solid yellow)
+        # Get the exact planet position at sun aspect time
+        sun_aspect_planet_position = planet_ephemeris.get_planet_positions(
+            planet.name,
+            TimeSpec.from_dates([sun_aspect_jd])
+        )[sun_aspect_jd]
+        
+        planet_longitude = sun_aspect_planet_position.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+        planet_distance = sun_aspect_planet_position.get(Quantity.DELTA, 0.0)
+        
+        # Transform to viewbox coordinates
         planet_x, planet_y = transform_coordinates(*self._normalize_coordinates(
-            retrograde_period.sun_aspect_longitude,
-            sun_aspect_distance * 1.0,
+            planet_longitude,
+            planet_distance,
             sun_aspect_longitude
         ))
 
@@ -661,12 +651,27 @@ class PlanetaryPainter:
             sun_aspect_longitude
         ))
 
-        dx, dy = transform_coordinates(*self._normalize_coordinates(
-            retrograde_period.sun_aspect_longitude,
-            sun_aspect_distance * 1.1,
-            sun_aspect_longitude
-        ))
+        # Calculate point beyond planet for gradient using a fixed extension in viewbox coordinates
+        # Create a vector from earth to planet
+        vector_x = planet_x - earth_x
+        vector_y = planet_y - earth_y
+        
+        # Normalize the vector
+        vector_length = math.sqrt(vector_x**2 + vector_y**2)
+        if vector_length > 0:
+            norm_x = vector_x / vector_length
+            norm_y = vector_y / vector_length
+            
+            # Use a small fixed extension (5 viewbox units)
+            extension_length = 5
+            dx = planet_x + norm_x * extension_length
+            dy = planet_y + norm_y * extension_length
+        else:
+            # Fallback if vector has zero length
+            dx = planet_x
+            dy = planet_y - 5  # Default extension upward
 
+        # Draw the sun aspect line (solid part)
         clip_group.add(
             dwg.line(
                 start=(earth_x, earth_y),
@@ -677,6 +682,7 @@ class PlanetaryPainter:
             )
         )
 
+        # Draw gradient extension beyond planet
         clip_group.add(
             dwg.line(
                 start=(planet_x, planet_y),
@@ -687,11 +693,11 @@ class PlanetaryPainter:
             )
         )
 
-        # text above sun aspect line
+        # Add Cazimi text label
         clip_group.add(
             dwg.text(
                 f"Cazimi {retrograde_period.sun_aspect_date.strftime('%Y-%m-%d')}",
-                insert=(dx, dy),
+                insert=(dx, dy),  # Position text at the end of gradient line
                 fill="#FFFFFF",
                 font_size="3",  # Adjusted for new scale
                 dominant_baseline="middle",
