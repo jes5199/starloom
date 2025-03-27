@@ -330,6 +330,9 @@ class PlanetaryPainter:
             Quantity.ECLIPTIC_LONGITUDE, 0.0
         )
         sun_aspect_distance = positions[closest_jd].get(Quantity.DELTA, 0.0)
+        sun_aspect_x, sun_aspect_y = self._normalize_coordinates(
+            sun_aspect_longitude, 0, sun_aspect_longitude
+        )
 
         # Add 90 degrees to rotate counterclockwise
         sun_aspect_longitude += 90.0
@@ -384,13 +387,12 @@ class PlanetaryPainter:
         station_retrograde_distance = station_positions[retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0)
         station_direct_distance = station_positions[retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0)
 
+
         # Track min/max coordinates for viewbox calculation
         min_x = float("inf")
         max_x = float("-inf")
         min_y = float("inf")
         max_y = float("-inf")
-        aspect_x = 0
-        aspect_y = 0
 
         # First pass: calculate coordinates and find bounds
         for jd in daily_times:
@@ -411,31 +413,15 @@ class PlanetaryPainter:
                         min_y = min(min_y, y)
                         max_y = max(max_y, y)
 
-            # Store aspect coordinates
-            if jd == sun_aspect_jd:
-                if jd in planet_positions:
-                    pos_data = planet_positions[jd]
-                    longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-                    distance = pos_data.get(Quantity.DELTA, 0.0)
-                    if isinstance(longitude, (int, float)) and isinstance(
-                        distance, (int, float)
-                    ):
-                        aspect_x, aspect_y = self._normalize_coordinates(
-                            longitude, distance, sun_aspect_longitude
-                        )
-
         # Calculate the center and radius of the astronomical elements
-        center_x = (min_x + max_x) / 2
+        center_x = sun_aspect_x
         center_y = (min_y + max_y) / 2
-        radius = max(max_x - min_x, max_y - min_y) / 2
+        radius = (max(max_x - min_x, max_y - min_y) / 2) * 1.5
 
         # Define a fixed square viewbox (100x100 units)
         viewbox_size = 100
         viewbox_min_x = 0
         viewbox_min_y = 0
-        viewbox_max_x = viewbox_size
-        viewbox_max_y = viewbox_size
-
         # Calculate scaling factor to fit astronomical elements in viewbox
         # Leave 10% padding around the elements
         scale = (viewbox_size * 0.9) / (radius * 2)
@@ -524,7 +510,7 @@ class PlanetaryPainter:
         # Where is the station retrograde longitude at 1 AU, in final coords?
         sx, sy = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.station_retrograde_longitude,
-            1,
+            10,
             sun_aspect_longitude
         ))
         # Draw solid line from Earth center to station retrograde point
@@ -645,7 +631,7 @@ class PlanetaryPainter:
         # Where is the station direct longitude at 1 AU, in final coords?
         dx, dy = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.station_direct_longitude,
-            1,
+            10,
             sun_aspect_longitude
         ))
         # Draw solid line from Earth center to station direct point
