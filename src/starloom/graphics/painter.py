@@ -1106,7 +1106,8 @@ class PlanetaryPainter:
         key_dates = [
             (retrograde_period.station_retrograde_date, "Station Retrograde"),
             (retrograde_period.station_direct_date, "Station Direct"),
-            (retrograde_period.sun_aspect_date, "Sun Aspect"),
+            (retrograde_period.sun_aspect_date, 
+             "Opposition" if planet not in [Planet.MERCURY, Planet.VENUS] else "Sun Aspect"),
         ]
 
         for date, label in key_dates:
@@ -1147,9 +1148,10 @@ class PlanetaryPainter:
         if start_month == end_month:
             month_range = f"{start_month} {retrograde_period.station_retrograde_date.year}"
             
-        # Format the Cazimi information
-        cazimi_date = retrograde_period.sun_aspect_date.strftime("%B %-d")
-        cazimi_time = retrograde_period.sun_aspect_date.strftime("%-H:%M UTC")
+        # Format the Cazimi/Opposition information
+        aspect_date = retrograde_period.sun_aspect_date.strftime("%B %-d")
+        aspect_time = retrograde_period.sun_aspect_date.strftime("%-H:%M UTC")
+        aspect_label = "Cazimi" if planet in [Planet.MERCURY, Planet.VENUS] else "Solar Opposition"
         
         # Calculate center for text alignment
         center_x = viewbox_width / 2
@@ -1186,8 +1188,8 @@ class PlanetaryPainter:
         # Create text element for the bottom information
         bottom_text = dwg.text("", insert=(center_x, first_line_y), fill="#FFFFFF", font_size="3", text_anchor="middle")
         
-        # First line - Cazimi info (smaller)
-        bottom_text.add(dwg.tspan(f"Cazimi {cazimi_date} {cazimi_time}", 
+        # First line - Cazimi/Opposition info (smaller)
+        bottom_text.add(dwg.tspan(f"{aspect_label} {aspect_date} {aspect_time}", 
                                  x=[center_x], dy=['0em'], font_size="2.5"))
         
         # Second line - Planet Retrograde heading (larger)
