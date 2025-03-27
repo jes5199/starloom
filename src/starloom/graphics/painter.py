@@ -488,17 +488,17 @@ class PlanetaryPainter:
             return x, y
 
         # Define gradients for sun fade in/out effects
-        gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-out'))
-        gradient.add_stop_color(offset=0, color='#FFD700', opacity=0)
-        gradient.add_stop_color(offset=1, color='#FFD700', opacity=1)
+        gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-down'))
+        gradient.add_stop_color(offset=0, color='#FFD700', opacity=1)
+        gradient.add_stop_color(offset=1, color='#FFD700', opacity=0)
         gradient['x1'] = '0%'
         gradient['y1'] = '0%'
         gradient['x2'] = '0%'
         gradient['y2'] = '100%'
 
-        gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-in'))
-        gradient.add_stop_color(offset=0, color='#FFD700', opacity=1)
-        gradient.add_stop_color(offset=1, color='#FFD700', opacity=0)
+        gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-up'))
+        gradient.add_stop_color(offset=0, color='#FFD700', opacity=0)
+        gradient.add_stop_color(offset=1, color='#FFD700', opacity=1)
         gradient['x1'] = '0%'
         gradient['y1'] = '0%'
         gradient['x2'] = '0%'
@@ -680,7 +680,7 @@ class PlanetaryPainter:
             dwg.line(
                 start=(planet_x, planet_y),
                 end=(dx, dy),
-                stroke='url(#sun-fade-out)',
+                stroke='url(#sun-fade-up)',
                 stroke_width=0.5,  # Adjusted for new scale
                 opacity=1.0
             )
@@ -717,7 +717,7 @@ class PlanetaryPainter:
                 dwg.line(
                     start=(dx, dy),
                     end=(d2x, d2y),
-                    stroke='url(#sun-fade-in)',
+                    stroke='url(#sun-fade-down)',
                     stroke_width=0.5,  # Adjusted for new scale
                     opacity=1.0
                 )
