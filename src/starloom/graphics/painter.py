@@ -342,8 +342,10 @@ class PlanetaryPainter:
             planet.name,
             TimeSpec.from_dates([shadow_start_jd, shadow_end_jd])
         )
-        shadow_start_position = shadow_positions[shadow_start_jd]
-        shadow_end_position = shadow_positions[shadow_end_jd]
+
+        shadow_max_distance = max(shadow_positions.values(), key=lambda x: x[Quantity.DELTA])[Quantity.DELTA]
+        shadow_min_distance = min(shadow_positions.values(), key=lambda x: x[Quantity.DELTA])[Quantity.DELTA]
+        shadow_average_distance = sum(x[Quantity.DELTA] for x in shadow_positions.values()) / len(shadow_positions)
 
         # Track min/max coordinates for viewbox calculation
         min_x = float("inf")
@@ -434,6 +436,25 @@ class PlanetaryPainter:
         # Create a group for all elements that should be clipped
         clip_group = dwg.g(clip_path='url(#rounded-rect)')
 
+        # Define gradients for sun fade in/out effects
+        gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-out'))
+        gradient.add_stop_color(offset=0, color='#FFD700', opacity=0)
+        gradient.add_stop_color(offset=1, color='#FFD700', opacity=1)
+        # Set gradient direction from center to end of line
+        gradient['x1'] = '0%'
+        gradient['y1'] = '0%'
+        gradient['x2'] = '0%'
+        gradient['y2'] = '100%'
+
+        gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-in'))
+        gradient.add_stop_color(offset=0, color='#FFD700', opacity=1)
+        gradient.add_stop_color(offset=1, color='#FFD700', opacity=0)
+        # Set gradient direction from center to end of line
+        gradient['x1'] = '0%'
+        gradient['y1'] = '0%'
+        gradient['x2'] = '0%'
+        gradient['y2'] = '100%'
+
 
         # Draw line at station retrograde longitude
         # Where is Earth's center, in final coords?
@@ -473,19 +494,87 @@ class PlanetaryPainter:
             )
         )
 
-        # Draw line at sun aspect longitude that stops just past the planet
-        dx, dy = self._normalize_coordinates(
+        # Sun aspect line in two sections
+        # 1. from earth center to planet (solid yellow)
+        # 2. from planet towards sun (gradient)
+        planet_x, planet_y = self._normalize_coordinates(
             retrograde_period.sun_aspect_longitude,
-            sun_aspect_distance * 1.1, #
+            sun_aspect_distance * 1.0,
             sun_aspect_longitude
         )
+
+        sun_x, sun_y = self._normalize_coordinates(
+            retrograde_period.sun_aspect_longitude,
+            1,
+            sun_aspect_longitude
+        )
+
+        dx, dy = self._normalize_coordinates(
+            retrograde_period.sun_aspect_longitude,
+            sun_aspect_distance * 1.1,
+            sun_aspect_longitude
+        )
+
         clip_group.add(
             dwg.line(
                 start=(earth_x, earth_y),
+                end=(planet_x, planet_y),
+                stroke='#FFD700',
+                stroke_width=0.15,
+                opacity=1.0  # Set to 1.0 since opacity is handled by gradient
+            )
+        )
+
+        clip_group.add(
+            dwg.line(
+                start=(planet_x, planet_y),
                 end=(dx, dy),
-                stroke="#FFd700",
-                stroke_width=0.15,  # Made even thinner
-                opacity=0.6
+                stroke='url(#sun-fade-out)',
+                stroke_width=0.15,
+                opacity=1.0  # Set to 1.0 since opacity is handled by gradient
+            )
+        )
+
+        clip_group.add(
+            dwg.line(
+                start=(planet_x, planet_y),
+                end=(dx, dy),
+                stroke='url(#sun-fade-out)',
+                stroke_width=0.15,
+                opacity=1.0  # Set to 1.0 since opacity is handled by gradient
+            )
+        )
+
+
+        dx, dy = self._normalize_coordinates(
+            retrograde_period.sun_aspect_longitude,
+            shadow_average_distance,
+            sun_aspect_longitude
+        )
+
+        d2x, d2y = self._normalize_coordinates(
+            retrograde_period.sun_aspect_longitude,
+            shadow_max_distance + sun_aspect_distance * 0.1,
+            sun_aspect_longitude
+        )
+
+        clip_group.add(
+            dwg.line(
+                start=(dx, dy),
+                end=(d2x, d2y),
+                stroke='url(#sun-fade-in)',
+                stroke_width=0.15,
+                opacity=1.0  # Set to 1.0 since opacity is handled by gradient
+            )
+        )
+
+        clip_group.add(
+            dwg.line(
+                start=(sun_x, sun_y),
+                end=(d2x, d2y),
+                stroke='#FFD700',
+                stroke_width=0.15,
+                opacity=1.0
             )
         )
 
