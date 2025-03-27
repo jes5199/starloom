@@ -992,6 +992,69 @@ class PlanetaryPainter:
         # Add the clipped group to the drawing
         dwg.add(clip_group)
 
+        # Now add the text labels on top of everything
+        # Station retrograde label
+        text_elem = dwg.text(
+            text="",
+            insert=(station_retrograde_x + 2, station_retrograde_y),
+            fill="#FFFFFF",
+            font_size="3",  # Adjusted for new scale
+            dominant_baseline="hanging"
+        )
+
+        text_elem.add(dwg.tspan("Stations Retrograde", x=[station_retrograde_x + 2], dy=['0em']))
+        text_elem.add(dwg.tspan(station_retrograde_date.strftime("%B %-d"), x=[station_retrograde_x + 2], dy=['1em']))
+        text_elem.add(dwg.tspan(station_retrograde_date.strftime('%H:%M UTC'), x=[station_retrograde_x + 2], dy=['1em']))
+
+        dwg.add(text_elem)
+
+        # Station direct label
+        text_elem = dwg.text(
+            text="",
+            insert=(station_direct_x - 2, station_direct_y),
+            fill="#FFFFFF",
+            font_size="3",  # Adjusted for new scale
+            dominant_baseline="hanging",
+            text_anchor="end"
+        )
+
+        text_elem.add(dwg.tspan("Stations Direct", x=[station_direct_x - 2], dy=['0em']))
+        text_elem.add(dwg.tspan(station_direct_date.strftime("%B %-d"), x=[station_direct_x - 2], dy=['1em']))
+        text_elem.add(dwg.tspan(station_direct_date.strftime('%H:%M UTC'), x=[station_direct_x - 2], dy=['1em']))
+
+        dwg.add(text_elem)
+
+        # Shadow start label
+        text_elem = dwg.text(
+            text="",
+            insert=(shadow_start_x - 1, shadow_start_y),
+            fill="#FFFFFF",
+            font_size="3",  # Adjusted for new scale
+            dominant_baseline="hanging",
+            text_anchor="end"
+        )
+
+        text_elem.add(dwg.tspan("Shadow begins", x=[shadow_start_x - 1], dy=['0em']))
+        text_elem.add(dwg.tspan(shadow_start_date.strftime("%B %-d"), x=[shadow_start_x - 1], dy=['1em']))
+        text_elem.add(dwg.tspan(shadow_start_date.strftime('%H:%M UTC'), x=[shadow_start_x - 1], dy=['1em']))
+
+        dwg.add(text_elem)
+
+        # Shadow end label
+        text_elem = dwg.text(
+            text="",
+            insert=(shadow_end_x + 1, shadow_end_y),
+            fill="#FFFFFF",
+            font_size="3",  # Adjusted for new scale
+            dominant_baseline="hanging",
+        )
+
+        text_elem.add(dwg.tspan("Shadow ends", x=[shadow_end_x + 1], dy=['0em']))
+        text_elem.add(dwg.tspan(shadow_end_date.strftime("%B %-d"), x=[shadow_end_x + 1], dy=['1em']))
+        text_elem.add(dwg.tspan(shadow_end_date.strftime('%H:%M UTC'), x=[shadow_end_x + 1], dy=['1em']))
+
+        dwg.add(text_elem)
+
         # Add date labels for key points (outside the clip path so they're always visible)
         key_dates = [
             (retrograde_period.station_retrograde_date, "Station Retrograde"),
