@@ -1108,10 +1108,16 @@ class PlanetaryPainter:
         # Add centered text at the bottom of the rounded rectangle
         # Calculate center for text alignment
         center_x = viewbox_width / 2
-        bottom_y = viewbox_height - 15  # Add more space from the bottom
         
-        # Create text element for the bottom information
-        bottom_text = dwg.text("", insert=(center_x, bottom_y - 14), fill="#FFFFFF", font_size="3", text_anchor="middle")
+        # Position the text near the bottom of the rectangle
+        # The bottom of the rectangle is at viewbox_height - 5
+        bottom_y = viewbox_height - 10  # 5 units from the bottom edge of the rectangle
+        
+        # Calculate total height of text block (4 lines with 1.5em spacing = ~7.5em total)
+        text_block_height = 7.5
+        
+        # Create text element for the bottom information, positioned so the last line is visible but near the bottom
+        bottom_text = dwg.text("", insert=(center_x, bottom_y - text_block_height), fill="#FFFFFF", font_size="3", text_anchor="middle")
         bottom_text.add(dwg.tspan(f"{planet.name} Retrograde in {station_retro_sign}" + 
                                  (f" & {station_direct_sign}" if station_retro_sign != station_direct_sign else ""), 
                                  x=[center_x], dy=['0em']))
