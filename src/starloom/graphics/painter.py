@@ -642,7 +642,7 @@ class PlanetaryPainter:
                             r=0.25,
                             fill="#00FFFF",  # Cyan (bright, high contrast)
                             stroke="none",
-                            opacity=0.5,
+                            opacity=0.8,
                         )
                     )
                 elif (
@@ -657,7 +657,7 @@ class PlanetaryPainter:
                             r=0.25,
                             fill="#0088FF",  # Bright blue (high contrast)
                             stroke="none",
-                            opacity=0.5,
+                            opacity=0.8,
                         )
                     )
                 else:
