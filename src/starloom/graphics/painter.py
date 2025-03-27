@@ -702,7 +702,7 @@ class PlanetaryPainter:
 
         # Calculate zodiac wheel distance in viewbox coordinates - position it a short distance from top of viewbox
         # Instead of using astronomical distance, we'll set it as a fixed radius in viewbox coordinates
-        viewbox_padding = 15  # Distance from top of viewbox (in viewbox units)
+        viewbox_padding = 6  # Distance from top of viewbox (in viewbox units)
         # Calculate radius from Earth to near the top of the viewbox
         # Since Earth is outside the viewbox at the bottom, we need a large radius
         # Earth's y position is higher than viewbox height (since it's outside), so we use earth_y value directly
