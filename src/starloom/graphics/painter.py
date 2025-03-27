@@ -560,6 +560,31 @@ class PlanetaryPainter:
 
 
 
+        # Add station direct label
+        station_direct_date = retrograde_period.station_direct_date
+        station_direct_x, station_direct_y = self._normalize_coordinates(
+            station_direct_longitude,
+            station_direct_distance,
+            sun_aspect_longitude
+        )
+
+        text_x = station_direct_x - 0.5
+        text_y = station_direct_y
+
+        text_elem = dwg.text(
+            text="",
+            insert=(text_x, text_y),
+            fill="#FFFFFF",
+            font_size="0.8",
+            dominant_baseline="hanging",
+            text_anchor="end"
+        )
+
+        text_elem.add(dwg.tspan("Stations Direct", x=[text_x], dy=['0em']))
+        text_elem.add(dwg.tspan(station_direct_date.strftime('%Y-%m-%d'), x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(station_direct_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
+
+        clip_group.add(text_elem)
 
 
         # Draw line at station direct longitude
@@ -821,8 +846,9 @@ class PlanetaryPainter:
                         dwg.circle(
                             center=(x, y),
                             r=0.25,
-                            fill="#00FFFF",  # Cyan (bright, high contrast)
-                            stroke="none",
+                            fill="#00DDDD",  # Cyan (bright, high contrast)
+                            stroke="#FFFFFF",
+                            stroke_width=0.05,
                             opacity=0.9,
                         )
                     )
@@ -837,7 +863,8 @@ class PlanetaryPainter:
                             center=(x, y),
                             r=0.25,
                             fill="#3399FF",  # Bright blue (high contrast)
-                            stroke="none",
+                            stroke="#FFFFFF",
+                            stroke_width=0.05,
                             opacity=0.9,
                         )
                     )
