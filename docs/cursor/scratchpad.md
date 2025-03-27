@@ -604,42 +604,24 @@ Successfully generate a visualization of Mars' retrograde motion around the spec
 2. Timezone consistency - ensured all datetime objects use UTC timezone
 3. Julian date conversions - added UTC timezone to all fromtimestamp calls
 
-# Modify draw_retrograde to Align Sun Aspect Longitude Vertically
+# Fix Mars Retrograde Visualization Orientation
 
 ## Task
-Modify the draw_retrograde method in PlanetaryPainter to align the sun aspect longitude vertically (straight up) in the visualization.
+Fix the orientation of Mars (and other outer planets) in retrograde visualization, as they're currently upside down compared to Mercury and Venus.
 
-## Goal
-Ensure that when visualizing retrograde motion, the sun aspect longitude is always at the top (12 o'clock position) of the circle, making it easier to understand the planet's motion relative to this key point.
+## Issue
+For inner planets (Mercury and Venus), retrograde periods occur near conjunction with the Sun (cazimi).
+For outer planets (Mars, Jupiter, etc.), retrograde periods occur at opposition to the Sun (180° opposite).
 
-## TODOs
-[X] Modify _normalize_coordinates to account for sun aspect longitude offset
-[X] Update draw_retrograde to pass sun aspect longitude to _normalize_coordinates
-[X] Ensure all coordinate transformations maintain proper relative positions
-[ ] Test with various planets and dates to verify alignment
+## Plan
+[X] Add an `image_rotation` variable in `draw_retrograde` method
+[X] Set this rotation to `sun_aspect_longitude` for Mercury and Venus
+[X] Set this rotation to `sun_aspect_longitude + 180` for other planets (Mars, Jupiter, etc.)
+[X] Replace all instances of `sun_aspect_longitude` in coordinate normalization with `image_rotation`
+[X] Test with Mars visualization to verify correct orientation
 
 ## Implementation Notes
-- Need to rotate all coordinates by -sun_aspect_longitude to align it vertically
-- Must maintain proper scaling and relative positions
-- Should preserve all existing functionality (zodiac divisions, labels, etc.)
-- Need to ensure date labels remain readable after rotation
-
-## Completed Changes
-1. Added rotation_offset parameter to _normalize_coordinates
-2. Updated coordinate transformation to apply rotation
-3. Added sun aspect longitude calculation in draw_retrograde
-4. Applied rotation to all coordinate transformations
-5. Updated zodiac divisions to match the new coordinate system
-
-# Current Task: Fix distance_to_planet variable
-
-[X] Identified the issue with hardcoded distance_to_planet in painter.py
-[X] Found that distance should be retrieved from positions data using Quantity.DELTA
-[X] Updated code to get actual distance from positions data with fallback to 1.0
-[X] Added proper error handling for missing position data
-
-## Notes
-- The distance_to_planet variable was hardcoded to 1.0 in the retrograde period visualization
-- Fixed by retrieving actual distance from positions data using Quantity.DELTA
-- Added fallback to 1.0 if position data is not found for the given time
-- This makes the visualization more accurate by using real astronomical distances
+- This affects all coordinate calculations that use the `sun_aspect_longitude` parameter
+- Need to ensure we adjust all calls to `_normalize_coordinates()` to use the new rotation value
+- This should maintain correct orientation for inner planets while fixing outer planets
+- Added modulo operation (% 360) to ensure angles stay within the 0-360 degree range

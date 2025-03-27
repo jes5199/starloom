@@ -323,6 +323,8 @@ class PlanetaryPainter:
             retrograde_period.sun_aspect_date.timestamp() / 86400 + 2440587.5
         )
 
+        image_rotation = retrograde_period.sun_aspect_longitude  # Use planet's position at the time of retrograde
+
         # Convert retrograde period dates to Julian dates
         shadow_start_jd = (
             retrograde_period.pre_shadow_start_date.timestamp() / 86400 + 2440587.5
@@ -351,11 +353,11 @@ class PlanetaryPainter:
         sun_aspect_distance = 1.0  # Sun is at 1 AU from Earth
         
         sun_aspect_x, sun_aspect_y = self._normalize_coordinates(
-            sun_aspect_longitude, 0, sun_aspect_longitude
+            sun_aspect_longitude, 0, image_rotation
         )
 
         # Add 90 degrees to rotate counterclockwise
-        sun_aspect_longitude += 90.0
+        image_rotation = (image_rotation + 90.0) % 360
 
         # Generate daily timestamps at midnight UTC
         daily_times = []
@@ -407,7 +409,7 @@ class PlanetaryPainter:
                         distance, (int, float)
                     ):
                         x, y = self._normalize_coordinates(
-                            longitude, distance, sun_aspect_longitude
+                            longitude, distance, image_rotation
                         )
                         min_x = min(min_x, x)
                         max_x = max(max_x, x)
@@ -508,12 +510,12 @@ class PlanetaryPainter:
 
         # Draw line at station retrograde longitude
         # Where is Earth's center, in final coords?
-        earth_x, earth_y = transform_coordinates(*self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude))
+        earth_x, earth_y = transform_coordinates(*self._normalize_coordinates(0.0, 0.0, image_rotation))
         # Where is the station retrograde longitude at 1 AU, in final coords?
         sx, sy = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.station_retrograde_longitude,
             10,
-            sun_aspect_longitude
+            image_rotation
         ))
         # Draw solid line from Earth center to station retrograde point
         clip_group.add(
@@ -531,7 +533,7 @@ class PlanetaryPainter:
         station_retrograde_x, station_retrograde_y = transform_coordinates(*self._normalize_coordinates(
             station_retrograde_longitude,
             station_retrograde_distance,
-            sun_aspect_longitude
+            image_rotation
         ))
 
         text_x = station_retrograde_x + 2
@@ -556,7 +558,7 @@ class PlanetaryPainter:
         station_direct_x, station_direct_y = transform_coordinates(*self._normalize_coordinates(
             station_direct_longitude,
             station_direct_distance,
-            sun_aspect_longitude
+            image_rotation
         ))
 
         text_x = station_direct_x - 2
@@ -583,7 +585,7 @@ class PlanetaryPainter:
         shadow_start_x, shadow_start_y = transform_coordinates(*self._normalize_coordinates(
             station_direct_longitude,
             shadow_positions[shadow_start_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0),
-            sun_aspect_longitude
+            image_rotation
         ))
 
         text_x = shadow_start_x - 1
@@ -609,7 +611,7 @@ class PlanetaryPainter:
         shadow_end_x, shadow_end_y = transform_coordinates(*self._normalize_coordinates(
             station_retrograde_longitude,
             shadow_positions[shadow_end_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0),
-            sun_aspect_longitude
+            image_rotation
         ))
 
         text_x = shadow_end_x + 1
@@ -643,13 +645,13 @@ class PlanetaryPainter:
         planet_x, planet_y = transform_coordinates(*self._normalize_coordinates(
             planet_longitude,
             planet_distance,
-            sun_aspect_longitude
+            image_rotation
         ))
 
         sun_x, sun_y = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.sun_aspect_longitude,
             1,
-            sun_aspect_longitude
+            image_rotation
         ))
 
         # Calculate point beyond planet for gradient using a fixed extension in viewbox coordinates
@@ -714,7 +716,7 @@ class PlanetaryPainter:
         if planet.name.lower() in ["venus", "mercury"]:
             # Calculate the point where the zodiac circle intersects the line from Earth through the Sun
             # First, get the angle of the sun aspect
-            sun_aspect_angle_rad = math.radians(retrograde_period.sun_aspect_longitude - sun_aspect_longitude)
+            sun_aspect_angle_rad = math.radians(retrograde_period.sun_aspect_longitude - image_rotation)
             
             # Then find the point on the zodiac circle at that angle
             wheel_x = earth_x + zodiac_radius * math.cos(sun_aspect_angle_rad)
@@ -818,7 +820,7 @@ class PlanetaryPainter:
 
         for ecliptic_degrees in range(0, 360, 1):
             # Calculate angle in radians relative to sun aspect
-            angle_rad = math.radians(ecliptic_degrees - sun_aspect_longitude)
+            angle_rad = math.radians(ecliptic_degrees - image_rotation)
             
             # Calculate tick length in viewbox coordinates
             if ecliptic_degrees % 30 == 0:
@@ -858,12 +860,12 @@ class PlanetaryPainter:
                 text_angle_offset = 0.25
                 
                 # Current sign text (slightly clockwise)
-                text_angle_rad = math.radians(ecliptic_degrees + text_angle_offset - sun_aspect_longitude)
+                text_angle_rad = math.radians(ecliptic_degrees + text_angle_offset - image_rotation)
                 text_x = earth_x + text_radius * math.cos(text_angle_rad)
                 text_y = earth_y + text_radius * math.sin(text_angle_rad)
                 
                 # Calculate text rotation (angle in degrees)
-                text_angle = ecliptic_degrees - sun_aspect_longitude + 180
+                text_angle = ecliptic_degrees - image_rotation + 180
                 
                 # Add text with rotation
                 clip_group.add(
@@ -880,7 +882,7 @@ class PlanetaryPainter:
                 )
 
                 # Previous sign text (slightly counterclockwise)
-                text_angle_rad = math.radians(ecliptic_degrees - text_angle_offset - sun_aspect_longitude)
+                text_angle_rad = math.radians(ecliptic_degrees - text_angle_offset - image_rotation)
                 text_x = earth_x + text_radius * math.cos(text_angle_rad)
                 text_y = earth_y + text_radius * math.sin(text_angle_rad)
                 
@@ -913,7 +915,7 @@ class PlanetaryPainter:
                 continue
 
             x, y = transform_coordinates(*self._normalize_coordinates(
-                longitude, distance, sun_aspect_longitude
+                longitude, distance, image_rotation
             ))
 
             # Draw dot based on period
@@ -989,7 +991,7 @@ class PlanetaryPainter:
                 continue
 
             x, y = transform_coordinates(*self._normalize_coordinates(
-                longitude, distance, sun_aspect_longitude
+                longitude, distance, image_rotation
             ))
 
             # Draw Sun dot
@@ -1079,7 +1081,7 @@ class PlanetaryPainter:
                 longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
                 distance = pos_data.get(Quantity.DELTA, 0.0)
                 x, y = transform_coordinates(*self._normalize_coordinates(
-                    longitude, distance, sun_aspect_longitude
+                    longitude, distance, image_rotation
                 ))
                 dwg.add(
                     dwg.text(
