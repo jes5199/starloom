@@ -328,8 +328,8 @@ class PlanetaryPainter:
 
         # Generate daily timestamps at midnight UTC
         daily_times = []
-        current_jd = shadow_start_jd - 60  # Start 60 days before
-        while current_jd <= shadow_end_jd + 60:  # End 60 days after
+        current_jd = math.floor(shadow_start_jd - 60) - 0.5  # Start 60 days before
+        while current_jd <= math.floor(shadow_end_jd + 60) + 0.5:  # End 60 days after
             daily_times.append(current_jd)
             current_jd += 1.0  # Add one day
 
