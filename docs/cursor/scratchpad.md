@@ -630,3 +630,16 @@ Ensure that when visualizing retrograde motion, the sun aspect longitude is alwa
 3. Added sun aspect longitude calculation in draw_retrograde
 4. Applied rotation to all coordinate transformations
 5. Updated zodiac divisions to match the new coordinate system
+
+# Current Task: Fix distance_to_planet variable
+
+[X] Identified the issue with hardcoded distance_to_planet in painter.py
+[X] Found that distance should be retrieved from positions data using Quantity.DELTA
+[X] Updated code to get actual distance from positions data with fallback to 1.0
+[X] Added proper error handling for missing position data
+
+## Notes
+- The distance_to_planet variable was hardcoded to 1.0 in the retrograde period visualization
+- Fixed by retrieving actual distance from positions data using Quantity.DELTA
+- Added fallback to 1.0 if position data is not found for the given time
+- This makes the visualization more accurate by using real astronomical distances

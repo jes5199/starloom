@@ -302,6 +302,7 @@ class PlanetaryPainter:
         sun_aspect_longitude = positions[closest_jd].get(
             Quantity.ECLIPTIC_LONGITUDE, 0.0
         )
+        sun_aspect_distance = positions[closest_jd].get(Quantity.DELTA, 0.0)
 
         # Add 90 degrees to rotate counterclockwise
         sun_aspect_longitude += 90.0
@@ -313,6 +314,7 @@ class PlanetaryPainter:
         shadow_end_jd = (
             retrograde_period.post_shadow_end_date.timestamp() / 86400 + 2440587.5
         )
+        
 
         # Get daily positions for both planet and Sun
         from ..weft_ephemeris.ephemeris import WeftEphemeris
@@ -335,6 +337,13 @@ class PlanetaryPainter:
         time_spec = TimeSpec.from_dates(daily_times)
         planet_positions = planet_ephemeris.get_planet_positions(planet.name, time_spec)
         sun_positions = sun_ephemeris.get_planet_positions("SUN", time_spec)
+
+        shadow_positions = planet_ephemeris.get_planet_positions(
+            planet.name,
+            TimeSpec.from_dates([shadow_start_jd, shadow_end_jd])
+        )
+        shadow_start_position = shadow_positions[shadow_start_jd]
+        shadow_end_position = shadow_positions[shadow_end_jd]
 
         # Track min/max coordinates for viewbox calculation
         min_x = float("inf")
@@ -380,7 +389,7 @@ class PlanetaryPainter:
         x_range = max_x - min_x
         y_range = max_y - min_y
         padding_x = x_range * 0.4  # Increased to 20% for more horizontal space
-        padding_y = y_range * 0.2  # Keep vertical padding at 10%
+        padding_y = y_range * 0.15  # Keep vertical padding at 15%
         min_x -= padding_x
         max_x += padding_x
         min_y -= padding_y
@@ -424,6 +433,80 @@ class PlanetaryPainter:
 
         # Create a group for all elements that should be clipped
         clip_group = dwg.g(clip_path='url(#rounded-rect)')
+
+
+        # Draw line at station retrograde longitude
+        # Where is Earth's center, in final coords?
+        earth_x, earth_y = self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude)
+        # Where is the station retrograde longitude at 1 AU, in final coords?
+        sx, sy = self._normalize_coordinates(
+            retrograde_period.station_retrograde_longitude,
+            1,
+            sun_aspect_longitude
+        )
+        # Draw solid line from Earth center to station retrograde point
+        clip_group.add(
+            dwg.line(
+                start=(earth_x, earth_y),
+                end=(sx, sy),
+                stroke="#000000",
+                stroke_width=0.15,  # Made even thinner
+                opacity=0.6
+            )
+        )
+
+        # Draw line at station direct longitude
+        # Where is the station direct longitude at 1 AU, in final coords?
+        dx, dy = self._normalize_coordinates(
+            retrograde_period.station_direct_longitude,
+            1,
+            sun_aspect_longitude
+        )
+        # Draw solid line from Earth center to station direct point
+        clip_group.add(
+            dwg.line(
+                start=(earth_x, earth_y),
+                end=(dx, dy),
+                stroke="#000000",
+                stroke_width=0.15,  # Made even thinner
+                opacity=0.6
+            )
+        )
+
+        # Draw line at sun aspect longitude that stops just past the planet
+        dx, dy = self._normalize_coordinates(
+            retrograde_period.sun_aspect_longitude,
+            sun_aspect_distance * 1.1, #
+            sun_aspect_longitude
+        )
+        clip_group.add(
+            dwg.line(
+                start=(earth_x, earth_y),
+                end=(dx, dy),
+                stroke="#FFd700",
+                stroke_width=0.15,  # Made even thinner
+                opacity=0.6
+            )
+        )
+
+        # Draw all zodiac sign boundaries
+        for zodiac_boundary in range(0, 360, 30):
+            # Where is this zodiac boundary at 1 AU, in final coords?
+            zx, zy = self._normalize_coordinates(
+                zodiac_boundary,
+                1.0,
+                sun_aspect_longitude
+            )
+            # Draw solid line from Earth center to zodiac boundary
+            clip_group.add(
+                dwg.line(
+                    start=(earth_x, earth_y),
+                    end=(zx, zy),
+                    stroke="#000000",
+                    stroke_width=0.15,
+                    opacity=0.3
+                )
+            )
 
         # Draw planet positions and path
         # Single pass for planet dots
@@ -525,64 +608,6 @@ class PlanetaryPainter:
                 )
             )
 
-        # Draw line at station retrograde longitude
-        station_retrograde_jd = retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5
-        # Where is Earth's center, in final coords?
-        earth_x, earth_y = self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude)
-        # Where is the station retrograde longitude at 1 AU, in final coords?
-        sx, sy = self._normalize_coordinates(
-            retrograde_period.station_retrograde_longitude,
-            1.0,
-            sun_aspect_longitude
-        )
-        # Draw solid line from Earth center to station retrograde point
-        clip_group.add(
-            dwg.line(
-                start=(earth_x, earth_y),
-                end=(sx, sy),
-                stroke="#FFD700",
-                stroke_width=0.15,  # Made even thinner
-                opacity=0.6
-            )
-        )
-
-        # Draw line at station direct longitude
-        station_direct_jd = retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5
-        # Where is the station direct longitude at 1 AU, in final coords?
-        dx, dy = self._normalize_coordinates(
-            retrograde_period.station_direct_longitude,
-            1.0,
-            sun_aspect_longitude
-        )
-        # Draw solid line from Earth center to station direct point
-        clip_group.add(
-            dwg.line(
-                start=(earth_x, earth_y),
-                end=(dx, dy),
-                stroke="#FFD700",
-                stroke_width=0.15,  # Made even thinner
-                opacity=0.6
-            )
-        )
-
-        # Draw all zodiac sign boundaries
-        for zodiac_boundary in range(0, 360, 30):
-            # Where is this zodiac boundary at 1 AU, in final coords?
-            zx, zy = self._normalize_coordinates(
-                zodiac_boundary,
-                1.0,
-                sun_aspect_longitude
-            )
-            # Draw solid line from Earth center to zodiac boundary
-            clip_group.add(
-                dwg.line(
-                    start=(earth_x, earth_y),
-                    end=(zx, zy),
-                    stroke="#000000",
-                    stroke_width=0.15,
-                    opacity=0.3
-                )
-            )
 
         # Add the clipped group to the drawing
         dwg.add(clip_group)
