@@ -665,29 +665,38 @@ class PlanetaryPainter:
             
             # Use a small fixed extension (5 viewbox units)
             extension_length = 5
-            dx = planet_x + norm_x * extension_length
-            dy = planet_y + norm_y * extension_length
+            
+            # Calculate points for the gradient extensions in both directions
+            # Extension beyond planet (away from Earth)
+            dx_away = planet_x + norm_x * extension_length
+            dy_away = planet_y + norm_y * extension_length
+            
+            # Extension toward Earth
+            dx_toward = planet_x - norm_x * extension_length
+            dy_toward = planet_y - norm_y * extension_length
         else:
             # Fallback if vector has zero length
-            dx = planet_x
-            dy = planet_y - 5  # Default extension upward
+            dx_away = planet_x
+            dy_away = planet_y - 5  # Default extension upward
+            dx_toward = planet_x
+            dy_toward = planet_y + 5  # Default extension downward
 
-        # Draw the sun aspect line (solid part)
+        # Draw gradient extension toward Earth
         clip_group.add(
             dwg.line(
-                start=(earth_x, earth_y),
-                end=(planet_x, planet_y),
-                stroke='#FFD700',
+                start=(planet_x, planet_y),
+                end=(dx_toward, dy_toward),
+                stroke='url(#sun-fade-down)',
                 stroke_width=0.5,  # Adjusted for new scale
                 opacity=1.0
             )
         )
 
-        # Draw gradient extension beyond planet
+        # Draw gradient extension away from Earth
         clip_group.add(
             dwg.line(
                 start=(planet_x, planet_y),
-                end=(dx, dy),
+                end=(dx_away, dy_away),
                 stroke='url(#sun-fade-up)',
                 stroke_width=0.5,  # Adjusted for new scale
                 opacity=1.0
@@ -1118,7 +1127,7 @@ class PlanetaryPainter:
         
         # Create text element for the bottom information, positioned so the last line is visible but near the bottom
         bottom_text = dwg.text("", insert=(center_x, bottom_y - text_block_height), fill="#FFFFFF", font_size="3", text_anchor="middle")
-        bottom_text.add(dwg.tspan(f"{planet.name} Retrograde in {station_retro_sign}" + 
+        bottom_text.add(dwg.tspan(f"{planet.name.capitalize()} Retrograde in {station_retro_sign}" + 
                                  (f" & {station_direct_sign}" if station_retro_sign != station_direct_sign else ""), 
                                  x=[center_x], dy=['0em']))
         bottom_text.add(dwg.tspan(month_range, x=[center_x], dy=['1.5em']))
