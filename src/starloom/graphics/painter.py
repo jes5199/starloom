@@ -597,7 +597,7 @@ class PlanetaryPainter:
             text_anchor="end"
         )
 
-        text_elem.add(dwg.tspan("Shadow Begins", x=[text_x], dy=['0em']))
+        text_elem.add(dwg.tspan("Shadow begins", x=[text_x], dy=['0em']))
         text_elem.add(dwg.tspan(shadow_start_date.strftime('%Y-%m-%d'), x=[text_x], dy=['1em']))
         text_elem.add(dwg.tspan(shadow_start_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
 
@@ -622,7 +622,7 @@ class PlanetaryPainter:
             dominant_baseline="hanging",
         )
 
-        text_elem.add(dwg.tspan("Shadow Ends", x=[text_x], dy=['0em']))
+        text_elem.add(dwg.tspan("Shadow ends", x=[text_x], dy=['0em']))
         text_elem.add(dwg.tspan(shadow_end_date.strftime('%Y-%m-%d'), x=[text_x], dy=['1em']))
         text_elem.add(dwg.tspan(shadow_end_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
 
@@ -690,19 +690,6 @@ class PlanetaryPainter:
                 stroke='url(#sun-fade-up)',
                 stroke_width=0.5,  # Adjusted for new scale
                 opacity=1.0
-            )
-        )
-
-        # Add Cazimi text label
-        clip_group.add(
-            dwg.text(
-                f"Cazimi {retrograde_period.sun_aspect_date.strftime('%Y-%m-%d')}",
-                insert=(dx, dy),  # Position text at the end of gradient line
-                fill="#FFFFFF",
-                font_size="3",  # Adjusted for new scale
-                dominant_baseline="middle",
-                text_anchor="start",
-                transform=f"rotate({-90}, {dx}, {dy})",
             )
         )
 
