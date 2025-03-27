@@ -735,6 +735,10 @@ class PlanetaryPainter:
 
         zodiac_distance = shadow_max_distance + sun_aspect_distance * 0.1
 
+        # Transform zodiac distance to viewbox coordinates
+        zodiac_radius = self._normalize_distance(zodiac_distance) * scale
+        earth_x, earth_y = transform_coordinates(*self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude))
+
         # Define zodiac signs and their starting longitudes
         zodiac_signs = {
             0: "Aries",
@@ -751,98 +755,98 @@ class PlanetaryPainter:
             330: "Pisces",
         }
 
-        for ecliptic_degrees in range(0, 360, 1):
-            inner_distance = zodiac_distance - 0.005 # short tick default
-
-            if ecliptic_degrees % 30 == 0:
-                # Zodiac sign boundaries
-                inner_distance = 0
-                
-                # Add zodiac sign name if this is a sign boundary
-                if ecliptic_degrees in zodiac_signs:
-                    # Calculate text position slightly inward from the line
-                    text_distance = zodiac_distance - 0.010
-                    text_x, text_y = transform_coordinates(*self._normalize_coordinates(
-                        ecliptic_degrees + 0.25,
-                        text_distance,
-                        sun_aspect_longitude
-                    ))
-                    
-                    # Calculate text rotation based on angle
-                    text_angle = ecliptic_degrees - sun_aspect_longitude + 180
-                    
-                    # Add text with rotation
-                    clip_group.add(
-                        dwg.text(
-                            zodiac_signs[ecliptic_degrees],
-                            insert=(text_x, text_y),
-                            fill="#A52A2A",
-                            font_size="4",  # Adjusted for new scale
-                            opacity=0.5,
-                            transform=f"rotate({text_angle}, {text_x}, {text_y})",
-                            text_anchor="start",
-                            dominant_baseline="alphabetic"
-                        )
-                    )
-
-                    text2_x, text2_y = transform_coordinates(*self._normalize_coordinates(
-                        ecliptic_degrees - 0.25,
-                        text_distance,
-                        sun_aspect_longitude
-                    ))
-
-                    clip_group.add(
-                        dwg.text(
-                            zodiac_signs[(ecliptic_degrees - 30) % 360],
-                            insert=(text2_x, text2_y),
-                            fill="#A52A2A",
-                            font_size="4",  # Adjusted for new scale
-                            opacity=0.5,
-                            transform=f"rotate({text_angle}, {text2_x}, {text2_y})",
-                            text_anchor="start",
-                            dominant_baseline="hanging"
-                        )
-                    )
-
-            elif ecliptic_degrees % 10 == 0:
-                # Decan boundaries, longer tick
-                inner_distance = zodiac_distance - 0.01
-
-            inner_x, inner_y = transform_coordinates(*self._normalize_coordinates(
-                ecliptic_degrees,
-                inner_distance,
-                sun_aspect_longitude
-            ))
-
-            zx, zy = transform_coordinates(*self._normalize_coordinates(
-                ecliptic_degrees,
-                zodiac_distance,
-                sun_aspect_longitude
-            ))
-
-            stroke_width = 0.5  # Adjusted for new scale
-
-            clip_group.add(
-                dwg.line(
-                    start=(inner_x, inner_y),
-                    end=(zx, zy),
-                    stroke="#A52A2A",
-                    stroke_width=stroke_width,
-                    opacity=0.5
-                )
-            )
-
-        # Draw a circle at maximum shadow distance
+        # Draw zodiac circle first
         clip_group.add(
             dwg.circle(
                 center=(earth_x, earth_y),
-                r=self._normalize_distance(zodiac_distance) * scale,
+                r=zodiac_radius,
                 stroke="#A52A2A",
-                stroke_width=0.5,  # Adjusted for new scale
+                stroke_width=0.5,
                 opacity=0.5,
                 fill="none"
             )
         )
+
+        for ecliptic_degrees in range(0, 360, 1):
+            # Calculate angle in radians relative to sun aspect
+            angle_rad = math.radians(ecliptic_degrees - sun_aspect_longitude)
+            
+            # Calculate tick length in viewbox coordinates
+            if ecliptic_degrees % 30 == 0:
+                # Zodiac sign boundaries - full length
+                inner_radius = 0
+            elif ecliptic_degrees % 10 == 0:
+                # Decan boundaries - longer tick
+                inner_radius = zodiac_radius - 5
+            else:
+                # Regular degree ticks - shortest
+                inner_radius = zodiac_radius - 2.5
+
+            # Calculate tick endpoints in viewbox coordinates
+            inner_x = earth_x + inner_radius * math.cos(angle_rad)
+            inner_y = earth_y + inner_radius * math.sin(angle_rad)
+            outer_x = earth_x + zodiac_radius * math.cos(angle_rad)
+            outer_y = earth_y + zodiac_radius * math.sin(angle_rad)
+
+            # Draw tick mark
+            clip_group.add(
+                dwg.line(
+                    start=(inner_x, inner_y),
+                    end=(outer_x, outer_y),
+                    stroke="#A52A2A",
+                    stroke_width=0.5,
+                    opacity=0.5
+                )
+            )
+
+            # Add zodiac sign names at sign boundaries
+            if ecliptic_degrees % 30 == 0 and ecliptic_degrees in zodiac_signs:
+                # Calculate text position slightly inward from the line
+                text_radius = zodiac_radius - 2.5 
+                
+                # Calculate text positions on either side of the line using small angle offsets
+                # Use 0.25 degrees offset for text positioning
+                text_angle_offset = 0.25
+                
+                # Current sign text (slightly clockwise)
+                text_angle_rad = math.radians(ecliptic_degrees + text_angle_offset - sun_aspect_longitude)
+                text_x = earth_x + text_radius * math.cos(text_angle_rad)
+                text_y = earth_y + text_radius * math.sin(text_angle_rad)
+                
+                # Calculate text rotation (angle in degrees)
+                text_angle = ecliptic_degrees - sun_aspect_longitude + 180
+                
+                # Add text with rotation
+                clip_group.add(
+                    dwg.text(
+                        zodiac_signs[ecliptic_degrees],
+                        insert=(text_x, text_y),
+                        fill="#A52A2A",
+                        font_size="4",
+                        opacity=0.5,
+                        transform=f"rotate({text_angle}, {text_x}, {text_y})",
+                        text_anchor="start",
+                        dominant_baseline="alphabetic"
+                    )
+                )
+
+                # Previous sign text (slightly counterclockwise)
+                text_angle_rad = math.radians(ecliptic_degrees - text_angle_offset - sun_aspect_longitude)
+                text_x = earth_x + text_radius * math.cos(text_angle_rad)
+                text_y = earth_y + text_radius * math.sin(text_angle_rad)
+                
+                clip_group.add(
+                    dwg.text(
+                        zodiac_signs[(ecliptic_degrees - 30) % 360],
+                        insert=(text_x, text_y),
+                        fill="#A52A2A",
+                        font_size="4",
+                        opacity=0.5,
+                        transform=f"rotate({text_angle}, {text_x}, {text_y})",
+                        text_anchor="start",
+                        dominant_baseline="hanging"
+                    )
+                )
 
         # Draw planet positions and path
         # Single pass for planet dots
