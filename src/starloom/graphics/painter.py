@@ -91,6 +91,12 @@ class PlanetaryPainter:
         y = center_y + scaled_distance * math.sin(lon_rad)
 
         return x, y
+    
+    def _normalize_distance(self, distance: float) -> float:
+        """Normalize distance to fit in plot."""
+        max_distance = 2.0  # Reduced from 5 AU to 2 AU to make planets appear larger
+        plot_radius = min(self.plot_width, self.plot_height) / 2
+        return min(distance / max_distance, 1.0) * plot_radius * 0.9
 
     def draw_planet_positions(
         self,
@@ -546,56 +552,88 @@ class PlanetaryPainter:
         )
 
 
-        dx, dy = self._normalize_coordinates(
-            retrograde_period.sun_aspect_longitude,
-            shadow_average_distance,
-            sun_aspect_longitude
-        )
+        if planet.name.lower() in ["venus", "mercury"]:
+            # draw spark towards sun
 
-        d2x, d2y = self._normalize_coordinates(
-            retrograde_period.sun_aspect_longitude,
-            shadow_max_distance + sun_aspect_distance * 0.1,
-            sun_aspect_longitude
-        )
-
-        clip_group.add(
-            dwg.line(
-                start=(dx, dy),
-                end=(d2x, d2y),
-                stroke='url(#sun-fade-in)',
-                stroke_width=0.15,
-                opacity=1.0  # Set to 1.0 since opacity is handled by gradient
-            )
-        )
-
-        clip_group.add(
-            dwg.line(
-                start=(sun_x, sun_y),
-                end=(d2x, d2y),
-                stroke='#FFD700',
-                stroke_width=0.15,
-                opacity=1.0
-            )
-        )
-
-        # Draw all zodiac sign boundaries
-        for zodiac_boundary in range(0, 360, 30):
-            # Where is this zodiac boundary at 1 AU, in final coords?
-            zx, zy = self._normalize_coordinates(
-                zodiac_boundary,
-                1.0,
+            dx, dy = self._normalize_coordinates(
+                retrograde_period.sun_aspect_longitude,
+                shadow_average_distance,
                 sun_aspect_longitude
             )
+
+            d2x, d2y = self._normalize_coordinates(
+                retrograde_period.sun_aspect_longitude,
+                shadow_max_distance + sun_aspect_distance * 0.1,
+                sun_aspect_longitude
+            )
+
+            clip_group.add(
+                dwg.line(
+                    start=(dx, dy),
+                    end=(d2x, d2y),
+                    stroke='url(#sun-fade-in)',
+                    stroke_width=0.15,
+                    opacity=1.0  # Set to 1.0 since opacity is handled by gradient
+                )
+            )
+
+            clip_group.add(
+                dwg.line(
+                    start=(sun_x, sun_y),
+                    end=(d2x, d2y),
+                    stroke='#FFD700',
+                    stroke_width=0.15,
+                    opacity=1.0
+                )
+            )
+
+        zodiac_distance = shadow_max_distance + sun_aspect_distance * 0.1
+
+        # Draw all zodiac sign boundaries
+        for zodiac_boundary in range(0, 360, 1):
+            # Where is this zodiac boundary at 1 AU, in final coords?
+            inner_distance = zodiac_distance - 0.005
+
+            if zodiac_boundary % 30 == 0:
+                inner_distance = 0
+            elif zodiac_boundary % 10 == 0:
+                inner_distance = zodiac_distance - 0.01
+
+            inner_x, inner_y = self._normalize_coordinates(
+                zodiac_boundary,
+                inner_distance,
+                sun_aspect_longitude
+            )
+
+            zx, zy = self._normalize_coordinates(
+                zodiac_boundary,
+                zodiac_distance,
+                sun_aspect_longitude
+            )
+
+            stroke_width = 0.15
+
             # Draw solid line from Earth center to zodiac boundary
             clip_group.add(
                 dwg.line(
-                    start=(earth_x, earth_y),
+                    start=(inner_x, inner_y),
                     end=(zx, zy),
-                    stroke="#000000",
-                    stroke_width=0.15,
-                    opacity=0.3
+                    stroke="#A52A2A",
+                    stroke_width=stroke_width,
+                    opacity=0.5
                 )
             )
+        # Draw a circle at maximum shadow distance
+        clip_group.add(
+            dwg.circle(
+                center=(earth_x, earth_y),
+                r=self._normalize_distance(zodiac_distance),
+                stroke="#A52A2A",
+                stroke_width=0.15,
+                opacity=0.5,
+                fill="none"
+            )
+        )
 
         # Draw planet positions and path
         # Single pass for planet dots
