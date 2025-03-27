@@ -700,14 +700,19 @@ class PlanetaryPainter:
             )
         )
 
-        # Calculate zodiac distance for both wheel and spark
-        zodiac_distance = shadow_max_distance + sun_aspect_distance * 0.1
+        # Calculate zodiac wheel distance in viewbox coordinates - position it a short distance from top of viewbox
+        # Instead of using astronomical distance, we'll set it as a fixed radius in viewbox coordinates
+        viewbox_padding = 15  # Distance from top of viewbox (in viewbox units)
+        # Calculate radius from Earth to near the top of the viewbox
+        # Since Earth is outside the viewbox at the bottom, we need a large radius
+        # Earth's y position is higher than viewbox height (since it's outside), so we use earth_y value directly
+        zodiac_radius = earth_y - viewbox_padding  # This will reach almost to the top of the viewbox
 
         if planet.name.lower() in ["venus", "mercury"]:
             # Get the zodiac wheel point at the sun aspect longitude
             wheel_x, wheel_y = transform_coordinates(*self._normalize_coordinates(
                 retrograde_period.sun_aspect_longitude,
-                zodiac_distance,  # Use the zodiac wheel radius
+                shadow_max_distance + 0.2,  # Use a distance just beyond the shadow max distance
                 sun_aspect_longitude
             ))
 
@@ -744,15 +749,8 @@ class PlanetaryPainter:
             ext_sun_y = sun_y - norm_vec_y * ext_distance
 
             # Choose gradient directions based on relative positions
-            # Sun is at 1 AU, so if zodiac_distance > 1, wheel is outside sun orbit
-            if zodiac_distance > 1:
-                # Wheel is outside sun orbit
-                wheel_gradient = 'url(#sun-fade-up)'
-                sun_gradient = 'url(#sun-fade-down)'
-            else:
-                # Wheel is inside sun orbit
-                wheel_gradient = 'url(#sun-fade-down)'
-                sun_gradient = 'url(#sun-fade-up)'
+            wheel_gradient = 'url(#sun-fade-up)'
+            sun_gradient = 'url(#sun-fade-down)'
 
             # Draw outward fade from wheel
             clip_group.add(
@@ -776,10 +774,6 @@ class PlanetaryPainter:
                 )
             )
 
-        # Transform zodiac distance to viewbox coordinates
-        zodiac_radius = self._normalize_distance(zodiac_distance) * scale
-        earth_x, earth_y = transform_coordinates(*self._normalize_coordinates(0.0, 0.0, sun_aspect_longitude))
-
         # Define zodiac signs and their starting longitudes
         zodiac_signs = {
             0: "Aries",
@@ -796,7 +790,7 @@ class PlanetaryPainter:
             330: "Pisces",
         }
 
-        # Draw zodiac circle first
+        # Draw zodiac circle centered at Earth's position
         clip_group.add(
             dwg.circle(
                 center=(earth_x, earth_y),
@@ -815,7 +809,7 @@ class PlanetaryPainter:
             # Calculate tick length in viewbox coordinates
             if ecliptic_degrees % 30 == 0:
                 # Zodiac sign boundaries - full length
-                inner_radius = 0
+                inner_radius = 0  # From center of Earth
             elif ecliptic_degrees % 10 == 0:
                 # Decan boundaries - longer tick
                 inner_radius = zodiac_radius - 5
