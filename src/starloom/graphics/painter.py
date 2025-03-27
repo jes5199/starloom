@@ -403,15 +403,22 @@ class PlanetaryPainter:
         min_y -= padding_y
         max_y += padding_y
 
+        # Add additional padding for the outer background
+        outer_padding = 1  # Fixed padding in SVG units
+        outer_min_x = min_x - outer_padding
+        outer_max_x = max_x + outer_padding
+        outer_min_y = min_y - outer_padding
+        outer_max_y = max_y + outer_padding
+
         # Calculate viewbox dimensions
-        viewbox_width = max_x - min_x
-        viewbox_height = max_y - min_y
+        viewbox_width = outer_max_x - outer_min_x
+        viewbox_height = outer_max_y - outer_min_y
 
         # Create SVG drawing with dynamic viewbox
         dwg = svgwrite.Drawing(
             output_path,
             size=(self.width, self.height),
-            viewBox=f"{min_x} {min_y} {viewbox_width} {viewbox_height}",
+            viewBox=f"{outer_min_x} {outer_min_y} {viewbox_width} {viewbox_height}",
             style="background-color: transparent",
         )
 
@@ -420,7 +427,7 @@ class PlanetaryPainter:
         clip_path.add(
             dwg.rect(
                 insert=(min_x, min_y),
-                size=(viewbox_width, viewbox_height),
+                size=(max_x - min_x, max_y - min_y),
                 rx=5,
                 ry=5,
             )
@@ -431,7 +438,7 @@ class PlanetaryPainter:
         dwg.add(
             dwg.rect(
                 insert=(min_x, min_y),
-                size=(viewbox_width, viewbox_height),
+                size=(max_x - min_x, max_y - min_y),
                 rx=corner_radius,
                 ry=corner_radius,
                 fill=self.background_color,
