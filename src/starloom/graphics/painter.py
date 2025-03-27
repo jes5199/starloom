@@ -715,12 +715,13 @@ class PlanetaryPainter:
         zodiac_radius = earth_y - viewbox_padding  # This will reach almost to the top of the viewbox
 
         if planet.name.lower() in ["venus", "mercury"]:
-            # Get the zodiac wheel point at the sun aspect longitude
-            wheel_x, wheel_y = transform_coordinates(*self._normalize_coordinates(
-                retrograde_period.sun_aspect_longitude,
-                shadow_max_distance + 0.2,  # Use a distance just beyond the shadow max distance
-                sun_aspect_longitude
-            ))
+            # Calculate the point where the zodiac circle intersects the line from Earth through the Sun
+            # First, get the angle of the sun aspect
+            sun_aspect_angle_rad = math.radians(retrograde_period.sun_aspect_longitude - sun_aspect_longitude)
+            
+            # Then find the point on the zodiac circle at that angle
+            wheel_x = earth_x + zodiac_radius * math.cos(sun_aspect_angle_rad)
+            wheel_y = earth_y + zodiac_radius * math.sin(sun_aspect_angle_rad)
 
             # Draw the solid line from sun to wheel
             clip_group.add(
@@ -755,8 +756,18 @@ class PlanetaryPainter:
             ext_sun_y = sun_y - norm_vec_y * ext_distance
 
             # Choose gradient directions based on relative positions
-            wheel_gradient = 'url(#sun-fade-up)'
-            sun_gradient = 'url(#sun-fade-down)'
+            # Calculate distances from Earth to wheel and from Earth to Sun
+            wheel_distance_from_earth = math.sqrt((wheel_x - earth_x)**2 + (wheel_y - earth_y)**2)
+            sun_distance_from_earth = math.sqrt((sun_x - earth_x)**2 + (sun_y - earth_y)**2)
+            
+            # If wheel is inside Sun orbit (wheel is closer to Earth than Sun)
+            if wheel_distance_from_earth < sun_distance_from_earth:
+                wheel_gradient = 'url(#sun-fade-down)'  # Fade gradient out from wheel
+                sun_gradient = 'url(#sun-fade-up)'      # Fade gradient in towards sun
+            else:
+                # Default case: wheel is outside Sun orbit
+                wheel_gradient = 'url(#sun-fade-up)'    # Fade gradient in towards wheel
+                sun_gradient = 'url(#sun-fade-down)'    # Fade gradient out from sun
 
             # Draw outward fade from wheel
             clip_group.add(
