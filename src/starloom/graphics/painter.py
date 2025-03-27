@@ -136,7 +136,7 @@ class PlanetaryPainter:
         dwg = svgwrite.Drawing(
             output_path,
             size=(self.width, self.height),
-            style=f"background-color: {self._get_background_color(planet)}",
+            style=f"background-color: {self._get_background_color(planet)}; font-family: Helvetica, Arial, sans-serif;",
         )
 
         # Draw zodiac circle
@@ -189,7 +189,7 @@ class PlanetaryPainter:
                 date_str = dt.strftime("%Y-%m-%d")
                 dwg.add(
                     dwg.text(
-                        date_str, insert=(x + 8, y), fill="#666666", font_size="12px"
+                        date_str, insert=(x + 8, y), fill="#666666", font_size="12px", font_family="Helvetica, Arial, sans-serif"
                     )
                 )
 
@@ -213,7 +213,7 @@ class PlanetaryPainter:
         dwg = svgwrite.Drawing(
             output_path,
             size=(self.width, self.height),
-            style=f"background-color: {self._get_background_color(planet)}",
+            style=f"background-color: {self._get_background_color(planet)}; font-family: Helvetica, Arial, sans-serif;",
         )
 
         # Draw zodiac circle
@@ -285,7 +285,7 @@ class PlanetaryPainter:
             dt = datetime.fromtimestamp(jd * 86400 - 2440587.5 * 86400, tz=timezone.utc)
             date_str = dt.strftime("%Y-%m-%d")
             dwg.add(
-                dwg.text(date_str, insert=(x + 8, y), fill="#666666", font_size="12px")
+                dwg.text(date_str, insert=(x + 8, y), fill="#666666", font_size="12px", font_family="Helvetica, Arial, sans-serif")
             )
 
         # Save the SVG
@@ -440,7 +440,7 @@ class PlanetaryPainter:
             output_path,
             size=(self.width, self.height),
             viewBox=f"{outer_min_x} {outer_min_y} {viewbox_width} {viewbox_height}",
-            style="background-color: transparent",
+            style="background-color: transparent; font-family: Helvetica, Arial, sans-serif;",
         )
 
         # Create clip path for rounded rectangle
@@ -865,6 +865,7 @@ class PlanetaryPainter:
                         insert=(x + 8, y),
                         fill="#666666",
                         font_size="12px",
+                        font_family="Helvetica, Arial, sans-serif"
                     )
                 )
 
