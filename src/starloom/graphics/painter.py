@@ -528,6 +528,24 @@ class PlanetaryPainter:
             )
         )
 
+        # Draw line at station direct longitude
+        # Where is the station direct longitude at 1 AU, in final coords?
+        dx, dy = transform_coordinates(*self._normalize_coordinates(
+            station_direct_longitude,
+            10,
+            image_rotation
+        ))
+        # Draw solid line from Earth center to station direct point
+        clip_group.add(
+            dwg.line(
+                start=(earth_x, earth_y),
+                end=(dx, dy),
+                stroke="#000000",
+                stroke_width=0.5,  # Adjusted for new scale
+                opacity=0.6
+            )
+        )
+
         # Add station retrograde label
         station_retrograde_date = retrograde_period.station_retrograde_date
         station_retrograde_x, station_retrograde_y = transform_coordinates(*self._normalize_coordinates(
@@ -818,6 +836,22 @@ class PlanetaryPainter:
             )
         )
 
+        # Draw 1AU circle for Mars (Earth's orbit)
+        if planet == Planet.MARS:
+            # Calculate radius for 1AU in viewbox coordinates 
+            earth_orbit_radius = self._normalize_distance(1.0) * scale
+            clip_group.add(
+                dwg.circle(
+                    center=(earth_x, earth_y),
+                    r=earth_orbit_radius,
+                    stroke="#FFD700",  # Yellow
+                    stroke_width=0.5,
+                    #stroke_dasharray="1,1",  # Dashed line
+                    opacity=0.3,
+                    fill="none"
+                )
+            )
+
         for ecliptic_degrees in range(0, 360, 1):
             # Calculate angle in radians relative to sun aspect
             angle_rad = math.radians(ecliptic_degrees - image_rotation)
@@ -977,29 +1011,30 @@ class PlanetaryPainter:
                     )
 
         # Draw Sun positions
-        for jd in daily_times:
-            if jd not in sun_positions:
-                continue
+        if planet.name.lower() in ["venus", "mercury"]:
+            for jd in daily_times:
+                if jd not in sun_positions:
+                    continue
 
-            pos_data = sun_positions[jd]
-            longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-            distance = pos_data.get(Quantity.DELTA, 0.0)
+                pos_data = sun_positions[jd]
+                longitude = pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+                distance = pos_data.get(Quantity.DELTA, 0.0)
 
-            if not isinstance(longitude, (int, float)) or not isinstance(
-                distance, (int, float)
-            ):
-                continue
+                if not isinstance(longitude, (int, float)) or not isinstance(
+                    distance, (int, float)
+                ):
+                    continue
 
-            x, y = transform_coordinates(*self._normalize_coordinates(
-                longitude, distance, image_rotation
-            ))
+                x, y = transform_coordinates(*self._normalize_coordinates(
+                    longitude, distance, image_rotation
+                ))
 
-            # Draw Sun dot
-            clip_group.add(
-                dwg.circle(
-                    center=(x, y), r=1.0, fill="#FFD700", stroke="none", opacity=0.6  # Adjusted for new scale
+                # Draw Sun dot
+                clip_group.add(
+                    dwg.circle(
+                        center=(x, y), r=1.0, fill="#FFD700", stroke="none", opacity=0.6  # Adjusted for new scale
+                    )
                 )
-            )
 
         # Add the clipped group to the drawing
         dwg.add(clip_group)
