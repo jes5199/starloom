@@ -419,19 +419,20 @@ class PlanetaryPainter:
         center_y = (min_y + max_y) / 2
         radius = (max(max_x - min_x, max_y - min_y) / 2) * 1.5
 
-        # Define a fixed square viewbox (100x100 units)
-        viewbox_size = 100
+        # Define a viewbox with dimensions (100x110 units - 10% taller)
+        viewbox_width = 100
+        viewbox_height = 110
         viewbox_min_x = 0
         viewbox_min_y = 0
         # Calculate scaling factor to fit astronomical elements in viewbox
         # Leave 10% padding around the elements
-        scale = (viewbox_size * 0.9) / (radius * 2)
+        scale = (viewbox_width * 0.9) / (radius * 2)
 
-        # Create SVG drawing with fixed square viewbox
+        # Create SVG drawing with rectangular viewbox
         dwg = svgwrite.Drawing(
             output_path,
             size=(self.width, self.height),
-            viewBox=f"{viewbox_min_x} {viewbox_min_y} {viewbox_size} {viewbox_size}",
+            viewBox=f"{viewbox_min_x} {viewbox_min_y} {viewbox_width} {viewbox_height}",
             style="background-color: transparent; font-family: Helvetica, Arial, sans-serif;",
         )
 
@@ -440,7 +441,7 @@ class PlanetaryPainter:
         clip_path.add(
             dwg.rect(
                 insert=(viewbox_min_x + 5, viewbox_min_y + 5),
-                size=(viewbox_size - 10, viewbox_size - 10),
+                size=(viewbox_width - 10, viewbox_height - 10),
                 rx=5,
                 ry=5,
             )
@@ -464,7 +465,7 @@ class PlanetaryPainter:
         dwg.add(
             dwg.rect(
                 insert=(viewbox_min_x + 5, viewbox_min_y + 5),
-                size=(viewbox_size - 10, viewbox_size - 10),
+                size=(viewbox_width - 10, viewbox_height - 10),
                 rx=corner_radius,
                 ry=corner_radius,
                 fill=bg_gradient.get_paint_server(),
@@ -483,9 +484,9 @@ class PlanetaryPainter:
             # Scale
             x = x * scale
             y = y * scale
-            # Translate to viewbox center
-            x = x + viewbox_size / 2
-            y = y + viewbox_size / 2
+            # Translate to viewbox center - note using viewbox_width for x center
+            x = x + viewbox_width / 2
+            y = y + viewbox_height / 2 - 5  # Shift up by 5 units to make room for bottom text
             return x, y
 
         # Define gradients for sun fade up/down effects
@@ -1080,6 +1081,46 @@ class PlanetaryPainter:
                         font_family="Helvetica, Arial, sans-serif"
                     )
                 )
+
+        # Determine the zodiac signs where the retrograde occurs
+        # Get the zodiac sign for station retrograde and direct points
+        def get_zodiac_sign(longitude):
+            for start_deg, sign in zodiac_signs.items():
+                end_deg = (start_deg + 30) % 360
+                if is_in_angular_range(longitude, start_deg, end_deg):
+                    return sign
+            return "Unknown"
+        
+        station_retro_sign = get_zodiac_sign(station_retrograde_longitude)
+        station_direct_sign = get_zodiac_sign(station_direct_longitude)
+        
+        # Format the month range
+        start_month = retrograde_period.station_retrograde_date.strftime("%B")
+        end_month = retrograde_period.station_direct_date.strftime("%B")
+        month_range = f"{start_month}-{end_month} {retrograde_period.station_retrograde_date.year}"
+        if start_month == end_month:
+            month_range = f"{start_month} {retrograde_period.station_retrograde_date.year}"
+            
+        # Format the Cazimi information
+        cazimi_date = retrograde_period.sun_aspect_date.strftime("%B %-d")
+        cazimi_time = retrograde_period.sun_aspect_date.strftime("%-H:%M UTC")
+        
+        # Add centered text at the bottom of the rounded rectangle
+        # Calculate center for text alignment
+        center_x = viewbox_width / 2
+        bottom_y = viewbox_height - 15  # Add more space from the bottom
+        
+        # Create text element for the bottom information
+        bottom_text = dwg.text("", insert=(center_x, bottom_y - 14), fill="#FFFFFF", font_size="3", text_anchor="middle")
+        bottom_text.add(dwg.tspan(f"{planet.name} Retrograde in {station_retro_sign}" + 
+                                 (f" & {station_direct_sign}" if station_retro_sign != station_direct_sign else ""), 
+                                 x=[center_x], dy=['0em']))
+        bottom_text.add(dwg.tspan(month_range, x=[center_x], dy=['1.5em']))
+        bottom_text.add(dwg.tspan(f"Cazimi {cazimi_date} {cazimi_time}", x=[center_x], dy=['1.5em']))
+        bottom_text.add(dwg.tspan("retrograde.observer", x=[center_x], dy=['1.5em']))
+        
+        # Add the text to the drawing
+        dwg.add(bottom_text)
 
         # Save the SVG
         dwg.save()
