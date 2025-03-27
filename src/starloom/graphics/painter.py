@@ -596,12 +596,76 @@ class PlanetaryPainter:
 
         zodiac_distance = shadow_max_distance + sun_aspect_distance * 0.1
 
+        # Define zodiac signs and their starting longitudes
+        zodiac_signs = {
+            0: "Aries",
+            30: "Taurus",
+            60: "Gemini",
+            90: "Cancer",
+            120: "Leo",
+            150: "Virgo",
+            180: "Libra",
+            210: "Scorpio",
+            240: "Sagittarius",
+            270: "Capricorn",
+            300: "Aquarius",
+            330: "Pisces",
+        }
+
         for ecliptic_degrees in range(0, 360, 1):
             inner_distance = zodiac_distance - 0.005 # short tick default
 
             if ecliptic_degrees % 30 == 0:
                 # Zodiac sign boundaries
                 inner_distance = 0
+                
+                # Add zodiac sign name if this is a sign boundary
+                if ecliptic_degrees in zodiac_signs:
+                    # Calculate text position slightly inward from the line
+                    text_distance = zodiac_distance - 0.010
+                    text_x, text_y = self._normalize_coordinates(
+                        ecliptic_degrees + 0.25,
+                        text_distance,
+                        sun_aspect_longitude
+                    )
+                    
+                    # Calculate text rotation based on angle
+                    text_angle = ecliptic_degrees - sun_aspect_longitude + 180
+                    
+                    # Add text with rotation
+                    clip_group.add(
+                        dwg.text(
+                            zodiac_signs[ecliptic_degrees],
+                            insert=(text_x, text_y),
+                            fill="#A52A2A",
+                            font_size="1.5",
+                            opacity=0.5,
+                            transform=f"rotate({text_angle}, {text_x}, {text_y})",
+                            text_anchor="start",
+                            dominant_baseline="alphabetic"
+                        )
+                    )
+
+                    text2_x, text2_y = self._normalize_coordinates(
+                        ecliptic_degrees - 0.25,
+                        text_distance,
+                        sun_aspect_longitude
+                    )
+
+                    clip_group.add(
+                        dwg.text(
+                            zodiac_signs[(ecliptic_degrees - 30) % 360],
+                            insert=(text2_x, text2_y),
+                            fill="#A52A2A",
+                            font_size="1.5",
+                            opacity=0.5,
+                            transform=f"rotate({text_angle}, {text2_x}, {text2_y})",
+                            text_anchor="start",
+                            dominant_baseline="hanging"
+                        )
+                    )
+
+
             elif ecliptic_degrees % 10 == 0:
                 # Decan boundaries, longer tick
                 inner_distance = zodiac_distance - 0.01
