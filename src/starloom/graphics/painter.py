@@ -656,6 +656,19 @@ class PlanetaryPainter:
             )
         )
 
+        # text above sun aspect line
+        clip_group.add(
+            dwg.text(
+                f"Cazimi {retrograde_period.sun_aspect_date.strftime('%Y-%m-%d')}",
+                insert=(dx, dy),
+                fill="#FFFFFF",
+                font_size="0.8",
+                dominant_baseline="middle",
+                text_anchor="start",
+                transform=f"rotate({-90}, {dx}, {dy})",
+            )
+        )
+
 
         if planet.name.lower() in ["venus", "mercury"]:
             # draw spark towards sun
