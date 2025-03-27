@@ -374,6 +374,16 @@ class PlanetaryPainter:
         shadow_min_distance = min(shadow_positions.values(), key=lambda x: x[Quantity.DELTA])[Quantity.DELTA]
         shadow_average_distance = sum(x[Quantity.DELTA] for x in shadow_positions.values()) / len(shadow_positions)
 
+        station_positions = planet_ephemeris.get_planet_positions(
+            planet.name,
+            TimeSpec.from_dates([retrograde_period.station_retrograde_date, retrograde_period.station_direct_date])
+        )
+
+        station_retrograde_longitude = station_positions[retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5].get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+        station_direct_longitude = station_positions[retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5].get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+        station_retrograde_distance = station_positions[retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0)
+        station_direct_distance = station_positions[retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0)
+
         # Track min/max coordinates for viewbox calculation
         min_x = float("inf")
         max_x = float("-inf")
@@ -522,6 +532,35 @@ class PlanetaryPainter:
                 opacity=0.6
             )
         )
+
+        # Add station retrograde label
+        station_retrograde_date = retrograde_period.station_retrograde_date
+        station_retrograde_x, station_retrograde_y = self._normalize_coordinates(
+            station_retrograde_longitude,
+            station_retrograde_distance,
+            sun_aspect_longitude
+        )
+
+        text_x = station_retrograde_x + 0.5
+        text_y = station_retrograde_y
+
+        text_elem = dwg.text(
+            text="",
+            insert=(text_x, text_y),
+            fill="#FFFFFF",
+            font_size="0.8",
+            dominant_baseline="hanging"
+        )
+
+        text_elem.add(dwg.tspan("Stations Retrograde", x=[text_x], dy=['0em']))
+        text_elem.add(dwg.tspan(station_retrograde_date.strftime('%Y-%m-%d'), x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(station_retrograde_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
+
+        clip_group.add(text_elem)
+
+
+
+
 
         # Draw line at station direct longitude
         # Where is the station direct longitude at 1 AU, in final coords?
