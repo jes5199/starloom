@@ -487,7 +487,7 @@ class PlanetaryPainter:
             y = y + viewbox_size / 2
             return x, y
 
-        # Define gradients for sun fade in/out effects
+        # Define gradients for sun fade up/down effects
         gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-down'))
         gradient.add_stop_color(offset=0, color='#FFD700', opacity=1)
         gradient.add_stop_color(offset=1, color='#FFD700', opacity=0)
@@ -699,41 +699,80 @@ class PlanetaryPainter:
             )
         )
 
+        # Calculate zodiac distance for both wheel and spark
+        zodiac_distance = shadow_max_distance + sun_aspect_distance * 0.1
+
         if planet.name.lower() in ["venus", "mercury"]:
-            # draw spark towards sun
-            dx, dy = transform_coordinates(*self._normalize_coordinates(
+            # Get the zodiac wheel point at the sun aspect longitude
+            wheel_x, wheel_y = transform_coordinates(*self._normalize_coordinates(
                 retrograde_period.sun_aspect_longitude,
-                shadow_average_distance,
+                zodiac_distance,  # Use the zodiac wheel radius
                 sun_aspect_longitude
             ))
 
-            d2x, d2y = transform_coordinates(*self._normalize_coordinates(
-                retrograde_period.sun_aspect_longitude,
-                shadow_max_distance + sun_aspect_distance * 0.1,
-                sun_aspect_longitude
-            ))
-
-            clip_group.add(
-                dwg.line(
-                    start=(dx, dy),
-                    end=(d2x, d2y),
-                    stroke='url(#sun-fade-down)',
-                    stroke_width=0.5,  # Adjusted for new scale
-                    opacity=1.0
-                )
-            )
-
+            # Draw the solid line from sun to wheel
             clip_group.add(
                 dwg.line(
                     start=(sun_x, sun_y),
-                    end=(d2x, d2y),
+                    end=(wheel_x, wheel_y),
                     stroke='#FFD700',
                     stroke_width=0.5,  # Adjusted for new scale
                     opacity=1.0
                 )
             )
 
-        zodiac_distance = shadow_max_distance + sun_aspect_distance * 0.1
+            # Calculate points beyond the solid line endpoints for gradients
+            # Vector from sun to wheel
+            vec_x = wheel_x - sun_x
+            vec_y = wheel_y - sun_y
+            
+            # Normalize vector
+            length = math.sqrt(vec_x**2 + vec_y**2)
+            norm_vec_x = vec_x / length
+            norm_vec_y = vec_y / length
+            
+            # Calculate extension distance (20% of the line length)
+            ext_distance = length * 0.2
+            
+            # Calculate extended points beyond the wheel
+            ext_wheel_x = wheel_x + norm_vec_x * ext_distance
+            ext_wheel_y = wheel_y + norm_vec_y * ext_distance
+            
+            # Calculate extended points beyond the sun (in opposite direction)
+            ext_sun_x = sun_x - norm_vec_x * ext_distance
+            ext_sun_y = sun_y - norm_vec_y * ext_distance
+
+            # Choose gradient directions based on planet
+            if planet.name.lower() == "mercury":
+                # For Mercury, swap the gradients
+                wheel_gradient = 'url(#sun-fade-up)'
+                sun_gradient = 'url(#sun-fade-down)'
+            else:
+                # For Venus (and others), use normal gradient directions
+                wheel_gradient = 'url(#sun-fade-down)'
+                sun_gradient = 'url(#sun-fade-up)'
+
+            # Draw outward fade from wheel
+            clip_group.add(
+                dwg.line(
+                    start=(wheel_x, wheel_y),  # Start from wheel
+                    end=(ext_wheel_x, ext_wheel_y),  # Extend beyond wheel
+                    stroke=wheel_gradient,
+                    stroke_width=0.5,  # Adjusted for new scale
+                    opacity=1.0
+                )
+            )
+
+            # Draw outward fade from sun
+            clip_group.add(
+                dwg.line(
+                    start=(sun_x, sun_y),  # Start from sun
+                    end=(ext_sun_x, ext_sun_y),  # Extend beyond sun
+                    stroke=sun_gradient,
+                    stroke_width=0.5,  # Adjusted for new scale
+                    opacity=1.0
+                )
+            )
 
         # Transform zodiac distance to viewbox coordinates
         zodiac_radius = self._normalize_distance(zodiac_distance) * scale
