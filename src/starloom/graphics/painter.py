@@ -1110,8 +1110,8 @@ class PlanetaryPainter:
         center_x = viewbox_width / 2
         
         # Position the text near the bottom of the rectangle
-        # The bottom of the rectangle is at viewbox_height - 5
-        bottom_y = viewbox_height - 10  # 5 units from the bottom edge of the rectangle
+        # The bottom of the rectangle is at viewbox_height - 5 = 105
+        bottom_y = viewbox_height - 12  # 7 units from the bottom edge of the rectangle
         
         # Calculate total height of text block (4 lines with 1.5em spacing = ~7.5em total)
         text_block_height = 7.5
