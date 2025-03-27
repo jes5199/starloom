@@ -323,20 +323,6 @@ class PlanetaryPainter:
             retrograde_period.sun_aspect_date.timestamp() / 86400 + 2440587.5
         )
 
-        # Find the closest available Julian date in positions
-        available_jds = sorted(positions.keys())
-        closest_jd = min(available_jds, key=lambda x: abs(x - sun_aspect_jd))
-        sun_aspect_longitude = positions[closest_jd].get(
-            Quantity.ECLIPTIC_LONGITUDE, 0.0
-        )
-        sun_aspect_distance = positions[closest_jd].get(Quantity.DELTA, 0.0)
-        sun_aspect_x, sun_aspect_y = self._normalize_coordinates(
-            sun_aspect_longitude, 0, sun_aspect_longitude
-        )
-
-        # Add 90 degrees to rotate counterclockwise
-        sun_aspect_longitude += 90.0
-
         # Convert retrograde period dates to Julian dates
         shadow_start_jd = (
             retrograde_period.pre_shadow_start_date.timestamp() / 86400 + 2440587.5
@@ -345,7 +331,6 @@ class PlanetaryPainter:
             retrograde_period.post_shadow_end_date.timestamp() / 86400 + 2440587.5
         )
         
-
         # Get daily positions for both planet and Sun
         from ..weft_ephemeris.ephemeris import WeftEphemeris
         from ..ephemeris.time_spec import TimeSpec
@@ -355,6 +340,22 @@ class PlanetaryPainter:
             data_dir=f"weftballs/{planet.name.lower()}_weftball.tar.gz"
         )
         sun_ephemeris = WeftEphemeris(data_dir="weftballs/sun_weftball.tar.gz")
+        
+        # Get exact Sun position at sun aspect date
+        sun_aspect_position = sun_ephemeris.get_planet_positions(
+            "SUN", 
+            TimeSpec.from_dates([sun_aspect_jd])
+        )[sun_aspect_jd]
+        
+        sun_aspect_longitude = sun_aspect_position.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+        sun_aspect_distance = 1.0  # Sun is at 1 AU from Earth
+        
+        sun_aspect_x, sun_aspect_y = self._normalize_coordinates(
+            sun_aspect_longitude, 0, sun_aspect_longitude
+        )
+
+        # Add 90 degrees to rotate counterclockwise
+        sun_aspect_longitude += 90.0
 
         # Generate daily timestamps at midnight UTC
         daily_times = []
