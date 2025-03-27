@@ -159,11 +159,6 @@ def graphics() -> None:
     help="Color for the planet dots/path",
 )
 @click.option(
-    "--background",
-    default="#FFFFFF",
-    help="Background color of the canvas",
-)
-@click.option(
     "--path/--no-path",
     default=False,
     help="Draw positions as a continuous path instead of dots",
@@ -180,7 +175,6 @@ def positions(
     height: int = 600,
     margin: int = 50,
     color: str = "#FF0000",
-    background: str = "#FFFFFF",
     path: bool = False,
 ) -> None:
     """Generate SVG visualization of planetary positions.
@@ -231,7 +225,6 @@ def positions(
             height=height,
             margin=margin,
             planet_color=color,
-            background_color=background,
         )
 
         if path:
@@ -297,11 +290,6 @@ def positions(
     default="#FF0000",
     help="Color for the planet dots/path",
 )
-@click.option(
-    "--background",
-    default="#000000",
-    help="Background color of the canvas",
-)
 def retrograde(
     planet: str,
     date: str,
@@ -312,7 +300,6 @@ def retrograde(
     height: int = 600,
     margin: int = 50,
     color: str = "#FF0000",
-    background: str = "#000000",
 ) -> None:
     """Generate SVG visualization of planetary retrograde motion.
 
@@ -377,7 +364,6 @@ def retrograde(
             height=height,
             margin=margin,
             planet_color=color,
-            background_color=background,
         )
 
         # Convert target date to Julian date if it's a datetime

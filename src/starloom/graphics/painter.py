@@ -34,13 +34,28 @@ def is_near_angle(x: float, ref: float, tolerance: float = 5.0) -> bool:
 class PlanetaryPainter:
     """SVG painter for visualizing planetary positions."""
 
+    # Planet-specific background colors
+    PLANET_BACKGROUND_COLORS = {
+        Planet.VENUS: "#00AF00",  # Green for Venus
+        Planet.MARS: "#8B0000",   # Dark red for Mars
+        # Default to black for other planets
+        Planet.MERCURY: "#000000",
+        Planet.JUPITER: "#000000",
+        Planet.SATURN: "#000000",
+        Planet.URANUS: "#000000",
+        Planet.NEPTUNE: "#000000",
+        Planet.PLUTO: "#000000",
+        Planet.MOON: "#000000",
+        Planet.SUN: "#000000",
+    }
+
     def __init__(
         self,
         width: int = 800,
         height: int = 600,
         margin: int = 50,
         planet_color: str = "#FFFFFF",  # White
-        background_color: str = "#000000",  # Black
+        background_color: str = None,  # Will be set based on planet
     ):
         """Initialize the painter.
 
@@ -49,7 +64,7 @@ class PlanetaryPainter:
             height: SVG canvas height in pixels
             margin: Margin around the plot in pixels
             planet_color: Color for the planet dots
-            background_color: Background color of the canvas
+            background_color: Background color of the canvas (if None, will use planet-specific color)
         """
         self.width = width
         self.height = height
@@ -58,6 +73,12 @@ class PlanetaryPainter:
         self.background_color = background_color
         self.plot_width = width - 2 * margin
         self.plot_height = height - 2 * margin
+
+    def _get_background_color(self, planet: Planet) -> str:
+        """Get the background color for a specific planet."""
+        if self.background_color is not None:
+            return self.background_color
+        return self.PLANET_BACKGROUND_COLORS.get(planet, "#000000")
 
     def _normalize_coordinates(
         self, longitude: float, distance: float, rotation_offset: float = 0.0
@@ -115,7 +136,7 @@ class PlanetaryPainter:
         dwg = svgwrite.Drawing(
             output_path,
             size=(self.width, self.height),
-            style=f"background-color: {self.background_color}",
+            style=f"background-color: {self._get_background_color(planet)}",
         )
 
         # Draw zodiac circle
@@ -192,7 +213,7 @@ class PlanetaryPainter:
         dwg = svgwrite.Drawing(
             output_path,
             size=(self.width, self.height),
-            style=f"background-color: {self.background_color}",
+            style=f"background-color: {self._get_background_color(planet)}",
         )
 
         # Draw zodiac circle
@@ -441,7 +462,7 @@ class PlanetaryPainter:
                 size=(max_x - min_x, max_y - min_y),
                 rx=corner_radius,
                 ry=corner_radius,
-                fill=self.background_color,
+                fill=self._get_background_color(planet),
                 stroke="none",
             )
         )
