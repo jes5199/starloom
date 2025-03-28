@@ -546,6 +546,23 @@ class PlanetaryPainter:
             )
         )
 
+        # Create a path for the triangle between Earth and the two endpoints
+        path_data = []
+        path_data.append(f"M {earth_x} {earth_y}")  # Start at Earth
+        path_data.append(f"L {sx} {sy}")  # Line to station retrograde
+        path_data.append(f"L {dx} {dy}")  # Line to station direct
+        path_data.append("Z")  # Close the path back to Earth
+        
+        # Add the shaded triangle
+        clip_group.add(
+            dwg.path(
+                d=" ".join(path_data),
+                fill="#000000",
+                fill_opacity=0.1,
+                stroke="none"
+            )
+        )
+
         # Add station retrograde label
         station_retrograde_date = retrograde_period.station_retrograde_date
         station_retrograde_x, station_retrograde_y = transform_coordinates(*self._normalize_coordinates(
@@ -836,6 +853,8 @@ class PlanetaryPainter:
             300: "Aquarius",
             330: "Pisces",
         }
+
+        
 
         # Draw zodiac circle centered at Earth's position
         clip_group.add(
