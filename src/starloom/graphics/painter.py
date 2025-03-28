@@ -492,21 +492,21 @@ class PlanetaryPainter:
             return x, y
 
         # Define gradients for sun fade up/down effects
-        gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-down'))
-        gradient.add_stop_color(offset=0, color='#FFD700', opacity=1)
-        gradient.add_stop_color(offset=1, color='#FFD700', opacity=0)
-        gradient['x1'] = '0%'
-        gradient['y1'] = '0%'
-        gradient['x2'] = '0%'
-        gradient['y2'] = '100%'
+        gradient_down = dwg.defs.add(dwg.linearGradient(id='sun-fade-down'))
+        gradient_down.add_stop_color(offset=0, color='#FFD700', opacity=1)
+        gradient_down.add_stop_color(offset=1, color='#FFD700', opacity=0)
+        gradient_down['x1'] = '0%'
+        gradient_down['y1'] = '0%'
+        gradient_down['x2'] = '0%'
+        gradient_down['y2'] = '100%'
 
-        gradient = dwg.defs.add(dwg.linearGradient(id='sun-fade-up'))
-        gradient.add_stop_color(offset=0, color='#FFD700', opacity=0)
-        gradient.add_stop_color(offset=1, color='#FFD700', opacity=1)
-        gradient['x1'] = '0%'
-        gradient['y1'] = '0%'
-        gradient['x2'] = '0%'
-        gradient['y2'] = '100%'
+        gradient_up = dwg.defs.add(dwg.linearGradient(id='sun-fade-up'))
+        gradient_up.add_stop_color(offset=0, color='#FFD700', opacity=0)
+        gradient_up.add_stop_color(offset=1, color='#FFD700', opacity=1)
+        gradient_up['x1'] = '0%'
+        gradient_up['y1'] = '0%'
+        gradient_up['x2'] = '0%'
+        gradient_up['y2'] = '100%'
 
         # Draw line at station retrograde longitude
         # Where is Earth's center, in final coords?
@@ -686,14 +686,22 @@ class PlanetaryPainter:
             # Use a small fixed extension (5 viewbox units)
             extension_length = 5
             
+            # Add a 1% clockwise rotation to the normalized vector
+            # For a clockwise rotation of θ degrees:
+            # x' = x*cos(θ) + y*sin(θ)
+            # y' = -x*sin(θ) + y*cos(θ)
+            theta = math.radians(1)  # 1 degree clockwise
+            rotated_norm_x = norm_x * math.cos(theta) + norm_y * math.sin(theta)
+            rotated_norm_y = -norm_x * math.sin(theta) + norm_y * math.cos(theta)
+            
             # Calculate points for the gradient extensions in both directions
             # Extension beyond planet (away from Earth)
-            dx_away = planet_x + norm_x * extension_length
-            dy_away = planet_y + norm_y * extension_length
+            dx_away = planet_x + rotated_norm_x * extension_length
+            dy_away = planet_y + rotated_norm_y * extension_length
             
             # Extension toward Earth
-            dx_toward = planet_x - norm_x * extension_length
-            dy_toward = planet_y - norm_y * extension_length
+            dx_toward = planet_x - rotated_norm_x * extension_length
+            dy_toward = planet_y - rotated_norm_y * extension_length
         else:
             # Fallback if vector has zero length
             dx_away = planet_x
@@ -761,16 +769,21 @@ class PlanetaryPainter:
             norm_vec_x = vec_x / length
             norm_vec_y = vec_y / length
             
+            # Add a 1% clockwise rotation to the normalized vector
+            theta = math.radians(1)  # 1 degree clockwise
+            rotated_norm_x = norm_vec_x * math.cos(theta) + norm_vec_y * math.sin(theta)
+            rotated_norm_y = -norm_vec_x * math.sin(theta) + norm_vec_y * math.cos(theta)
+            
             # Calculate extension distance (20% of the line length)
             ext_distance = length * 0.2
             
             # Calculate extended points beyond the wheel
-            ext_wheel_x = wheel_x + norm_vec_x * ext_distance
-            ext_wheel_y = wheel_y + norm_vec_y * ext_distance
+            ext_wheel_x = wheel_x + rotated_norm_x * ext_distance
+            ext_wheel_y = wheel_y + rotated_norm_y * ext_distance
             
             # Calculate extended points beyond the sun (in opposite direction)
-            ext_sun_x = sun_x - norm_vec_x * ext_distance
-            ext_sun_y = sun_y - norm_vec_y * ext_distance
+            ext_sun_x = sun_x - rotated_norm_x * ext_distance
+            ext_sun_y = sun_y - rotated_norm_y * ext_distance
 
             # Choose gradient directions based on relative positions
             # Calculate distances from Earth to wheel and from Earth to Sun
