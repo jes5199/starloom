@@ -7,6 +7,8 @@ This script:
 1. Reads retrograde dates from CSV files
 2. For each date and timezone, generates a retrograde graphic
 3. Outputs commands to stdout before executing them
+4. Skips existing valid SVG files
+5. Processes dates in reverse chronological order
 """
 
 import os
@@ -32,6 +34,18 @@ def clean_date(date_str):
     # Split on space and take first part to get just the date
     return date_str.split()[0]
 
+def is_valid_svg(file_path):
+    """Check if SVG file exists and has a valid closing tag"""
+    if not os.path.exists(file_path):
+        return False
+    
+    try:
+        with open(file_path, 'r') as f:
+            content = f.read().strip()
+            return content.endswith('</svg>')
+    except Exception:
+        return False
+
 def main():
     """Main entry point for the script."""
     # Read timezones
@@ -42,8 +56,9 @@ def main():
     
     # Process each planet
     for planet in PLANETS:
-        # Read CSV file
+        # Read CSV file and reverse the order
         df = pd.read_csv(f"knowledge/retrogrades/{planet}.csv")
+        df = df.iloc[::-1].reset_index(drop=True)  # Reverse the DataFrame
         
         # Get total number of iterations for progress bar
         total_iterations = len(df) * len(timezones)
@@ -62,6 +77,11 @@ def main():
                     output_dir = f"./data/retrograde_svgs/{planet}/{tz_abbr}"
                     os.makedirs(output_dir, exist_ok=True)
                     output_file = f"{output_dir}/{planet}-{date}-{tz_abbr}.svg"
+                    
+                    # Skip if file exists and is valid
+                    if is_valid_svg(output_file):
+                        pbar.update(1)
+                        continue
                     
                     cmd = [
                         "starloom",
