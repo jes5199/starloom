@@ -854,21 +854,26 @@ class PlanetaryPainter:
             330: "Pisces",
         }
 
-        
+        if planet == Planet.MARS:
+            zodiac_opacity = 0.5
+            zodiac_color = "#FFD700"
+        else:
+            zodiac_opacity = 0.6
+            zodiac_color = "#A52A2A"
 
         # Draw zodiac circle centered at Earth's position
         clip_group.add(
             dwg.circle(
                 center=(earth_x, earth_y),
                 r=zodiac_radius,
-                stroke="#A52A2A",
+                stroke=zodiac_color,
                 stroke_width=0.5,
-                opacity=0.5,
+                opacity=zodiac_opacity,
                 fill="none"
             )
         )
 
-        # Draw 1AU circle for Mars (Earth's orbit)
+        # Draw 1AU circle for Mars
         if planet == Planet.MARS:
             # Calculate radius for 1AU in viewbox coordinates 
             earth_orbit_radius = self._normalize_distance(1.0) * scale
@@ -876,7 +881,7 @@ class PlanetaryPainter:
                 dwg.circle(
                     center=(earth_x, earth_y),
                     r=earth_orbit_radius,
-                    stroke="#FFD700",  # Yellow
+                    stroke=zodiac_color,  # Yellow
                     stroke_width=0.5,
                     #stroke_dasharray="1,1",  # Dashed line
                     opacity=0.3,
@@ -910,9 +915,9 @@ class PlanetaryPainter:
                 dwg.line(
                     start=(inner_x, inner_y),
                     end=(outer_x, outer_y),
-                    stroke="#A52A2A",
+                    stroke=zodiac_color,
                     stroke_width=0.5,
-                    opacity=0.5
+                    opacity=zodiac_opacity
                 )
             )
 
@@ -938,9 +943,9 @@ class PlanetaryPainter:
                     dwg.text(
                         zodiac_signs[ecliptic_degrees],
                         insert=(text_x, text_y),
-                        fill="#A52A2A",
+                        fill=zodiac_color,
                         font_size="4",
-                        opacity=0.5,
+                        opacity=zodiac_opacity,
                         transform=f"rotate({text_angle}, {text_x}, {text_y})",
                         text_anchor="start",
                         dominant_baseline="alphabetic"
@@ -956,9 +961,9 @@ class PlanetaryPainter:
                     dwg.text(
                         zodiac_signs[(ecliptic_degrees - 30) % 360],
                         insert=(text_x, text_y),
-                        fill="#A52A2A",
+                        fill=zodiac_color,
                         font_size="4",
-                        opacity=0.5,
+                        opacity=zodiac_opacity,
                         transform=f"rotate({text_angle}, {text_x}, {text_y})",
                         text_anchor="start",
                         dominant_baseline="hanging"
@@ -1176,9 +1181,16 @@ class PlanetaryPainter:
         # Format the month range
         start_month = retrograde_period.station_retrograde_date.strftime("%B")
         end_month = retrograde_period.station_direct_date.strftime("%B")
-        month_range = f"{start_month}-{end_month} {retrograde_period.station_retrograde_date.year}"
-        if start_month == end_month:
-            month_range = f"{start_month} {retrograde_period.station_retrograde_date.year}"
+        start_year = retrograde_period.station_retrograde_date.year
+        end_year = retrograde_period.station_direct_date.year
+        
+        if start_year == end_year:
+            if start_month == end_month:
+                month_range = f"{start_month} {start_year}"
+            else:
+                month_range = f"{start_month}-{end_month} {start_year}"
+        else:
+            month_range = f"{start_month} {start_year} - {end_month} {end_year}"
             
         # Format the Cazimi/Opposition information
         aspect_date = retrograde_period.sun_aspect_date.strftime("%B %-d")
