@@ -671,7 +671,7 @@ class PlanetaryPainter:
 
         sun_x, sun_y = transform_coordinates(*self._normalize_coordinates(
             retrograde_period.sun_aspect_longitude,
-            1,
+            sun_aspect_distance,
             image_rotation
         ))
 
@@ -829,7 +829,7 @@ class PlanetaryPainter:
         svg_content.append(f'    <circle cx="{earth_x}" cy="{earth_y}" r="{zodiac_radius}" stroke="{zodiac_color}" stroke-width="0.5" opacity="{zodiac_opacity}" fill="none"/>')
 
         # Draw 1AU circle for Mars
-        if planet == Planet.MARS:
+        if planet == Planet.MARS or planet == Planet.MERCURY or planet == Planet.VENUS:
             # Calculate radius for 1AU in viewbox coordinates 
             earth_orbit_radius = self._normalize_distance(1.0) * scale
             svg_content.append(f'    <circle cx="{earth_x}" cy="{earth_y}" r="{earth_orbit_radius}" stroke="{zodiac_color}" stroke-width="0.5" opacity="0.3" fill="none"/>')

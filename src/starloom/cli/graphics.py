@@ -1,5 +1,6 @@
 """CLI commands for generating planetary position visualizations."""
 
+import traceback
 import click
 from datetime import datetime, timedelta
 from datetime import timezone as datetime_timezone
@@ -443,4 +444,5 @@ def retrograde(
         exit(1)
     except Exception as e:
         click.echo(f"Unexpected error: {str(e)}", err=True)
+        print(traceback.format_exc())
         exit(1)
