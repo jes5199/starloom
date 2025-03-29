@@ -2,7 +2,7 @@
 """
 Script to convert all SVG files in data/retrograde_svgs to PNG format.
 Skips conversion if a newer PNG already exists.
-Uses resvg for high-quality conversion with proper drop shadow support.
+Uses svgexport (Node.js) for high-quality conversion with proper support for SVG features.
 Preserves transparency from the original SVGs.
 """
 
@@ -42,7 +42,7 @@ def should_convert(svg_path, png_path, script_path):
     return svg_time > png_time or script_time > png_time
 
 def convert_svg_to_png(svg_path, png_path):
-    """Convert an SVG file to PNG using resvg.
+    """Convert an SVG file to PNG using svgexport.
     Preserves transparency from the original SVG.
     
     Args:
@@ -50,12 +50,10 @@ def convert_svg_to_png(svg_path, png_path):
         png_path: Path to output PNG file
     """
     try:
-        # Use resvg with high DPI for retina displays
-        # --dpi specifies DPI for resolution
-        # --zoom 2 makes the output image 2x larger
-        # Last two arguments are input and output files
+        # Use svgexport with a scale factor of 4x for high resolution
+        # First argument is input file, second is output file, third is scale factor
         subprocess.run(
-            ["resvg", "--dpi", "384", "--zoom", "2", str(svg_path), str(png_path)],
+            ["svgexport", str(svg_path), str(png_path), "4x"],
             check=True,
             capture_output=True,
             text=True
@@ -64,7 +62,8 @@ def convert_svg_to_png(svg_path, png_path):
         print(f"Error converting {svg_path}: {e.stderr}", file=sys.stderr)
         return False
     except FileNotFoundError:
-        print("Error: resvg not found. Please install resvg with 'cargo install resvg' or your system package manager.", file=sys.stderr)
+        print("Error: svgexport not found. Please install with 'npm install -g svgexport'.", file=sys.stderr)
+        print("Note: You might need to use 'sudo npm install -g svgexport --unsafe-perm=true' if you encounter permission issues.", file=sys.stderr)
         return False
     return True
 

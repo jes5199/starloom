@@ -644,24 +644,21 @@ Create a script to convert all SVG files in data/retrograde_svgs to PNG format, 
 - Python standard library
 - tqdm for progress bar
 
-# Update SVG Conversion Script to Use resvg
+# Update SVG Conversion Script to Use svgexport
 
 ## Task
-Update the SVG to PNG conversion script to use `resvg` instead of `rsvg-convert`.
+Update the SVG to PNG conversion script to use `svgexport` (Node.js) instead of `resvg`.
 
 ## TODOs
-[X] Modify the convert_svg_to_png function to use resvg
-[X] Update error handling for resvg
-[X] Increase DPI setting for higher resolution output (from 192 to 384)
-[X] Add zoom factor (2x) for larger output images
+[X] Modify the convert_svg_to_png function to use svgexport
+[X] Update error handling for svgexport
+[X] Set scale factor to 4x for high resolution output
 [ ] Test the conversion with sample SVG files
 
 ## Notes
-- resvg is a modern SVG rendering library with better performance
-- Command line arguments differ from rsvg-convert:
-  - resvg uses `--dpi` instead of `-d`
-  - resvg takes input and output files as direct arguments
-  - resvg doesn't need `-f png` as it auto-detects from output extension
-  - Updated installation instructions in error message
-- Increased DPI from 192 (2x standard) to 384 (4x standard) for higher resolution output
-- Added `--zoom 2` parameter to make output images twice as large
+- svgexport is a Node.js tool that uses Puppeteer (headless Chrome) for rendering
+- Command line arguments are simpler than resvg:
+  - `svgexport input.svg output.png 4x` for 4x scale
+- Using scale factor 4x for high resolution (equivalent to 384 DPI with 2x zoom)
+- Added more detailed installation instructions in error message
+- Benefit: Better CSS support and rendering through Chrome's engine
