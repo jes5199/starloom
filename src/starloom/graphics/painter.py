@@ -1272,18 +1272,38 @@ class PlanetaryPainter:
         station_direct_sign = get_zodiac_sign(station_direct_longitude)
         
         # Format the month range
-        start_month = retrograde_period.station_retrograde_date.strftime("%B")
-        end_month = retrograde_period.station_direct_date.strftime("%B")
-        start_year = retrograde_period.station_retrograde_date.year
-        end_year = retrograde_period.station_direct_date.year
-        
-        if start_year == end_year:
-            if start_month == end_month:
-                month_range = f"{start_month} {start_year}"
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(self.display_timezone)
+            start_dt = retrograde_period.station_retrograde_date.astimezone(tz)
+            end_dt = retrograde_period.station_direct_date.astimezone(tz)
+            
+            start_month = start_dt.strftime("%B")
+            end_month = end_dt.strftime("%B")
+            start_year = start_dt.year
+            end_year = end_dt.year
+            
+            if start_year == end_year:
+                if start_month == end_month:
+                    month_range = f"{start_month} {start_year}"
+                else:
+                    month_range = f"{start_month}-{end_month} {start_year}"
             else:
-                month_range = f"{start_month}-{end_month} {start_year}"
-        else:
-            month_range = f"{start_month} {start_year} - {end_month} {end_year}"
+                month_range = f"{start_month} {start_year} - {end_month} {end_year}"
+        except Exception:
+            # Fallback to UTC if timezone conversion fails
+            start_month = retrograde_period.station_retrograde_date.strftime("%B")
+            end_month = retrograde_period.station_direct_date.strftime("%B")
+            start_year = retrograde_period.station_retrograde_date.year
+            end_year = retrograde_period.station_direct_date.year
+            
+            if start_year == end_year:
+                if start_month == end_month:
+                    month_range = f"{start_month} {start_year}"
+                else:
+                    month_range = f"{start_month}-{end_month} {start_year}"
+            else:
+                month_range = f"{start_month} {start_year} - {end_month} {end_year}"
             
         # Format the Cazimi/Opposition information
         aspect_date, aspect_time = self._format_datetime(retrograde_period.sun_aspect_date)
