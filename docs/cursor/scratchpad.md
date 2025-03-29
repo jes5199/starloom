@@ -643,3 +643,25 @@ Create a script to convert all SVG files in data/retrograde_svgs to PNG format, 
 - rsvg-convert (librsvg)
 - Python standard library
 - tqdm for progress bar
+
+# Update SVG Conversion Script to Use resvg
+
+## Task
+Update the SVG to PNG conversion script to use `resvg` instead of `rsvg-convert`.
+
+## TODOs
+[X] Modify the convert_svg_to_png function to use resvg
+[X] Update error handling for resvg
+[X] Increase DPI setting for higher resolution output (from 192 to 384)
+[X] Add zoom factor (2x) for larger output images
+[ ] Test the conversion with sample SVG files
+
+## Notes
+- resvg is a modern SVG rendering library with better performance
+- Command line arguments differ from rsvg-convert:
+  - resvg uses `--dpi` instead of `-d`
+  - resvg takes input and output files as direct arguments
+  - resvg doesn't need `-f png` as it auto-detects from output extension
+  - Updated installation instructions in error message
+- Increased DPI from 192 (2x standard) to 384 (4x standard) for higher resolution output
+- Added `--zoom 2` parameter to make output images twice as large

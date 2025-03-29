@@ -2,7 +2,7 @@
 """
 Script to convert all SVG files in data/retrograde_svgs to PNG format.
 Skips conversion if a newer PNG already exists.
-Uses rsvg-convert for high-quality conversion with proper drop shadow support.
+Uses resvg for high-quality conversion with proper drop shadow support.
 Preserves transparency from the original SVGs.
 """
 
@@ -42,7 +42,7 @@ def should_convert(svg_path, png_path, script_path):
     return svg_time > png_time or script_time > png_time
 
 def convert_svg_to_png(svg_path, png_path):
-    """Convert an SVG file to PNG using rsvg-convert.
+    """Convert an SVG file to PNG using resvg.
     Preserves transparency from the original SVG.
     
     Args:
@@ -50,12 +50,12 @@ def convert_svg_to_png(svg_path, png_path):
         png_path: Path to output PNG file
     """
     try:
-        # Use rsvg-convert with high DPI for retina displays
-        # -f png ensures proper PNG export with transparency
-        # -o specifies output file
-        # -d 192 sets DPI to 192 (2x standard 96 DPI for retina displays)
+        # Use resvg with high DPI for retina displays
+        # --dpi specifies DPI for resolution
+        # --zoom 2 makes the output image 2x larger
+        # Last two arguments are input and output files
         subprocess.run(
-            ["rsvg-convert", "-f", "png", "-d", "192", "-o", str(png_path), str(svg_path)],
+            ["resvg", "--dpi", "384", "--zoom", "2", str(svg_path), str(png_path)],
             check=True,
             capture_output=True,
             text=True
@@ -64,7 +64,7 @@ def convert_svg_to_png(svg_path, png_path):
         print(f"Error converting {svg_path}: {e.stderr}", file=sys.stderr)
         return False
     except FileNotFoundError:
-        print("Error: rsvg-convert not found. Please install librsvg.", file=sys.stderr)
+        print("Error: resvg not found. Please install resvg with 'cargo install resvg' or your system package manager.", file=sys.stderr)
         return False
     return True
 
