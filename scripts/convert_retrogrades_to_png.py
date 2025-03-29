@@ -2,7 +2,7 @@
 """
 Script to convert all SVG files in data/retrograde_svgs to PNG format.
 Skips conversion if a newer PNG already exists.
-Uses Inkscape for high-quality conversion with proper drop shadow support.
+Uses rsvg-convert for high-quality conversion with proper drop shadow support.
 Preserves transparency from the original SVGs.
 """
 
@@ -42,7 +42,7 @@ def should_convert(svg_path, png_path, script_path):
     return svg_time > png_time or script_time > png_time
 
 def convert_svg_to_png(svg_path, png_path):
-    """Convert an SVG file to PNG using Inkscape with high DPI for retina displays.
+    """Convert an SVG file to PNG using rsvg-convert.
     Preserves transparency from the original SVG.
     
     Args:
@@ -50,18 +50,12 @@ def convert_svg_to_png(svg_path, png_path):
         png_path: Path to output PNG file
     """
     try:
-        # Use Inkscape with high DPI for retina displays
-        # --export-type=png ensures proper PNG export with transparency
-        # --export-dpi=192 sets 2x resolution for retina displays
-        # No background opacity specified to preserve transparency
+        # Use rsvg-convert with high DPI for retina displays
+        # -f png ensures proper PNG export with transparency
+        # -o specifies output file
+        # -d 192 sets DPI to 192 (2x standard 96 DPI for retina displays)
         subprocess.run(
-            [
-                "inkscape",
-                "--export-type=png",
-                "--export-dpi=192",
-                "--export-filename=" + str(png_path),
-                str(svg_path)
-            ],
+            ["rsvg-convert", "-f", "png", "-d", "192", "-o", str(png_path), str(svg_path)],
             check=True,
             capture_output=True,
             text=True
@@ -70,7 +64,7 @@ def convert_svg_to_png(svg_path, png_path):
         print(f"Error converting {svg_path}: {e.stderr}", file=sys.stderr)
         return False
     except FileNotFoundError:
-        print("Error: Inkscape not found. Please install Inkscape to use this script.", file=sys.stderr)
+        print("Error: rsvg-convert not found. Please install librsvg.", file=sys.stderr)
         return False
     return True
 
