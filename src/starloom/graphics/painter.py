@@ -1,6 +1,7 @@
 """SVG painter for visualizing planetary positions."""
 
 import svgwrite
+from svgwrite import filters
 from typing import Tuple
 from datetime import datetime, timezone
 import math
@@ -332,6 +333,18 @@ class PlanetaryPainter:
         # Save the SVG
         dwg.save()
 
+    def _generate_svg_xml(self, content: str) -> str:
+        """Generate SVG XML with proper header and namespace."""
+        return f'''<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="{self.width}"
+     height="{self.height}"
+     viewBox="0 0 100 110"
+     style="background-color: transparent; font-family: Helvetica, Arial, sans-serif;">
+{content}
+</svg>'''
+
     def draw_retrograde(
         self,
         positions: dict[float, dict[str, float]],
@@ -339,14 +352,7 @@ class PlanetaryPainter:
         output_path: str,
         target_date: float,
     ) -> None:
-        """Draw planet positions with retrograde motion highlighted.
-
-        Args:
-            positions: Dictionary mapping Julian dates to position data
-            planet: The planet being plotted
-            output_path: Path to save the SVG file
-            target_date: Julian date of the target date to analyze
-        """
+        """Draw planet positions with retrograde motion highlighted."""
         # Convert target_date to datetime with UTC timezone
         target_datetime = datetime.fromtimestamp(
             target_date * 86400 - 2440587.5 * 86400, tz=timezone.utc
@@ -471,54 +477,63 @@ class PlanetaryPainter:
         # Leave 10% padding around the elements
         scale = (viewbox_width * 0.9) / (radius * 2)
 
-        # Create SVG drawing with rectangular viewbox
-        dwg = svgwrite.Drawing(
-            output_path,
-            size=(self.width, self.height),
-            viewBox=f"{viewbox_min_x} {viewbox_min_y} {viewbox_width} {viewbox_height}",
-            style="background-color: transparent; font-family: Helvetica, Arial, sans-serif;",
-        )
-
-        # Create clip path for rounded rectangle
-        clip_path = dwg.defs.add(dwg.clipPath(id='rounded-rect'))
-        clip_path.add(
-            dwg.rect(
-                insert=(viewbox_min_x + 5, viewbox_min_y + 5),
-                size=(viewbox_width - 10, viewbox_height - 10),
-                rx=5,
-                ry=5,
-            )
-        )
-
-        # Add rounded rectangle background
-        corner_radius = 5
+        # Instead of using svgwrite, we'll build XML strings
+        svg_content = []
         
-        # Create gradient for background
-        bg_gradient = dwg.defs.add(dwg.linearGradient(id='bg-gradient'))
+        # Add definitions section
+        defs = []
+        defs.append('  <defs>')
+        defs.append('    <filter id="url-shadow">')
+        defs.append('      <feGaussianBlur in="SourceAlpha" stdDeviation="0.1"/>')
+        defs.append('      <feOffset dx="0.15" dy="0.15"/>')
+        defs.append('      <feFlood flood-color="black" flood-opacity="0.5"/>')
+        defs.append('      <feComposite in="SourceAlpha" operator="in"/>')
+        defs.append('      <feMerge>')
+        defs.append('        <feMergeNode in="SourceGraphic"/>')
+        defs.append('        <feMergeNode in="SourceAlpha"/>')
+        defs.append('      </feMerge>')
+        defs.append('    </filter>')
+        
+        # Add gradient definitions
+        # Background gradient
         base_color = self._get_background_color(planet)
         # Create a darker version of the base color by reducing RGB values by 20%
         darker_color = f"#{int(int(base_color[1:3], 16) * 0.8):02x}{int(int(base_color[3:5], 16) * 0.8):02x}{int(int(base_color[5:7], 16) * 0.8):02x}"
-        bg_gradient.add_stop_color(offset=0, color=base_color)
-        bg_gradient.add_stop_color(offset=1, color=darker_color)
-        bg_gradient['x1'] = '0%'
-        bg_gradient['y1'] = '0%'
-        bg_gradient['x2'] = '0%'
-        bg_gradient['y2'] = '100%'
+        defs.append(f'    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="0%" y2="100%">')
+        defs.append(f'      <stop offset="0%" style="stop-color:{base_color};stop-opacity:1"/>')
+        defs.append(f'      <stop offset="100%" style="stop-color:{darker_color};stop-opacity:1"/>')
+        defs.append('    </linearGradient>')
         
-        dwg.add(
-            dwg.rect(
-                insert=(viewbox_min_x + 5, viewbox_min_y + 5),
-                size=(viewbox_width - 10, viewbox_height - 10),
-                rx=corner_radius,
-                ry=corner_radius,
-                fill=bg_gradient.get_paint_server(),
-                stroke="none",
-            )
-        )
+        # Sun fade gradients
+        defs.append('    <linearGradient id="sun-fade-down" x1="0%" y1="0%" x2="0%" y2="100%">')
+        defs.append('      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1"/>')
+        defs.append('      <stop offset="100%" style="stop-color:#FFD700;stop-opacity:0"/>')
+        defs.append('    </linearGradient>')
 
-        # Create a group for all elements that should be clipped
-        clip_group = dwg.g(clip_path='url(#rounded-rect)')
+        defs.append('    <linearGradient id="sun-fade-up" x1="0%" y1="0%" x2="0%" y2="100%">')
+        defs.append('      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:0"/>')
+        defs.append('      <stop offset="100%" style="stop-color:#FFD700;stop-opacity:1"/>')
+        defs.append('    </linearGradient>')
 
+        defs.append('    <linearGradient id="opposition-spark" x1="0%" y1="0%" x2="0%" y2="100%">')
+        defs.append('      <stop offset="0%" style="stop-color:#000000;stop-opacity:0.95"/>')
+        defs.append('      <stop offset="100%" style="stop-color:#000000;stop-opacity:0"/>')
+        defs.append('    </linearGradient>')
+
+        defs.append('  </defs>')
+        svg_content.extend(defs)
+
+        # Add background rectangle with gradient
+        svg_content.append(f'  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-gradient)" stroke="none"/>')
+
+        # Add clip path
+        svg_content.append('  <clipPath id="rounded-rect">')
+        svg_content.append('    <rect x="5" y="5" width="90" height="100" rx="5" ry="5"/>')
+        svg_content.append('  </clipPath>')
+
+        # Add clipped group
+        svg_content.append('  <g clip-path="url(#rounded-rect)">')
+        
         # Helper function to transform astronomical coordinates to viewbox coordinates
         def transform_coordinates(x: float, y: float) -> Tuple[float, float]:
             # Translate to origin
@@ -532,23 +547,6 @@ class PlanetaryPainter:
             y = y + viewbox_height / 2 - 5  # Shift up by 5 units to make room for bottom text
             return x, y
 
-        # Define gradients for sun fade up/down effects
-        gradient_down = dwg.defs.add(dwg.linearGradient(id='sun-fade-down'))
-        gradient_down.add_stop_color(offset=0, color='#FFD700', opacity=1)
-        gradient_down.add_stop_color(offset=1, color='#FFD700', opacity=0)
-        gradient_down['x1'] = '0%'
-        gradient_down['y1'] = '0%'
-        gradient_down['x2'] = '0%'
-        gradient_down['y2'] = '100%'
-
-        gradient_up = dwg.defs.add(dwg.linearGradient(id='sun-fade-up'))
-        gradient_up.add_stop_color(offset=0, color='#FFD700', opacity=0)
-        gradient_up.add_stop_color(offset=1, color='#FFD700', opacity=1)
-        gradient_up['x1'] = '0%'
-        gradient_up['y1'] = '0%'
-        gradient_up['x2'] = '0%'
-        gradient_up['y2'] = '100%'
-
         # Draw line at station retrograde longitude
         # Where is Earth's center, in final coords?
         earth_x, earth_y = transform_coordinates(*self._normalize_coordinates(0.0, 0.0, image_rotation))
@@ -559,15 +557,7 @@ class PlanetaryPainter:
             image_rotation
         ))
         # Draw solid line from Earth center to station retrograde point
-        clip_group.add(
-            dwg.line(
-                start=(earth_x, earth_y),
-                end=(sx, sy),
-                stroke="#000000",
-                stroke_width=0.5,  # Adjusted for new scale
-                opacity=0.6
-            )
-        )
+        svg_content.append(f'    <line x1="{earth_x}" y1="{earth_y}" x2="{sx}" y2="{sy}" stroke="#000000" stroke-width="0.5" opacity="0.6"/>')
 
         # Draw line at station direct longitude
         # Where is the station direct longitude at 1 AU, in final coords?
@@ -577,15 +567,7 @@ class PlanetaryPainter:
             image_rotation
         ))
         # Draw solid line from Earth center to station direct point
-        clip_group.add(
-            dwg.line(
-                start=(earth_x, earth_y),
-                end=(dx, dy),
-                stroke="#000000",
-                stroke_width=0.5,  # Adjusted for new scale
-                opacity=0.6
-            )
-        )
+        svg_content.append(f'    <line x1="{earth_x}" y1="{earth_y}" x2="{dx}" y2="{dy}" stroke="#000000" stroke-width="0.5" opacity="0.6"/>')
 
         # Create a path for the triangle between Earth and the two endpoints
         path_data = []
@@ -595,14 +577,7 @@ class PlanetaryPainter:
         path_data.append("Z")  # Close the path back to Earth
         
         # Add the shaded triangle
-        clip_group.add(
-            dwg.path(
-                d=" ".join(path_data),
-                fill="#000000",
-                fill_opacity=0.1,
-                stroke="none"
-            )
-        )
+        svg_content.append(f'    <path d="{" ".join(path_data)}" fill="#000000" fill-opacity="0.1" stroke="none"/>')
 
         # Add station retrograde label
         station_retrograde_date = retrograde_period.station_retrograde_date
@@ -615,20 +590,12 @@ class PlanetaryPainter:
         text_x = station_retrograde_x + 2
         text_y = station_retrograde_y
 
-        text_elem = dwg.text(
-            text="",
-            insert=(text_x, text_y),
-            fill="#FFFFFF",
-            font_size="3",  # Adjusted for new scale
-            dominant_baseline="hanging"
-        )
-
+        svg_content.append(f'    <text x="{text_x}" y="{text_y}" fill="#FFFFFF" font-size="3" dominant-baseline="hanging">')
         date_str, time_str = self._format_datetime(station_retrograde_date)
-        text_elem.add(dwg.tspan("Stations Retrograde", x=[text_x], dy=['0em']))
-        text_elem.add(dwg.tspan(date_str, x=[text_x], dy=['1em']))
-        text_elem.add(dwg.tspan(time_str, x=[text_x], dy=['1em']))
-
-        clip_group.add(text_elem)
+        svg_content.append(f'      <tspan x="{text_x}" dy="0em">Stations Retrograde</tspan>')
+        svg_content.append(f'      <tspan x="{text_x}" dy="1em">{date_str}</tspan>')
+        svg_content.append(f'      <tspan x="{text_x}" dy="1em">{time_str}</tspan>')
+        svg_content.append('    </text>')
 
         # Add station direct label
         station_direct_date = retrograde_period.station_direct_date
@@ -641,21 +608,12 @@ class PlanetaryPainter:
         text_x = station_direct_x - 2
         text_y = station_direct_y
 
-        text_elem = dwg.text(
-            text="",
-            insert=(text_x, text_y),
-            fill="#FFFFFF",
-            font_size="3",  # Adjusted for new scale
-            dominant_baseline="hanging",
-            text_anchor="end"
-        )
-
+        svg_content.append(f'    <text x="{text_x}" y="{text_y}" fill="#FFFFFF" font-size="3" dominant-baseline="hanging" text-anchor="end">')
         date_str, time_str = self._format_datetime(station_direct_date)
-        text_elem.add(dwg.tspan("Stations Direct", x=[text_x], dy=['0em']))
-        text_elem.add(dwg.tspan(date_str, x=[text_x], dy=['1em']))
-        text_elem.add(dwg.tspan(time_str, x=[text_x], dy=['1em']))
-
-        clip_group.add(text_elem)
+        svg_content.append(f'      <tspan x="{text_x}" dy="0em">Stations Direct</tspan>')
+        svg_content.append(f'      <tspan x="{text_x}" dy="1em">{date_str}</tspan>')
+        svg_content.append(f'      <tspan x="{text_x}" dy="1em">{time_str}</tspan>')
+        svg_content.append('    </text>')
 
         # Add shadow period labels
         # Shadow start label
@@ -669,21 +627,12 @@ class PlanetaryPainter:
         text_x = shadow_start_x - 1
         text_y = shadow_start_y
 
-        text_elem = dwg.text(
-            text="",
-            insert=(text_x, text_y),
-            fill="#FFFFFF",
-            font_size="3",  # Adjusted for new scale
-            dominant_baseline="hanging",
-            text_anchor="end"
-        )
-
+        svg_content.append(f'    <text x="{text_x}" y="{text_y}" fill="#FFFFFF" font-size="3" dominant-baseline="hanging" text-anchor="end">')
         date_str, time_str = self._format_datetime(shadow_start_date)
-        text_elem.add(dwg.tspan("Shadow begins", x=[text_x], dy=['0em']))
-        text_elem.add(dwg.tspan(date_str, x=[text_x], dy=['1em']))
-        text_elem.add(dwg.tspan(time_str, x=[text_x], dy=['1em']))
-
-        clip_group.add(text_elem)
+        svg_content.append(f'      <tspan x="{text_x}" dy="0em">Shadow begins</tspan>')
+        svg_content.append(f'      <tspan x="{text_x}" dy="1em">{date_str}</tspan>')
+        svg_content.append(f'      <tspan x="{text_x}" dy="1em">{time_str}</tspan>')
+        svg_content.append('    </text>')
 
         # Shadow end label
         shadow_end_date = retrograde_period.post_shadow_end_date
@@ -696,20 +645,12 @@ class PlanetaryPainter:
         text_x = shadow_end_x + 1
         text_y = shadow_end_y
 
-        text_elem = dwg.text(
-            text="",
-            insert=(text_x, text_y),
-            fill="#FFFFFF",
-            font_size="3",  # Adjusted for new scale
-            dominant_baseline="hanging",
-        )
-
+        svg_content.append(f'    <text x="{text_x}" y="{text_y}" fill="#FFFFFF" font-size="3" dominant-baseline="hanging">')
         date_str, time_str = self._format_datetime(shadow_end_date)
-        text_elem.add(dwg.tspan("Shadow ends", x=[text_x], dy=['0em']))
-        text_elem.add(dwg.tspan(date_str, x=[text_x], dy=['1em']))
-        text_elem.add(dwg.tspan(time_str, x=[text_x], dy=['1em']))
-
-        clip_group.add(text_elem)
+        svg_content.append(f'      <tspan x="{text_x}" dy="0em">Shadow ends</tspan>')
+        svg_content.append(f'      <tspan x="{text_x}" dy="1em">{date_str}</tspan>')
+        svg_content.append(f'      <tspan x="{text_x}" dy="1em">{time_str}</tspan>')
+        svg_content.append('    </text>')
 
         # Sun aspect line from earth center to planet (solid yellow)
         # Get the exact planet position at sun aspect time
@@ -772,26 +713,10 @@ class PlanetaryPainter:
             dy_toward = planet_y + 5  # Default extension downward
 
         # Draw gradient extension toward Earth
-        clip_group.add(
-            dwg.line(
-                start=(planet_x, planet_y),
-                end=(dx_toward, dy_toward),
-                stroke='url(#sun-fade-down)',
-                stroke_width=0.5,  # Adjusted for new scale
-                opacity=1.0
-            )
-        )
+        svg_content.append(f'    <line x1="{planet_x}" y1="{planet_y}" x2="{dx_toward}" y2="{dy_toward}" stroke="url(#sun-fade-down)" stroke-width="0.5" opacity="1.0"/>')
 
         # Draw gradient extension away from Earth
-        clip_group.add(
-            dwg.line(
-                start=(planet_x, planet_y),
-                end=(dx_away, dy_away),
-                stroke='url(#sun-fade-up)',
-                stroke_width=0.5,  # Adjusted for new scale
-                opacity=1.0
-            )
-        )
+        svg_content.append(f'    <line x1="{planet_x}" y1="{planet_y}" x2="{dx_away}" y2="{dy_away}" stroke="url(#sun-fade-up)" stroke-width="0.5" opacity="1.0"/>')
 
         # Calculate zodiac wheel distance in viewbox coordinates - position it a short distance from top of viewbox
         # Instead of using astronomical distance, we'll set it as a fixed radius in viewbox coordinates
@@ -811,15 +736,7 @@ class PlanetaryPainter:
             wheel_y = earth_y + zodiac_radius * math.sin(sun_aspect_angle_rad)
 
             # Draw the solid line from sun to wheel
-            clip_group.add(
-                dwg.line(
-                    start=(sun_x, sun_y),
-                    end=(wheel_x, wheel_y),
-                    stroke='#FFD700',
-                    stroke_width=0.5,  # Adjusted for new scale
-                    opacity=1.0
-                )
-            )
+            svg_content.append(f'    <line x1="{sun_x}" y1="{sun_y}" x2="{wheel_x}" y2="{wheel_y}" stroke="#FFD700" stroke-width="0.5" opacity="1.0"/>')
 
             # Calculate points beyond the solid line endpoints for gradients
             # Vector from sun to wheel
@@ -862,26 +779,10 @@ class PlanetaryPainter:
                 sun_gradient = 'url(#sun-fade-down)'    # Fade gradient out from sun
 
             # Draw outward fade from wheel
-            clip_group.add(
-                dwg.line(
-                    start=(wheel_x, wheel_y),  # Start from wheel
-                    end=(ext_wheel_x, ext_wheel_y),  # Extend beyond wheel
-                    stroke=wheel_gradient,
-                    stroke_width=0.5,  # Adjusted for new scale
-                    opacity=1.0
-                )
-            )
+            svg_content.append(f'    <line x1="{wheel_x}" y1="{wheel_y}" x2="{ext_wheel_x}" y2="{ext_wheel_y}" stroke="{wheel_gradient}" stroke-width="0.5" opacity="1.0"/>')
 
             # Draw outward fade from sun
-            clip_group.add(
-                dwg.line(
-                    start=(sun_x, sun_y),  # Start from sun
-                    end=(ext_sun_x, ext_sun_y),  # Extend beyond sun
-                    stroke=sun_gradient,
-                    stroke_width=0.5,  # Adjusted for new scale
-                    opacity=1.0
-                )
-            )
+            svg_content.append(f'    <line x1="{sun_x}" y1="{sun_y}" x2="{ext_sun_x}" y2="{ext_sun_y}" stroke="{sun_gradient}" stroke-width="0.5" opacity="1.0"/>')
 
         # Add solar opposition spark for planets other than Mercury and Venus
         if planet not in [Planet.MERCURY, Planet.VENUS]:
@@ -916,25 +817,8 @@ class PlanetaryPainter:
                 dx_toward = wheel_x
                 dy_toward = wheel_y + 6  # Increased from 4 to 6 viewbox units
 
-            # Create gradient for solar opposition spark
-            opposition_gradient = dwg.defs.add(dwg.linearGradient(id='opposition-spark'))
-            opposition_gradient.add_stop_color(offset=0, color='#000000', opacity=0.95)  # Nearly opaque at start
-            opposition_gradient.add_stop_color(offset=1, color='#000000', opacity=0)
-            opposition_gradient['x1'] = '0%'
-            opposition_gradient['y1'] = '0%'
-            opposition_gradient['x2'] = '0%'
-            opposition_gradient['y2'] = '100%'
-
             # Draw gradient extension towards Earth
-            clip_group.add(
-                dwg.line(
-                    start=(wheel_x, wheel_y),
-                    end=(dx_toward, dy_toward),
-                    stroke='url(#opposition-spark)',
-                    stroke_width=0.75,  # Increased from 0.5 to 0.75
-                    opacity=0.95  # Nearly opaque
-                )
-            )
+            svg_content.append(f'    <line x1="{wheel_x}" y1="{wheel_y}" x2="{dx_toward}" y2="{dy_toward}" stroke="url(#opposition-spark)" stroke-width="0.75" opacity="0.95"/>')
 
         # Define zodiac signs and their starting longitudes
         zodiac_signs = {
@@ -960,32 +844,13 @@ class PlanetaryPainter:
             zodiac_color = "#A52A2A"
 
         # Draw zodiac circle centered at Earth's position
-        clip_group.add(
-            dwg.circle(
-                center=(earth_x, earth_y),
-                r=zodiac_radius,
-                stroke=zodiac_color,
-                stroke_width=0.5,
-                opacity=zodiac_opacity,
-                fill="none"
-            )
-        )
+        svg_content.append(f'    <circle cx="{earth_x}" cy="{earth_y}" r="{zodiac_radius}" stroke="{zodiac_color}" stroke-width="0.5" opacity="{zodiac_opacity}" fill="none"/>')
 
         # Draw 1AU circle for Mars
         if planet == Planet.MARS:
             # Calculate radius for 1AU in viewbox coordinates 
             earth_orbit_radius = self._normalize_distance(1.0) * scale
-            clip_group.add(
-                dwg.circle(
-                    center=(earth_x, earth_y),
-                    r=earth_orbit_radius,
-                    stroke=zodiac_color,  # Yellow
-                    stroke_width=0.5,
-                    #stroke_dasharray="1,1",  # Dashed line
-                    opacity=0.3,
-                    fill="none"
-                )
-            )
+            svg_content.append(f'    <circle cx="{earth_x}" cy="{earth_y}" r="{earth_orbit_radius}" stroke="{zodiac_color}" stroke-width="0.5" opacity="0.3" fill="none"/>')
 
         for ecliptic_degrees in range(0, 360, 1):
             # Calculate angle in radians relative to sun aspect
@@ -1009,15 +874,7 @@ class PlanetaryPainter:
             outer_y = earth_y + zodiac_radius * math.sin(angle_rad)
 
             # Draw tick mark
-            clip_group.add(
-                dwg.line(
-                    start=(inner_x, inner_y),
-                    end=(outer_x, outer_y),
-                    stroke=zodiac_color,
-                    stroke_width=0.5,
-                    opacity=zodiac_opacity
-                )
-            )
+            svg_content.append(f'    <line x1="{inner_x}" y1="{inner_y}" x2="{outer_x}" y2="{outer_y}" stroke="{zodiac_color}" stroke-width="0.5" opacity="{zodiac_opacity}"/>')
 
             # Add zodiac sign names at sign boundaries
             if ecliptic_degrees % 30 == 0 and ecliptic_degrees in zodiac_signs:
@@ -1037,36 +894,14 @@ class PlanetaryPainter:
                 text_angle = ecliptic_degrees - image_rotation + 180
                 
                 # Add text with rotation
-                clip_group.add(
-                    dwg.text(
-                        zodiac_signs[ecliptic_degrees],
-                        insert=(text_x, text_y),
-                        fill=zodiac_color,
-                        font_size="4",
-                        opacity=zodiac_opacity,
-                        transform=f"rotate({text_angle}, {text_x}, {text_y})",
-                        text_anchor="start",
-                        dominant_baseline="alphabetic"
-                    )
-                )
+                svg_content.append(f'    <text x="{text_x}" y="{text_y}" fill="{zodiac_color}" font-size="4" opacity="{zodiac_opacity}" transform="rotate({text_angle}, {text_x}, {text_y})" text-anchor="start" dominant-baseline="alphabetic">{zodiac_signs[ecliptic_degrees]}</text>')
 
                 # Previous sign text (slightly counterclockwise)
                 text_angle_rad = math.radians(ecliptic_degrees - text_angle_offset - image_rotation)
                 text_x = earth_x + text_radius * math.cos(text_angle_rad)
                 text_y = earth_y + text_radius * math.sin(text_angle_rad)
                 
-                clip_group.add(
-                    dwg.text(
-                        zodiac_signs[(ecliptic_degrees - 30) % 360],
-                        insert=(text_x, text_y),
-                        fill=zodiac_color,
-                        font_size="4",
-                        opacity=zodiac_opacity,
-                        transform=f"rotate({text_angle}, {text_x}, {text_y})",
-                        text_anchor="start",
-                        dominant_baseline="hanging"
-                    )
-                )
+                svg_content.append(f'    <text x="{text_x}" y="{text_y}" fill="{zodiac_color}" font-size="4" opacity="{zodiac_opacity}" transform="rotate({text_angle}, {text_x}, {text_y})" text-anchor="start" dominant-baseline="hanging">{zodiac_signs[(ecliptic_degrees - 30) % 360]}</text>')
 
         # Draw planet positions and path
         # Single pass for planet dots
@@ -1090,15 +925,7 @@ class PlanetaryPainter:
             # Draw dot based on period
             if not (shadow_start_jd <= jd <= shadow_end_jd):
                 # Pre/post period
-                clip_group.add(
-                    dwg.circle(
-                        center=(x, y),
-                        r=0.75,  # Adjusted for new scale
-                        fill="#FFFFFF",
-                        stroke="none",
-                        opacity=0.3,
-                    )
-                )
+                svg_content.append(f'    <circle cx="{x}" cy="{y}" r="0.75" fill="#FFFFFF" stroke="none" opacity="0.3"/>')
             else:
                 # Inside shadow period
                 if (
@@ -1107,43 +934,17 @@ class PlanetaryPainter:
                     + 2440587.5
                 ):
                     # Pre-shadow period
-                    clip_group.add(
-                        dwg.circle(
-                            center=(x, y),
-                            r=0.75,  # Adjusted for new scale
-                            fill="#00DDDD",  # Cyan (bright, high contrast)
-                            stroke="#FFFFFF",
-                            stroke_width=0.15,  # Adjusted for new scale
-                            opacity=0.9,
-                        )
-                    )
+                    svg_content.append(f'    <circle cx="{x}" cy="{y}" r="0.75" fill="#00DDDD" stroke="#FFFFFF" stroke-width="0.15" opacity="0.9"/>')
                 elif (
                     jd
                     >= retrograde_period.station_direct_date.timestamp() / 86400
                     + 2440587.5
                 ):
                     # Post-shadow period
-                    clip_group.add(
-                        dwg.circle(
-                            center=(x, y),
-                            r=0.75,  # Adjusted for new scale
-                            fill="#3399FF",  # Bright blue (high contrast)
-                            stroke="#FFFFFF",
-                            stroke_width=0.15,  # Adjusted for new scale
-                            opacity=0.9,
-                        )
-                    )
+                    svg_content.append(f'    <circle cx="{x}" cy="{y}" r="0.75" fill="#3399FF" stroke="#FFFFFF" stroke-width="0.15" opacity="0.9"/>')
                 else:
                     # Main retrograde period
-                    clip_group.add(
-                        dwg.circle(
-                            center=(x, y),
-                            r=0.75,  # Adjusted for new scale
-                            fill="#FFFFFF",
-                            stroke="none",
-                            opacity=0.8,
-                        )
-                    )
+                    svg_content.append(f'    <circle cx="{x}" cy="{y}" r="0.75" fill="#FFFFFF" stroke="none" opacity="0.8"/>')
 
         # Draw Sun positions
         if planet.name.lower() in ["venus", "mercury"]:
@@ -1165,83 +966,45 @@ class PlanetaryPainter:
                 ))
 
                 # Draw Sun dot
-                clip_group.add(
-                    dwg.circle(
-                        center=(x, y), r=1.0, fill="#FFD700", stroke="none", opacity=0.6  # Adjusted for new scale
-                    )
-                )
+                svg_content.append(f'    <circle cx="{x}" cy="{y}" r="1.0" fill="#FFD700" stroke="none" opacity="0.6"/>')
 
-        # Add the clipped group to the drawing
-        dwg.add(clip_group)
+        # Close clipped group
+        svg_content.append('  </g>')
 
-        # Now add the text labels on top of everything
+        # Add the text labels on top of everything
         # Station retrograde label
-        text_elem = dwg.text(
-            text="",
-            insert=(station_retrograde_x + 2, station_retrograde_y),
-            fill="#FFFFFF",
-            font_size="3",  # Adjusted for new scale
-            dominant_baseline="hanging"
-        )
-
+        svg_content.append(f'  <text x="{station_retrograde_x + 2}" y="{station_retrograde_y}" fill="#FFFFFF" font-size="3" dominant-baseline="hanging">')
         date_str, time_str = self._format_datetime(station_retrograde_date)
-        text_elem.add(dwg.tspan("Stations Retrograde", x=[station_retrograde_x + 2], dy=['0em']))
-        text_elem.add(dwg.tspan(date_str, x=[station_retrograde_x + 2], dy=['1em']))
-        text_elem.add(dwg.tspan(time_str, x=[station_retrograde_x + 2], dy=['1em']))
-
-        dwg.add(text_elem)
+        svg_content.append(f'    <tspan x="{station_retrograde_x + 2}" dy="0em">Stations Retrograde</tspan>')
+        svg_content.append(f'    <tspan x="{station_retrograde_x + 2}" dy="1em">{date_str}</tspan>')
+        svg_content.append(f'    <tspan x="{station_retrograde_x + 2}" dy="1em">{time_str}</tspan>')
+        svg_content.append('  </text>')
 
         # Station direct label
-        text_elem = dwg.text(
-            text="",
-            insert=(station_direct_x - 2, station_direct_y),
-            fill="#FFFFFF",
-            font_size="3",  # Adjusted for new scale
-            dominant_baseline="hanging",
-            text_anchor="end"
-        )
-
+        svg_content.append(f'  <text x="{station_direct_x - 2}" y="{station_direct_y}" fill="#FFFFFF" font-size="3" dominant-baseline="hanging" text-anchor="end">')
         date_str, time_str = self._format_datetime(station_direct_date)
-        text_elem.add(dwg.tspan("Stations Direct", x=[station_direct_x - 2], dy=['0em']))
-        text_elem.add(dwg.tspan(date_str, x=[station_direct_x - 2], dy=['1em']))
-        text_elem.add(dwg.tspan(time_str, x=[station_direct_x - 2], dy=['1em']))
-
-        dwg.add(text_elem)
+        svg_content.append(f'    <tspan x="{station_direct_x - 2}" dy="0em">Stations Direct</tspan>')
+        svg_content.append(f'    <tspan x="{station_direct_x - 2}" dy="1em">{date_str}</tspan>')
+        svg_content.append(f'    <tspan x="{station_direct_x - 2}" dy="1em">{time_str}</tspan>')
+        svg_content.append('  </text>')
 
         # Shadow start label
-        text_elem = dwg.text(
-            text="",
-            insert=(shadow_start_x - 1, shadow_start_y),
-            fill="#FFFFFF",
-            font_size="3",  # Adjusted for new scale
-            dominant_baseline="hanging",
-            text_anchor="end"
-        )
-
+        svg_content.append(f'  <text x="{shadow_start_x - 1}" y="{shadow_start_y}" fill="#FFFFFF" font-size="3" dominant-baseline="hanging" text-anchor="end">')
         date_str, time_str = self._format_datetime(shadow_start_date)
-        text_elem.add(dwg.tspan("Shadow begins", x=[shadow_start_x - 1], dy=['0em']))
-        text_elem.add(dwg.tspan(date_str, x=[shadow_start_x - 1], dy=['1em']))
-        text_elem.add(dwg.tspan(time_str, x=[shadow_start_x - 1], dy=['1em']))
-
-        dwg.add(text_elem)
+        svg_content.append(f'    <tspan x="{shadow_start_x - 1}" dy="0em">Shadow begins</tspan>')
+        svg_content.append(f'    <tspan x="{shadow_start_x - 1}" dy="1em">{date_str}</tspan>')
+        svg_content.append(f'    <tspan x="{shadow_start_x - 1}" dy="1em">{time_str}</tspan>')
+        svg_content.append('  </text>')
 
         # Shadow end label
-        text_elem = dwg.text(
-            text="",
-            insert=(shadow_end_x + 1, shadow_end_y),
-            fill="#FFFFFF",
-            font_size="3",  # Adjusted for new scale
-            dominant_baseline="hanging",
-        )
-
+        svg_content.append(f'  <text x="{shadow_end_x + 1}" y="{shadow_end_y}" fill="#FFFFFF" font-size="3" dominant-baseline="hanging">')
         date_str, time_str = self._format_datetime(shadow_end_date)
-        text_elem.add(dwg.tspan("Shadow ends", x=[shadow_end_x + 1], dy=['0em']))
-        text_elem.add(dwg.tspan(date_str, x=[shadow_end_x + 1], dy=['1em']))
-        text_elem.add(dwg.tspan(time_str, x=[shadow_end_x + 1], dy=['1em']))
+        svg_content.append(f'    <tspan x="{shadow_end_x + 1}" dy="0em">Shadow ends</tspan>')
+        svg_content.append(f'    <tspan x="{shadow_end_x + 1}" dy="1em">{date_str}</tspan>')
+        svg_content.append(f'    <tspan x="{shadow_end_x + 1}" dy="1em">{time_str}</tspan>')
+        svg_content.append('  </text>')
 
-        dwg.add(text_elem)
-
-        # Add date labels for key points (outside the clip path so they're always visible)
+        # Add date labels for key points
         key_dates = [
             (retrograde_period.station_retrograde_date, "Station Retrograde"),
             (retrograde_period.station_direct_date, "Station Direct"),
@@ -1259,15 +1022,11 @@ class PlanetaryPainter:
                     longitude, distance, image_rotation
                 ))
                 date_str, time_str = self._format_datetime(date)
-                dwg.add(
-                    dwg.text(
-                        f"{label}\n{date_str}\n{time_str}",
-                        insert=(x + 4, y),  # Adjusted for new scale
-                        fill="#666666",
-                        font_size="3",  # Adjusted for new scale
-                        font_family="Helvetica, Arial, sans-serif"
-                    )
-                )
+                svg_content.append(f'  <text x="{x + 4}" y="{y}" fill="#666666" font-size="3" font-family="Helvetica, Arial, sans-serif">')
+                svg_content.append(f'    <tspan x="{x + 4}" dy="0em">{label}</tspan>')
+                svg_content.append(f'    <tspan x="{x + 4}" dy="1em">{date_str}</tspan>')
+                svg_content.append(f'    <tspan x="{x + 4}" dy="1em">{time_str}</tspan>')
+                svg_content.append('  </text>')
 
         # Determine the zodiac signs where the retrograde occurs
         # Get the zodiac sign for station retrograde and direct points
@@ -1322,18 +1081,11 @@ class PlanetaryPainter:
         # Calculate center for text alignment
         center_x = viewbox_width / 2
         
-        # Position the text near the bottom of the rectangle
-        # The bottom of the rectangle is at viewbox_height - 5 = 105
-        bottom_y = viewbox_height - 12  # 7 units from the bottom edge of the rectangle
-        
-        # Calculate total height of text block (4 lines with 1.5em spacing = ~7.5em total)
-        text_block_height = 7.5
-        
-        # Calculate exact positions relative to the rounded rectangle
+        # Calculate positions for bottom text information
         rectangle_bottom = viewbox_height - 5  # Bottom edge of the rounded rectangle
         bottom_padding = 0.5  # Fixed padding from the bottom edge
         
-        # Calculate line heights and spacing
+        # Calculate line heights
         cazimi_line_height = 2.5  # Font size of cazimi text
         heading_line_height = 4.5  # Font size of heading
         subheading_line_height = 3.5  # Font size of subheading
@@ -1347,33 +1099,34 @@ class PlanetaryPainter:
         # Calculate total text block height
         total_height = cazimi_line_height + heading_line_height + subheading_line_height + url_line_height + first_spacing + second_spacing + third_spacing
         
-        # Calculate the y position for the first line so that the bottom of the text block
-        # is exactly at rectangle_bottom - bottom_padding
+        # Calculate the y position for the first line
         first_line_y = rectangle_bottom - bottom_padding - total_height
         
-        # Create text element for the bottom information
-        bottom_text = dwg.text("", insert=(center_x, first_line_y), fill="#FFFFFF", font_size="3", text_anchor="middle")
-        
+        # Add bottom text elements
         # First line - Cazimi/Opposition info (smaller)
-        bottom_text.add(dwg.tspan(f"{aspect_label} {aspect_date} {aspect_time}", 
-                                 x=[center_x], dy=['0em'], font_size="2.5"))
+        svg_content.append(f'  <text x="{center_x}" y="{first_line_y}" fill="#FFFFFF" font-size="{cazimi_line_height}" text-anchor="middle">')
+        svg_content.append(f'    <tspan x="{center_x}" dy="0em">{aspect_label} {aspect_date} {aspect_time}</tspan>')
+        svg_content.append('  </text>')
         
         # Second line - Planet Retrograde heading (larger)
-        bottom_text.add(dwg.tspan(f"{planet.name.capitalize()} Retrograde in {station_retro_sign}" + 
-                                 (f" & {station_direct_sign}" if station_retro_sign != station_direct_sign else ""), 
-                                 x=[center_x], dy=[f'{first_spacing}em'], font_size=f"{heading_line_height}", font_weight="bold"))
+        heading_y = first_line_y + cazimi_line_height + first_spacing
+        sign_text = f"{station_retro_sign}" + (f" &amp; {station_direct_sign}" if station_retro_sign != station_direct_sign else "")
+        svg_content.append(f'  <text x="{center_x}" y="{heading_y}" fill="#FFFFFF" font-size="{heading_line_height}" font-weight="bold" text-anchor="middle">')
+        svg_content.append(f'    <tspan x="{center_x}" dy="0em">{planet.name.capitalize()} Retrograde in {sign_text}</tspan>')
+        svg_content.append('  </text>')
         
         # Third line - Month-year subheading
-        bottom_text.add(dwg.tspan(month_range, x=[center_x], dy=['1.5em'], font_size=f"{subheading_line_height}"))
+        subheading_y = heading_y + heading_line_height + second_spacing
+        svg_content.append(f'  <text x="{center_x}" y="{subheading_y}" fill="#FFFFFF" font-size="{subheading_line_height}" text-anchor="middle">')
+        svg_content.append(f'    <tspan x="{center_x}" dy="0em">{month_range}</tspan>')
+        svg_content.append('  </text>')
         
         # Fourth line - retrograde.observer (blue, like a hyperlink, fixed width font)
-        url_text = dwg.tspan("retrograde.observer", x=[center_x], dy=[f'{third_spacing}em'], font_size="2.5", font_family="monospace", font_weight="bold")
-        url_text['fill'] = "#5599FF"  # Blue color
-        url_text['style'] = "text-shadow: 1px 1px 2px #000000;"  # Add drop shadow
-        bottom_text.add(url_text)
-        
-        # Add the text to the drawing
-        dwg.add(bottom_text)
+        url_y = subheading_y + subheading_line_height + third_spacing
+        svg_content.append(f'  <text x="{center_x}" y="{url_y}" fill="#5599FF" font-size="{url_line_height}" font-family="monospace" font-weight="bold" text-anchor="middle" style="text-shadow: 1px 1px 2px #000000;">')
+        svg_content.append(f'    <tspan x="{center_x}" dy="0em">retrograde.observer</tspan>')
+        svg_content.append('  </text>')
 
-        # Save the SVG
-        dwg.save()
+        # Write the SVG file
+        with open(output_path, 'w') as f:
+            f.write(self._generate_svg_xml('\n'.join(svg_content)))

@@ -64,8 +64,8 @@ def main():
         # Filter for dates from 2020 onwards
         df['date'] = df['sun_aspect_date'].apply(clean_date)
         df['year'] = pd.to_datetime(df['date']).dt.year
-        df = df[df['year'] >= 2000]
-        df = df[df['year'] <= 2050]
+        df = df[df['year'] >= 2023]
+        df = df[df['year'] <= 2027]
         
         # Reverse the order
         if False:
