@@ -735,54 +735,36 @@ class PlanetaryPainter:
             wheel_x = earth_x + zodiac_radius * math.cos(sun_aspect_angle_rad)
             wheel_y = earth_y + zodiac_radius * math.sin(sun_aspect_angle_rad)
 
-            # Draw the solid line from sun to wheel
-            svg_content.append(f'    <line x1="{sun_x}" y1="{sun_y}" x2="{wheel_x}" y2="{wheel_y}" stroke="#FFD700" stroke-width="0.5" opacity="1.0"/>')
-
-            # Calculate points beyond the solid line endpoints for gradients
-            # Vector from sun to wheel
-            vec_x = wheel_x - sun_x
-            vec_y = wheel_y - sun_y
+            # Instead of a continuous line, create separate "sparks" at the zodiac and sun
             
-            # Normalize vector
-            length = math.sqrt(vec_x**2 + vec_y**2)
-            norm_vec_x = vec_x / length
-            norm_vec_y = vec_y / length
+            # Create spark at the zodiac wheel point
+            spark_length = 10  # Length of the spark in viewbox units
             
-            # Add a 1% clockwise rotation to the normalized vector
-            theta = math.radians(1)  # 1 degree clockwise
-            rotated_norm_x = norm_vec_x * math.cos(theta) + norm_vec_y * math.sin(theta)
-            rotated_norm_y = -norm_vec_x * math.sin(theta) + norm_vec_y * math.cos(theta)
+            # Apply a small 1% rotation to ensure bounding box has nonzero width
+            theta = math.radians(1)  # 1 degree rotation
+            # Calculate rotated offsets for vertical lines
+            dx = spark_length/2 * math.sin(theta)  # Small x offset from rotation
+            dy = spark_length/2 * math.cos(theta)  # Slightly less than spark_length/2 due to rotation
             
-            # Calculate extension distance (20% of the line length)
-            ext_distance = length * 0.2
+            # Calculate up and down points from the wheel position with rotation
+            wheel_up_x = wheel_x - dx
+            wheel_up_y = wheel_y - dy
+            wheel_down_x = wheel_x + dx
+            wheel_down_y = wheel_y + dy
             
-            # Calculate extended points beyond the wheel
-            ext_wheel_x = wheel_x + rotated_norm_x * ext_distance
-            ext_wheel_y = wheel_y + rotated_norm_y * ext_distance
+            # Draw up-and-down gradient spark at the zodiac wheel
+            svg_content.append(f'    <line x1="{wheel_up_x}" y1="{wheel_up_y}" x2="{wheel_x}" y2="{wheel_y}" stroke="url(#sun-fade-up)" stroke-width="0.5" opacity="1.0"/>')
+            svg_content.append(f'    <line x1="{wheel_x}" y1="{wheel_y}" x2="{wheel_down_x}" y2="{wheel_down_y}" stroke="url(#sun-fade-down)" stroke-width="0.5" opacity="1.0"/>')
             
-            # Calculate extended points beyond the sun (in opposite direction)
-            ext_sun_x = sun_x - rotated_norm_x * ext_distance
-            ext_sun_y = sun_y - rotated_norm_y * ext_distance
-
-            # Choose gradient directions based on relative positions
-            # Calculate distances from Earth to wheel and from Earth to Sun
-            wheel_distance_from_earth = math.sqrt((wheel_x - earth_x)**2 + (wheel_y - earth_y)**2)
-            sun_distance_from_earth = math.sqrt((sun_x - earth_x)**2 + (sun_y - earth_y)**2)
+            # Create spark at the sun position with the same rotation
+            sun_up_x = sun_x - dx
+            sun_up_y = sun_y - dy
+            sun_down_x = sun_x + dx
+            sun_down_y = sun_y + dy
             
-            # If wheel is inside Sun orbit (wheel is closer to Earth than Sun)
-            if wheel_distance_from_earth < sun_distance_from_earth:
-                wheel_gradient = 'url(#sun-fade-down)'  # Fade gradient out from wheel
-                sun_gradient = 'url(#sun-fade-up)'      # Fade gradient in towards sun
-            else:
-                # Default case: wheel is outside Sun orbit
-                wheel_gradient = 'url(#sun-fade-up)'    # Fade gradient in towards wheel
-                sun_gradient = 'url(#sun-fade-down)'    # Fade gradient out from sun
-
-            # Draw outward fade from wheel
-            svg_content.append(f'    <line x1="{wheel_x}" y1="{wheel_y}" x2="{ext_wheel_x}" y2="{ext_wheel_y}" stroke="{wheel_gradient}" stroke-width="0.5" opacity="1.0"/>')
-
-            # Draw outward fade from sun
-            svg_content.append(f'    <line x1="{sun_x}" y1="{sun_y}" x2="{ext_sun_x}" y2="{ext_sun_y}" stroke="{sun_gradient}" stroke-width="0.5" opacity="1.0"/>')
+            # Draw up-and-down gradient spark at the sun
+            svg_content.append(f'    <line x1="{sun_up_x}" y1="{sun_up_y}" x2="{sun_x}" y2="{sun_y}" stroke="url(#sun-fade-up)" stroke-width="0.5" opacity="1.0"/>')
+            svg_content.append(f'    <line x1="{sun_x}" y1="{sun_y}" x2="{sun_down_x}" y2="{sun_down_y}" stroke="url(#sun-fade-down)" stroke-width="0.5" opacity="1.0"/>')
 
         # Add solar opposition spark for planets other than Mercury and Venus
         if planet not in [Planet.MERCURY, Planet.VENUS]:
