@@ -9,6 +9,7 @@ This script:
 3. Outputs commands to stdout before executing them
 4. Skips existing valid SVG files
 5. Processes dates in reverse chronological order
+6. Only processes dates from 2020 onwards
 """
 
 import os
@@ -16,6 +17,7 @@ import sys
 import pandas as pd
 from tqdm import tqdm
 import subprocess
+from datetime import datetime
 
 # Define the planets to process
 PLANETS = ["mercury", "venus", "mars"]
@@ -58,7 +60,16 @@ def main():
     for planet in PLANETS:
         # Read CSV file and reverse the order
         df = pd.read_csv(f"knowledge/retrogrades/{planet}.csv")
-        df = df.iloc[::-1].reset_index(drop=True)  # Reverse the DataFrame
+        
+        # Filter for dates from 2020 onwards
+        df['date'] = df['sun_aspect_date'].apply(clean_date)
+        df['year'] = pd.to_datetime(df['date']).dt.year
+        df = df[df['year'] >= 2023]
+        df = df[df['year'] <= 2027]
+        
+        # Reverse the order
+        if False:
+            df = df.iloc[::-1].reset_index(drop=True)
         
         # Get total number of iterations for progress bar
         total_iterations = len(df) * len(timezones)

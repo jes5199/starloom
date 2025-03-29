@@ -2,6 +2,8 @@
 """
 Script to convert all SVG files in data/retrograde_svgs to PNG format.
 Skips conversion if a newer PNG already exists.
+Uses Inkscape for high-quality conversion with proper drop shadow support.
+Preserves transparency from the original SVGs.
 """
 
 import os
@@ -14,21 +16,52 @@ def get_file_timestamp(filepath):
     """Get the modification timestamp of a file."""
     return os.path.getmtime(filepath)
 
-def should_convert(svg_path, png_path):
-    """Check if we should convert the SVG to PNG."""
+def should_convert(svg_path, png_path, script_path):
+    """Check if we should convert the SVG to PNG.
+    
+    Args:
+        svg_path: Path to the SVG file
+        png_path: Path to the PNG file
+        script_path: Path to this conversion script
+    
+    Returns:
+        bool: True if conversion is needed, False otherwise
+    """
+    # Always convert if PNG doesn't exist
     if not png_path.exists():
         return True
     
+    # Get timestamps
     svg_time = get_file_timestamp(svg_path)
     png_time = get_file_timestamp(png_path)
+    script_time = get_file_timestamp(script_path)
     
-    return svg_time > png_time
+    # Convert if:
+    # 1. SVG is newer than PNG, or
+    # 2. This script is newer than the PNG
+    return svg_time > png_time or script_time > png_time
 
 def convert_svg_to_png(svg_path, png_path):
-    """Convert an SVG file to PNG using rsvg-convert."""
+    """Convert an SVG file to PNG using Inkscape with high DPI for retina displays.
+    Preserves transparency from the original SVG.
+    
+    Args:
+        svg_path: Path to input SVG file
+        png_path: Path to output PNG file
+    """
     try:
+        # Use Inkscape with high DPI for retina displays
+        # --export-type=png ensures proper PNG export with transparency
+        # --export-dpi=192 sets 2x resolution for retina displays
+        # No background opacity specified to preserve transparency
         subprocess.run(
-            ["rsvg-convert", "-f", "png", "-o", str(png_path), str(svg_path)],
+            [
+                "inkscape",
+                "--export-type=png",
+                "--export-dpi=192",
+                "--export-filename=" + str(png_path),
+                str(svg_path)
+            ],
             check=True,
             capture_output=True,
             text=True
@@ -36,10 +69,16 @@ def convert_svg_to_png(svg_path, png_path):
     except subprocess.CalledProcessError as e:
         print(f"Error converting {svg_path}: {e.stderr}", file=sys.stderr)
         return False
+    except FileNotFoundError:
+        print("Error: Inkscape not found. Please install Inkscape to use this script.", file=sys.stderr)
+        return False
     return True
 
 def main():
     """Main entry point for the script."""
+    # Get the path to this script
+    script_path = Path(__file__).resolve()
+    
     base_dir = Path("data/retrograde_svgs")
     
     # Find all SVG files
@@ -56,7 +95,7 @@ def main():
             png_path = svg_path.with_suffix('.png')
             
             # Check if conversion is needed
-            if should_convert(svg_path, png_path):
+            if should_convert(svg_path, png_path, script_path):
                 if convert_svg_to_png(svg_path, png_path):
                     pbar.set_postfix({"Converting": svg_path.name})
                 else:
