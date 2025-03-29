@@ -24,8 +24,13 @@ def read_timezones():
         return [line.strip() for line in f if line.strip()]
 
 def get_timezone_abbr(timezone):
-    """Extract timezone abbreviation from timezone string"""
-    return timezone.split("/")[-1].replace("_", "")
+    """Get city name from timezone"""
+    return timezone.split('/')[-1].replace('_', '')
+
+def clean_date(date_str):
+    """Clean date string to just YYYY-MM-DD format"""
+    # Split on space and take first part to get just the date
+    return date_str.split()[0]
 
 def main():
     """Main entry point for the script."""
@@ -47,7 +52,7 @@ def main():
         with tqdm(total=total_iterations, desc=f"Processing {planet}") as pbar:
             # Process each date
             for _, row in df.iterrows():
-                date = row['sun_aspect_date']
+                date = clean_date(row['sun_aspect_date'])
                 
                 # Process each timezone
                 for timezone in timezones:
@@ -62,8 +67,6 @@ def main():
                         planet,
                         "--date",
                         f"{date}T20:00:00",
-                        "--open",
-                        "chrome",
                         "--timezone",
                         timezone,
                         "--output",

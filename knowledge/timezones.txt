@@ -7,7 +7,6 @@ Pacific/Honolulu
 America/Phoenix
 America/St_Johns
 Europe/London
-Europe/Dublin
 Australia/Sydney
 Australia/Brisbane
 Australia/Adelaide
