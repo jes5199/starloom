@@ -100,7 +100,7 @@ class PlanetaryPainter:
                 time_str = local_dt.strftime("%H:%M UTC")
             else:
                 # Non-UTC uses 12-hour format with AM/PM and no leading zeros
-                time_str = local_dt.strftime("%-I:%M %p %Z")
+                time_str = local_dt.strftime("%-I:%M%p %Z").lower().replace("am", "am").replace("pm", "pm")
             
             return date_str, time_str
         except Exception:
