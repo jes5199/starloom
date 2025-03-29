@@ -662,3 +662,15 @@ Update the SVG to PNG conversion script to use `svgexport` (Node.js) instead of 
 - Using scale factor 4x for high resolution (equivalent to 384 DPI with 2x zoom)
 - Added more detailed installation instructions in error message
 - Benefit: Better CSS support and rendering through Chrome's engine
+
+# PlanetaryPainter KeyError Fix
+
+## Task
+Fix KeyError issues in PlanetaryPainter when accessing station_positions dictionary with exact timestamps
+
+## Approach
+[X] Created a helper method `_get_closest_position` to find the closest position when exact matches aren't found
+[X] Modified the code to use this helper method when looking up station positions
+[X] Added proper tolerance handling to avoid errors when closest position is too far from target
+
+The KeyErrors were occurring due to floating-point precision issues when converting between timestamp and Julian date formats. The new helper method first tries to get an exact match, and if that fails, it finds the closest date within the specified tolerance.

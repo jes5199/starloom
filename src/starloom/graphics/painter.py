@@ -155,6 +155,36 @@ class PlanetaryPainter:
         plot_radius = min(self.plot_width, self.plot_height) / 2
         return min(distance / max_distance, 1.0) * plot_radius * 0.9
 
+    def _get_closest_position(self, positions: dict, target_jd: float, tolerance: float = 0.001) -> dict:
+        """Get position data for the closest Julian date in the dictionary.
+        
+        Args:
+            positions: Dictionary mapping Julian dates to position data
+            target_jd: Target Julian date to find
+            tolerance: Maximum difference allowed between target and closest date
+            
+        Returns:
+            Position data for the closest Julian date
+            
+        Raises:
+            KeyError: If no date is within tolerance of the target
+        """
+        # Try exact match first
+        try:
+            return positions[target_jd]
+        except KeyError:
+            # Find closest key
+            if not positions:
+                raise KeyError(f"No positions available for JD {target_jd}")
+            
+            closest_jd = min(positions.keys(), key=lambda jd: abs(jd - target_jd))
+            
+            # Check if the closest is within tolerance
+            if abs(closest_jd - target_jd) <= tolerance:
+                return positions[closest_jd]
+            
+            raise KeyError(f"No position within {tolerance} days of JD {target_jd}. Closest is {abs(closest_jd - target_jd):.6f} days away.")
+
     def draw_planet_positions(
         self,
         positions: dict[float, dict[str, float]],
@@ -397,7 +427,7 @@ class PlanetaryPainter:
         )[sun_aspect_jd]
         
         sun_aspect_longitude = sun_aspect_position.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-        sun_aspect_distance = 1.0  # Sun is at 1 AU from Earth
+        sun_aspect_distance = sun_aspect_position.get(Quantity.DELTA, 0.0)  # Sun is at approx 1 AU from Earth but it moves
         
         sun_aspect_x, sun_aspect_y = self._normalize_coordinates(
             sun_aspect_longitude, 0, image_rotation
@@ -427,16 +457,22 @@ class PlanetaryPainter:
         shadow_min_distance = min(shadow_positions.values(), key=lambda x: x[Quantity.DELTA])[Quantity.DELTA]
         shadow_average_distance = sum(x[Quantity.DELTA] for x in shadow_positions.values()) / len(shadow_positions)
 
+        station_jd_retrograde = retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5
+        station_jd_direct = retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5
+        
         station_positions = planet_ephemeris.get_planet_positions(
             planet.name,
-            TimeSpec.from_dates([retrograde_period.station_retrograde_date, retrograde_period.station_direct_date])
+            TimeSpec.from_dates([station_jd_retrograde, station_jd_direct])
         )
 
-        station_retrograde_longitude = station_positions[retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5].get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-        station_direct_longitude = station_positions[retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5].get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-        station_retrograde_distance = station_positions[retrograde_period.station_retrograde_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0)
-        station_direct_distance = station_positions[retrograde_period.station_direct_date.timestamp() / 86400 + 2440587.5].get(Quantity.DELTA, 0.0)
-
+        # Use helper method to get closest positions
+        station_retrograde_position = self._get_closest_position(station_positions, station_jd_retrograde)
+        station_direct_position = self._get_closest_position(station_positions, station_jd_direct)
+        
+        station_retrograde_longitude = station_retrograde_position.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+        station_direct_longitude = station_direct_position.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+        station_retrograde_distance = station_retrograde_position.get(Quantity.DELTA, 0.0)
+        station_direct_distance = station_direct_position.get(Quantity.DELTA, 0.0)
 
         # Track min/max coordinates for viewbox calculation
         min_x = float("inf")

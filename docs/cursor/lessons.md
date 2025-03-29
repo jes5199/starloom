@@ -1400,3 +1400,8 @@ When testing HTTP requests in HorizonsRequest:
    - Cache hits preventing the actual request from being made
    - Tests passing locally but failing in CI due to different cache states
    - Missing mock for cache-related methods causing sporadic test failures
+
+## Floating-point precision issues with dictionary keys
+- When using floating-point numbers as dictionary keys (such as Julian dates), precision issues can lead to KeyErrors
+- Solution: Create helper methods that can find "closest" keys within a specified tolerance
+- Example: Created `_get_closest_position` in PlanetaryPainter to handle slightly different Julian date values
