@@ -845,25 +845,9 @@ class PlanetaryPainter:
             wheel_x = earth_x + zodiac_radius * math.cos(sun_aspect_angle_rad)
             wheel_y = earth_y + zodiac_radius * math.sin(sun_aspect_angle_rad)
 
-            # Get the planet position at sun aspect time
-            sun_aspect_planet_position = planet_ephemeris.get_planet_positions(
-                planet.name,
-                TimeSpec.from_dates([sun_aspect_jd])
-            )[sun_aspect_jd]
-            
-            planet_longitude = sun_aspect_planet_position.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
-            planet_distance = sun_aspect_planet_position.get(Quantity.DELTA, 0.0)
-            
-            # Transform planet coordinates
-            planet_x, planet_y = transform_coordinates(*self._normalize_coordinates(
-                planet_longitude,
-                planet_distance,
-                image_rotation
-            ))
-
-            # Create vector from wheel to planet
-            vector_x = planet_x - wheel_x
-            vector_y = planet_y - wheel_y
+            # Create vector from wheel to Earth center
+            vector_x = earth_x - wheel_x
+            vector_y = earth_y - wheel_y
             
             # Normalize the vector
             vector_length = math.sqrt(vector_x**2 + vector_y**2)
@@ -871,57 +855,39 @@ class PlanetaryPainter:
                 norm_x = vector_x / vector_length
                 norm_y = vector_y / vector_length
                 
-                # Calculate extension points for gradient
-                extension_length = 5  # Fixed extension in viewbox coordinates
+                # Calculate extension points for gradient (longer extension)
+                extension_length = 6  # Increased from 4 to 6 viewbox units
                 
                 # Add a 1% clockwise rotation to the normalized vector
                 theta = math.radians(1)  # 1 degree clockwise
                 rotated_norm_x = norm_x * math.cos(theta) + norm_y * math.sin(theta)
                 rotated_norm_y = -norm_x * math.sin(theta) + norm_y * math.cos(theta)
                 
-                # Calculate points for the gradient extensions
-                # Extension beyond planet (away from wheel)
-                dx_away = planet_x + rotated_norm_x * extension_length
-                dy_away = planet_y + rotated_norm_y * extension_length
-                
-                # Extension toward wheel
-                dx_toward = planet_x - rotated_norm_x * extension_length
-                dy_toward = planet_y - rotated_norm_y * extension_length
+                # Calculate point for the gradient extension towards Earth
+                dx_toward = wheel_x + rotated_norm_x * extension_length
+                dy_toward = wheel_y + rotated_norm_y * extension_length
             else:
                 # Fallback if vector has zero length
-                dx_away = planet_x
-                dy_away = planet_y - 5  # Default extension upward
-                dx_toward = planet_x
-                dy_toward = planet_y + 5  # Default extension downward
+                dx_toward = wheel_x
+                dy_toward = wheel_y + 6  # Increased from 4 to 6 viewbox units
 
             # Create gradient for solar opposition spark
             opposition_gradient = dwg.defs.add(dwg.linearGradient(id='opposition-spark'))
-            opposition_gradient.add_stop_color(offset=0, color='#000000', opacity=0.8)
+            opposition_gradient.add_stop_color(offset=0, color='#000000', opacity=0.95)  # Nearly opaque at start
             opposition_gradient.add_stop_color(offset=1, color='#000000', opacity=0)
             opposition_gradient['x1'] = '0%'
             opposition_gradient['y1'] = '0%'
             opposition_gradient['x2'] = '0%'
             opposition_gradient['y2'] = '100%'
 
-            # Draw gradient extension toward planet
+            # Draw gradient extension towards Earth
             clip_group.add(
                 dwg.line(
                     start=(wheel_x, wheel_y),
                     end=(dx_toward, dy_toward),
                     stroke='url(#opposition-spark)',
-                    stroke_width=0.5,  # Adjusted for new scale
-                    opacity=0.8
-                )
-            )
-
-            # Draw gradient extension away from planet
-            clip_group.add(
-                dwg.line(
-                    start=(wheel_x, wheel_y),
-                    end=(dx_away, dy_away),
-                    stroke='url(#opposition-spark)',
-                    stroke_width=0.5,  # Adjusted for new scale
-                    opacity=0.8
+                    stroke_width=0.75,  # Increased from 0.5 to 0.75
+                    opacity=0.95  # Nearly opaque
                 )
             )
 
