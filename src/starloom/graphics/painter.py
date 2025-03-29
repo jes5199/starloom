@@ -56,6 +56,7 @@ class PlanetaryPainter:
         margin: int = 50,
         planet_color: str = "#FFFFFF",  # White
         background_color: str = None,  # Will be set based on planet
+        display_timezone: str = "UTC",  # Timezone for displaying dates and times
     ):
         """Initialize the painter.
 
@@ -65,14 +66,34 @@ class PlanetaryPainter:
             margin: Margin around the plot in pixels
             planet_color: Color for the planet dots
             background_color: Background color of the canvas (if None, will use planet-specific color)
+            display_timezone: Timezone for displaying dates and times (e.g. 'America/New_York')
         """
         self.width = width
         self.height = height
         self.margin = margin
         self.planet_color = planet_color
         self.background_color = background_color
+        self.display_timezone = display_timezone
         self.plot_width = width - 2 * margin
         self.plot_height = height - 2 * margin
+
+    def _format_datetime(self, dt: datetime) -> Tuple[str, str]:
+        """Format a datetime object for display in the specified timezone.
+        
+        Args:
+            dt: UTC datetime to format
+            
+        Returns:
+            Tuple of (date_str, time_str) in the specified timezone
+        """
+        try:
+            from zoneinfo import ZoneInfo
+            tz = ZoneInfo(self.display_timezone)
+            local_dt = dt.astimezone(tz)
+            return local_dt.strftime("%B %-d"), local_dt.strftime("%-H:%M %Z")
+        except Exception:
+            # Fallback to UTC if timezone conversion fails
+            return dt.strftime("%B %-d"), dt.strftime("%-H:%M UTC")
 
     def _get_background_color(self, planet: Planet) -> str:
         """Get the background color for a specific planet."""
@@ -186,10 +207,10 @@ class PlanetaryPainter:
                 dt = datetime.fromtimestamp(
                     jd * 86400 - 2440587.5 * 86400, tz=timezone.utc
                 )
-                date_str = dt.strftime("%B %-d")
+                date_str, time_str = self._format_datetime(dt)
                 dwg.add(
                     dwg.text(
-                        date_str, insert=(x + 8, y), fill="#666666", font_size="12px", font_family="Helvetica, Arial, sans-serif"
+                        f"{date_str}\n{time_str}", insert=(x + 8, y), fill="#666666", font_size="12px", font_family="Helvetica, Arial, sans-serif"
                     )
                 )
 
@@ -283,9 +304,15 @@ class PlanetaryPainter:
 
             x, y = self._normalize_coordinates(longitude, distance)
             dt = datetime.fromtimestamp(jd * 86400 - 2440587.5 * 86400, tz=timezone.utc)
-            date_str = dt.strftime("%B %-d")
+            date_str, time_str = self._format_datetime(dt)
             dwg.add(
-                dwg.text(date_str, insert=(x + 8, y), fill="#666666", font_size="12px", font_family="Helvetica, Arial, sans-serif")
+                dwg.text(
+                    f"{date_str}\n{time_str}",
+                    insert=(x + 8, y),
+                    fill="#666666",
+                    font_size="12px",
+                    font_family="Helvetica, Arial, sans-serif"
+                )
             )
 
         # Save the SVG
@@ -1209,9 +1236,10 @@ class PlanetaryPainter:
                 x, y = transform_coordinates(*self._normalize_coordinates(
                     longitude, distance, image_rotation
                 ))
+                date_str, time_str = self._format_datetime(date)
                 dwg.add(
                     dwg.text(
-                        f"{label}\n{date.strftime('%B %-d')}",
+                        f"{label}\n{date_str}\n{time_str}",
                         insert=(x + 4, y),  # Adjusted for new scale
                         fill="#666666",
                         font_size="3",  # Adjusted for new scale
@@ -1246,8 +1274,7 @@ class PlanetaryPainter:
             month_range = f"{start_month} {start_year} - {end_month} {end_year}"
             
         # Format the Cazimi/Opposition information
-        aspect_date = retrograde_period.sun_aspect_date.strftime("%B %-d")
-        aspect_time = retrograde_period.sun_aspect_date.strftime("%-H:%M UTC")
+        aspect_date, aspect_time = self._format_datetime(retrograde_period.sun_aspect_date)
         aspect_label = "Cazimi" if planet in [Planet.MERCURY, Planet.VENUS] else "Solar Opposition"
         
         # Calculate center for text alignment

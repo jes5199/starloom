@@ -290,6 +290,11 @@ def positions(
     default="#FF0000",
     help="Color for the planet dots/path",
 )
+@click.option(
+    "--timezone",
+    default="UTC",
+    help="Timezone for displaying dates and times (e.g. 'America/New_York', 'Europe/London'). Defaults to UTC.",
+)
 def retrograde(
     planet: str,
     date: str,
@@ -300,6 +305,7 @@ def retrograde(
     height: int = 600,
     margin: int = 50,
     color: str = "#FF0000",
+    timezone: str = "UTC",
 ) -> None:
     """Generate SVG visualization of planetary retrograde motion.
 
@@ -320,6 +326,9 @@ def retrograde(
 
     Custom output and styling:
        starloom graphics retrograde jupiter --output jupiter_retrograde.svg --width 1000 --height 800 --color "#FFA500"
+
+    Using a specific timezone:
+       starloom graphics retrograde saturn --date 2025-03-19T20:00:00 --timezone "America/New_York"
     """
     # Convert planet name to enum
     try:
@@ -364,6 +373,7 @@ def retrograde(
             height=height,
             margin=margin,
             planet_color=color,
+            display_timezone=timezone,
         )
 
         # Convert target date to Julian date if it's a datetime
