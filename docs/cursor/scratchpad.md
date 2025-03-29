@@ -625,3 +625,21 @@ For outer planets (Mars, Jupiter, etc.), retrograde periods occur at opposition 
 - Need to ensure we adjust all calls to `_normalize_coordinates()` to use the new rotation value
 - This should maintain correct orientation for inner planets while fixing outer planets
 - Added modulo operation (% 360) to ensure angles stay within the 0-360 degree range
+
+# Current Task: Convert Retrograde SVGs to PNGs
+
+## Task Description
+Create a script to convert all SVG files in data/retrograde_svgs to PNG format, maintaining the same directory structure and filenames. Skip conversion if a newer PNG already exists.
+
+## Plan
+[ ] Create new script convert_retrogrades_to_png.py
+[ ] Implement recursive directory traversal
+[ ] Add file timestamp comparison logic
+[ ] Implement SVG to PNG conversion using rsvg-convert
+[ ] Add progress bar for better UX
+[ ] Add error handling
+
+## Dependencies
+- rsvg-convert (librsvg)
+- Python standard library
+- tqdm for progress bar
