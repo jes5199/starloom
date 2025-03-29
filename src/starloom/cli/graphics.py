@@ -295,6 +295,11 @@ def positions(
     default="UTC",
     help="Timezone for displaying dates and times (e.g. 'America/New_York', 'Europe/London'). Defaults to UTC.",
 )
+@click.option(
+    "--open",
+    default=None,
+    help="Open the generated file in the specified browser (e.g. 'chrome', 'firefox', 'safari').",
+)
 def retrograde(
     planet: str,
     date: str,
@@ -306,6 +311,7 @@ def retrograde(
     margin: int = 50,
     color: str = "#FF0000",
     timezone: str = "UTC",
+    open_browser: Optional[str] = None,
 ) -> None:
     """Generate SVG visualization of planetary retrograde motion.
 
@@ -329,6 +335,9 @@ def retrograde(
 
     Using a specific timezone:
        starloom graphics retrograde saturn --date 2025-03-19T20:00:00 --timezone "America/New_York"
+
+    Open in browser after generation:
+       starloom graphics retrograde mars --date 2025-03-19T20:00:00 --open chrome
     """
     # Convert planet name to enum
     try:
@@ -385,6 +394,44 @@ def retrograde(
         painter.draw_retrograde(results, planet_enum, output, target_jd)
 
         click.echo(f"Generated visualization: {output}")
+
+        # Open the file in the specified browser if requested
+        if open_browser:
+            import subprocess
+            import os
+            import platform
+            
+            # Map browser names to their executable names
+            browser_map = {
+                'chrome': {
+                    'darwin': 'open -a "Google Chrome"',
+                    'linux': 'google-chrome',
+                    'win32': 'start chrome'
+                },
+                'firefox': {
+                    'darwin': 'open -a Firefox',
+                    'linux': 'firefox',
+                    'win32': 'start firefox'
+                },
+                'safari': {
+                    'darwin': 'open -a Safari',
+                    'linux': 'safari',
+                    'win32': 'start safari'
+                }
+            }
+            
+            # Get the current operating system
+            system = platform.system().lower()
+            
+            # Get the browser command for the current system
+            if open_browser.lower() in browser_map and system in browser_map[open_browser.lower()]:
+                browser_cmd = browser_map[open_browser.lower()][system]
+                # Convert the file path to an absolute path
+                abs_path = os.path.abspath(output)
+                # Execute the browser command with the file path
+                subprocess.run(f"{browser_cmd} {abs_path}", shell=True)
+            else:
+                click.echo(f"Warning: Browser '{open_browser}' not supported on {system}", err=True)
 
     except ValueError as e:
         click.echo(f"Error: {str(e)}", err=True)
