@@ -1,7 +1,8 @@
 """CLI commands for generating planetary position visualizations."""
 
 import click
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as datetime_timezone
 from typing import Optional, Union, Dict, Protocol, Any, Callable
 
 from ..ephemeris.time_spec import TimeSpec
@@ -82,7 +83,7 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
         ValueError: If date string is invalid
     """
     if date_str.lower() == "now":
-        return datetime.now(timezone.utc)
+        return datetime.now(datetime_timezone.utc)
 
     try:
         # Try parsing as Julian date
@@ -92,7 +93,7 @@ def parse_date_input(date_str: str) -> Union[datetime, float]:
         try:
             dt = datetime.fromisoformat(date_str)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=datetime_timezone.utc)
             return dt
         except ValueError:
             raise ValueError(f"Invalid date format: {date_str}")
@@ -311,7 +312,7 @@ def retrograde(
     margin: int = 50,
     color: str = "#FF0000",
     timezone: str = "UTC",
-    open_browser: Optional[str] = None,
+    open: Optional[str] = None,
 ) -> None:
     """Generate SVG visualization of planetary retrograde motion.
 
@@ -349,18 +350,18 @@ def retrograde(
     target_date = parse_date_input(date)
     if isinstance(target_date, datetime):
         if target_date.tzinfo is None:
-            target_date = target_date.replace(tzinfo=timezone.utc)
+            target_date = target_date.replace(tzinfo=datetime_timezone.utc)
 
         # Create time specification for a 60-day range centered on the target date
         # Ensure all datetime objects are timezone-aware
-        start_date = (target_date - timedelta(days=30)).astimezone(timezone.utc)
-        stop_date = (target_date + timedelta(days=30)).astimezone(timezone.utc)
+        start_date = (target_date - timedelta(days=30)).astimezone(datetime_timezone.utc)
+        stop_date = (target_date + timedelta(days=30)).astimezone(datetime_timezone.utc)
         time_spec = TimeSpec.from_range(start_date, stop_date, "1d")
     else:
         # If target_date is a Julian date, convert to datetime for range calculation
-        dt = datetime.fromtimestamp((target_date - 2440587.5) * 86400, tz=timezone.utc)
-        start_date = (dt - timedelta(days=30)).astimezone(timezone.utc)
-        stop_date = (dt + timedelta(days=30)).astimezone(timezone.utc)
+        dt = datetime.fromtimestamp((target_date - 2440587.5) * 86400, tz=datetime_timezone.utc)
+        start_date = (dt - timedelta(days=30)).astimezone(datetime_timezone.utc)
+        stop_date = (dt + timedelta(days=30)).astimezone(datetime_timezone.utc)
         time_spec = TimeSpec.from_range(start_date, stop_date, "1d")
 
     try:
@@ -396,7 +397,7 @@ def retrograde(
         click.echo(f"Generated visualization: {output}")
 
         # Open the file in the specified browser if requested
-        if open_browser:
+        if open:
             import subprocess
             import os
             import platform
@@ -424,14 +425,14 @@ def retrograde(
             system = platform.system().lower()
             
             # Get the browser command for the current system
-            if open_browser.lower() in browser_map and system in browser_map[open_browser.lower()]:
-                browser_cmd = browser_map[open_browser.lower()][system]
+            if open.lower() in browser_map and system in browser_map[open.lower()]:
+                browser_cmd = browser_map[open.lower()][system]
                 # Convert the file path to an absolute path
                 abs_path = os.path.abspath(output)
                 # Execute the browser command with the file path
                 subprocess.run(f"{browser_cmd} {abs_path}", shell=True)
             else:
-                click.echo(f"Warning: Browser '{open_browser}' not supported on {system}", err=True)
+                click.echo(f"Warning: Browser '{open}' not supported on {system}", err=True)
 
     except ValueError as e:
         click.echo(f"Error: {str(e)}", err=True)
