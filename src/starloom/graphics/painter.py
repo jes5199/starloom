@@ -51,7 +51,7 @@ class PlanetaryPainter:
 
     def __init__(
         self,
-        width: int = 800,
+        width: int = 545,
         height: int = 600,
         margin: int = 50,
         planet_color: str = "#FFFFFF",  # White
@@ -100,7 +100,9 @@ class PlanetaryPainter:
                 time_str = local_dt.strftime("%H:%M UTC")
             else:
                 # Non-UTC uses 12-hour format with AM/PM and no leading zeros
-                time_str = local_dt.strftime("%-I:%M%p %Z").lower().replace("am", "am").replace("pm", "pm")
+                time_str = local_dt.strftime("%-I:%M%p %Z")
+                # Convert only the am/pm part to lowercase
+                time_str = time_str.replace("AM", "am").replace("PM", "pm")
             
             return date_str, time_str
         except Exception:
@@ -621,9 +623,10 @@ class PlanetaryPainter:
             dominant_baseline="hanging"
         )
 
+        date_str, time_str = self._format_datetime(station_retrograde_date)
         text_elem.add(dwg.tspan("Stations Retrograde", x=[text_x], dy=['0em']))
-        text_elem.add(dwg.tspan(station_retrograde_date.strftime("%B %-d"), x=[text_x], dy=['1em']))
-        text_elem.add(dwg.tspan(station_retrograde_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(date_str, x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(time_str, x=[text_x], dy=['1em']))
 
         clip_group.add(text_elem)
 
@@ -647,9 +650,10 @@ class PlanetaryPainter:
             text_anchor="end"
         )
 
+        date_str, time_str = self._format_datetime(station_direct_date)
         text_elem.add(dwg.tspan("Stations Direct", x=[text_x], dy=['0em']))
-        text_elem.add(dwg.tspan(station_direct_date.strftime("%B %-d"), x=[text_x], dy=['1em']))
-        text_elem.add(dwg.tspan(station_direct_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(date_str, x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(time_str, x=[text_x], dy=['1em']))
 
         clip_group.add(text_elem)
 
@@ -674,9 +678,10 @@ class PlanetaryPainter:
             text_anchor="end"
         )
 
+        date_str, time_str = self._format_datetime(shadow_start_date)
         text_elem.add(dwg.tspan("Shadow begins", x=[text_x], dy=['0em']))
-        text_elem.add(dwg.tspan(shadow_start_date.strftime("%B %-d"), x=[text_x], dy=['1em']))
-        text_elem.add(dwg.tspan(shadow_start_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(date_str, x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(time_str, x=[text_x], dy=['1em']))
 
         clip_group.add(text_elem)
 
@@ -699,9 +704,10 @@ class PlanetaryPainter:
             dominant_baseline="hanging",
         )
 
+        date_str, time_str = self._format_datetime(shadow_end_date)
         text_elem.add(dwg.tspan("Shadow ends", x=[text_x], dy=['0em']))
-        text_elem.add(dwg.tspan(shadow_end_date.strftime("%B %-d"), x=[text_x], dy=['1em']))
-        text_elem.add(dwg.tspan(shadow_end_date.strftime('%H:%M UTC'), x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(date_str, x=[text_x], dy=['1em']))
+        text_elem.add(dwg.tspan(time_str, x=[text_x], dy=['1em']))
 
         clip_group.add(text_elem)
 
@@ -1178,9 +1184,10 @@ class PlanetaryPainter:
             dominant_baseline="hanging"
         )
 
+        date_str, time_str = self._format_datetime(station_retrograde_date)
         text_elem.add(dwg.tspan("Stations Retrograde", x=[station_retrograde_x + 2], dy=['0em']))
-        text_elem.add(dwg.tspan(station_retrograde_date.strftime("%B %-d"), x=[station_retrograde_x + 2], dy=['1em']))
-        text_elem.add(dwg.tspan(station_retrograde_date.strftime('%H:%M UTC'), x=[station_retrograde_x + 2], dy=['1em']))
+        text_elem.add(dwg.tspan(date_str, x=[station_retrograde_x + 2], dy=['1em']))
+        text_elem.add(dwg.tspan(time_str, x=[station_retrograde_x + 2], dy=['1em']))
 
         dwg.add(text_elem)
 
@@ -1194,9 +1201,10 @@ class PlanetaryPainter:
             text_anchor="end"
         )
 
+        date_str, time_str = self._format_datetime(station_direct_date)
         text_elem.add(dwg.tspan("Stations Direct", x=[station_direct_x - 2], dy=['0em']))
-        text_elem.add(dwg.tspan(station_direct_date.strftime("%B %-d"), x=[station_direct_x - 2], dy=['1em']))
-        text_elem.add(dwg.tspan(station_direct_date.strftime('%H:%M UTC'), x=[station_direct_x - 2], dy=['1em']))
+        text_elem.add(dwg.tspan(date_str, x=[station_direct_x - 2], dy=['1em']))
+        text_elem.add(dwg.tspan(time_str, x=[station_direct_x - 2], dy=['1em']))
 
         dwg.add(text_elem)
 
@@ -1210,9 +1218,10 @@ class PlanetaryPainter:
             text_anchor="end"
         )
 
+        date_str, time_str = self._format_datetime(shadow_start_date)
         text_elem.add(dwg.tspan("Shadow begins", x=[shadow_start_x - 1], dy=['0em']))
-        text_elem.add(dwg.tspan(shadow_start_date.strftime("%B %-d"), x=[shadow_start_x - 1], dy=['1em']))
-        text_elem.add(dwg.tspan(shadow_start_date.strftime('%H:%M UTC'), x=[shadow_start_x - 1], dy=['1em']))
+        text_elem.add(dwg.tspan(date_str, x=[shadow_start_x - 1], dy=['1em']))
+        text_elem.add(dwg.tspan(time_str, x=[shadow_start_x - 1], dy=['1em']))
 
         dwg.add(text_elem)
 
@@ -1225,9 +1234,10 @@ class PlanetaryPainter:
             dominant_baseline="hanging",
         )
 
+        date_str, time_str = self._format_datetime(shadow_end_date)
         text_elem.add(dwg.tspan("Shadow ends", x=[shadow_end_x + 1], dy=['0em']))
-        text_elem.add(dwg.tspan(shadow_end_date.strftime("%B %-d"), x=[shadow_end_x + 1], dy=['1em']))
-        text_elem.add(dwg.tspan(shadow_end_date.strftime('%H:%M UTC'), x=[shadow_end_x + 1], dy=['1em']))
+        text_elem.add(dwg.tspan(date_str, x=[shadow_end_x + 1], dy=['1em']))
+        text_elem.add(dwg.tspan(time_str, x=[shadow_end_x + 1], dy=['1em']))
 
         dwg.add(text_elem)
 

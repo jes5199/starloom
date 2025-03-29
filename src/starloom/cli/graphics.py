@@ -273,7 +273,7 @@ def positions(
 )
 @click.option(
     "--width",
-    default=800,
+    default=545,
     help="SVG canvas width in pixels",
 )
 @click.option(
