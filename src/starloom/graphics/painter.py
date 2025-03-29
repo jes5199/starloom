@@ -90,10 +90,22 @@ class PlanetaryPainter:
             from zoneinfo import ZoneInfo
             tz = ZoneInfo(self.display_timezone)
             local_dt = dt.astimezone(tz)
-            return local_dt.strftime("%B %-d"), local_dt.strftime("%-H:%M %Z")
+            
+            # Format date consistently
+            date_str = local_dt.strftime("%B %-d")
+            
+            # Format time based on timezone
+            if self.display_timezone == "UTC":
+                # UTC uses 24-hour format with leading zeros
+                time_str = local_dt.strftime("%H:%M UTC")
+            else:
+                # Non-UTC uses 12-hour format with AM/PM and no leading zeros
+                time_str = local_dt.strftime("%-I:%M %p %Z")
+            
+            return date_str, time_str
         except Exception:
             # Fallback to UTC if timezone conversion fails
-            return dt.strftime("%B %-d"), dt.strftime("%-H:%M UTC")
+            return dt.strftime("%B %-d"), dt.strftime("%H:%M UTC")
 
     def _get_background_color(self, planet: Planet) -> str:
         """Get the background color for a specific planet."""
