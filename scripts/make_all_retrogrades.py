@@ -37,7 +37,7 @@ def main():
     # Read timezones
     timezones = read_timezones()
     
-    # Create output directory
+    # Create base output directory
     os.makedirs("./data/retrograde_svgs", exist_ok=True)
     
     # Process each planet
@@ -58,7 +58,10 @@ def main():
                 for timezone in timezones:
                     # Build command
                     tz_abbr = get_timezone_abbr(timezone)
-                    output_file = f"./data/retrograde_svgs/{planet}-{date}-{tz_abbr}.svg"
+                    # Create planet and city subdirectories
+                    output_dir = f"./data/retrograde_svgs/{planet}/{tz_abbr}"
+                    os.makedirs(output_dir, exist_ok=True)
+                    output_file = f"{output_dir}/{planet}-{date}-{tz_abbr}.svg"
                     
                     cmd = [
                         "starloom",
