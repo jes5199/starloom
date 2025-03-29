@@ -1082,8 +1082,8 @@ class PlanetaryPainter:
         center_x = viewbox_width / 2
         
         # Calculate positions for bottom text information
-        rectangle_bottom = viewbox_height - 5  # Bottom edge of the rounded rectangle
-        bottom_padding = 0.5  # Fixed padding from the bottom edge
+        rectangle_bottom = viewbox_height - 2.5  # Bottom edge of the rounded rectangle
+        bottom_padding = 2  # Fixed padding from the bottom edge
         
         # Calculate line heights
         cazimi_line_height = 2.5  # Font size of cazimi text
@@ -1092,9 +1092,9 @@ class PlanetaryPainter:
         url_line_height = 2.5  # Font size of URL text
         
         # Calculate spacings
-        first_spacing = 1.25  # Space between cazimi and heading
-        second_spacing = 1.5  # Space between heading and subheading
-        third_spacing = 1.75  # Space between subheading and URL
+        first_spacing = 3  # Space between cazimi and heading
+        second_spacing = 0.25  # Space between heading and subheading
+        third_spacing = 1.25  # Space between subheading and URL
         
         # Calculate total text block height
         total_height = cazimi_line_height + heading_line_height + subheading_line_height + url_line_height + first_spacing + second_spacing + third_spacing
