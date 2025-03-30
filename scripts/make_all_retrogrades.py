@@ -20,7 +20,7 @@ import subprocess
 from datetime import datetime
 
 # Define the planets to process
-PLANETS = ["mercury", "venus", "mars"]
+PLANETS = ["mars", "venus", "mercury"]
 
 def read_timezones():
     """Read timezones from knowledge/timezones.txt"""
@@ -55,7 +55,7 @@ def main():
     
     # Create base output directory
     os.makedirs("./data/retrograde_svgs", exist_ok=True)
-    
+
     # Process each planet
     for planet in PLANETS:
         # Read CSV file and reverse the order
@@ -64,8 +64,8 @@ def main():
         # Filter for dates from 2020 onwards
         df['date'] = df['sun_aspect_date'].apply(clean_date)
         df['year'] = pd.to_datetime(df['date']).dt.year
-        df = df[df['year'] >= 2023]
-        df = df[df['year'] <= 2027]
+        df = df[df['year'] >= 2025]
+        df = df[df['year'] <= 2030]
         
         # Reverse the order
         if False:
@@ -87,6 +87,12 @@ def main():
                     # Create planet and city subdirectories
                     output_dir = f"./data/retrograde_svgs/{planet}/{tz_abbr}"
                     os.makedirs(output_dir, exist_ok=True)
+
+                    # Create slop directory symlink if it doesn't exist
+                    slop_dir = f"{output_dir}/slop"
+                    if not os.path.exists(slop_dir):
+                        os.symlink(os.path.realpath(f"./slop/retrogrades/{planet}"), slop_dir)
+    
                     output_file = f"{output_dir}/{planet}-{date}-{tz_abbr}.svg"
                     
                     # Skip if file exists and is valid

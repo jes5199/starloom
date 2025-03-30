@@ -37,17 +37,15 @@ class PlanetaryPainter:
 
     # Planet-specific background colors
     PLANET_BACKGROUND_COLORS = {
-        Planet.VENUS: "#00AF00",  # Green for Venus
-        Planet.MARS: "#8B0000",   # Dark red for Mars
-        Planet.MERCURY: "#AAAA00", # Yellow for Mercury
-        # Default to black for other planets
-        Planet.JUPITER: "#000000",
-        Planet.SATURN: "#000000",
-        Planet.URANUS: "#000000",
-        Planet.NEPTUNE: "#000000",
-        Planet.PLUTO: "#000000",
-        Planet.MOON: "#000000",
-        Planet.SUN: "#000000",
+        Planet.VENUS: "#2e6327",  # Green for Venus
+        Planet.MERCURY: "#e18601", # Yellow for Mercury
+        Planet.MARS: "#721209",   # Dark red for Mars
+    }
+
+    PLANET_BACKGROUND_COLORS_2 = {
+        Planet.VENUS: "#0c4516",
+        Planet.MERCURY: "#db8001", # Yellow for Mercury
+        Planet.MARS: "#560e08",
     }
 
     def __init__(
@@ -115,6 +113,18 @@ class PlanetaryPainter:
         if self.background_color is not None:
             return self.background_color
         return self.PLANET_BACKGROUND_COLORS.get(planet, "#000000")
+
+    def _get_background_color_2(self, planet: Planet) -> str:
+        """Get the background color for a specific planet."""
+        color = self.PLANET_BACKGROUND_COLORS_2.get(planet, None)
+
+        if color is not None:
+            return color
+        
+        color = self._get_background_color(planet)
+        # Create a darker version of the base color by reducing RGB values by 20%
+        darker_color = f"#{int(int(color[1:3], 16) * 0.8):02x}{int(int(color[3:5], 16) * 0.8):02x}{int(int(color[5:7], 16) * 0.8):02x}"
+        return darker_color
 
     def _normalize_coordinates(
         self, longitude: float, distance: float, rotation_offset: float = 0.0
@@ -533,13 +543,57 @@ class PlanetaryPainter:
         # Add gradient definitions
         # Background gradient
         base_color = self._get_background_color(planet)
-        # Create a darker version of the base color by reducing RGB values by 20%
-        darker_color = f"#{int(int(base_color[1:3], 16) * 0.8):02x}{int(int(base_color[3:5], 16) * 0.8):02x}{int(int(base_color[5:7], 16) * 0.8):02x}"
-        defs.append(f'    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="0%" y2="100%">')
+        darker_color = self._get_background_color_2(planet)
+        defs.append('    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="0%" y2="100%">')
         defs.append(f'      <stop offset="0%" style="stop-color:{base_color};stop-opacity:1"/>')
         defs.append(f'      <stop offset="100%" style="stop-color:{darker_color};stop-opacity:1"/>')
         defs.append('    </linearGradient>')
+
+        # Define zodiac signs and their starting longitudes
+        zodiac_signs = {
+            0: "Aries",
+            30: "Taurus",
+            60: "Gemini",
+            90: "Cancer",
+            120: "Leo",
+            150: "Virgo",
+            180: "Libra",
+            210: "Scorpio",
+            240: "Sagittarius",
+            270: "Capricorn",
+            300: "Aquarius",
+            330: "Pisces",
+        }
         
+        if planet == Planet.MARS:
+            zodiac_opacity = 0.5
+            zodiac_color = "#FFD700"
+        else:
+            zodiac_opacity = 0.6
+            zodiac_color = "#A52A2A"
+        
+        # background image
+        # Define helper function to get zodiac sign
+        def get_zodiac_sign(longitude):
+            for start_deg, sign in zodiac_signs.items():
+                end_deg = (start_deg + 30) % 360
+                if is_in_angular_range(longitude, start_deg, end_deg):
+                    return sign
+            return "Unknown"
+            
+        # Get zodiac signs for the retrograde
+        station_retro_sign = get_zodiac_sign(station_retrograde_longitude)
+        station_direct_sign = get_zodiac_sign(station_direct_longitude)
+        
+        # Create bg filename based on zodiac signs
+        if station_retro_sign == station_direct_sign:
+            bg_filename = f"./slop/{station_retro_sign.lower()}.png"
+        else:
+            bg_filename = f"./slop/{station_retro_sign.lower()}-{station_direct_sign.lower()}.png"
+            
+        defs.append('    <pattern id="bg-image" patternUnits="userSpaceOnUse" width="90" height="100" x="5" y="5">')
+        defs.append(f'      <image href="{bg_filename}" width="90" height="100" preserveAspectRatio="xMidYMid slice"/>')
+        defs.append('    </pattern>')
         # Sun fade gradients
         defs.append('    <linearGradient id="sun-fade-down" x1="0%" y1="0%" x2="0%" y2="100%">')
         defs.append('      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1"/>')
@@ -559,8 +613,10 @@ class PlanetaryPainter:
         defs.append('  </defs>')
         svg_content.extend(defs)
 
-        # Add background rectangle with gradient
-        svg_content.append(f'  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-gradient)" stroke="none"/>')
+        # Add background rectangle with gradient/image/gradient-over-image
+        svg_content.append('  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-gradient)" stroke="none" opacity="1"/>')
+        svg_content.append('  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-image)" stroke="none" opacity="1"/>')
+        svg_content.append('  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-gradient)" stroke="none" opacity="0.75"/>')
 
         # Add clip path
         svg_content.append('  <clipPath id="rounded-rect">')
@@ -838,29 +894,6 @@ class PlanetaryPainter:
             # Draw gradient extension towards Earth
             svg_content.append(f'    <line x1="{wheel_x}" y1="{wheel_y}" x2="{dx_toward}" y2="{dy_toward}" stroke="url(#opposition-spark)" stroke-width="0.75" opacity="0.95"/>')
 
-        # Define zodiac signs and their starting longitudes
-        zodiac_signs = {
-            0: "Aries",
-            30: "Taurus",
-            60: "Gemini",
-            90: "Cancer",
-            120: "Leo",
-            150: "Virgo",
-            180: "Libra",
-            210: "Scorpio",
-            240: "Sagittarius",
-            270: "Capricorn",
-            300: "Aquarius",
-            330: "Pisces",
-        }
-
-        if planet == Planet.MARS:
-            zodiac_opacity = 0.5
-            zodiac_color = "#FFD700"
-        else:
-            zodiac_opacity = 0.6
-            zodiac_color = "#A52A2A"
-
         # Draw zodiac circle centered at Earth's position
         svg_content.append(f'    <circle cx="{earth_x}" cy="{earth_y}" r="{zodiac_radius}" stroke="{zodiac_color}" stroke-width="0.5" opacity="{zodiac_opacity}" fill="none"/>')
 
@@ -1048,13 +1081,6 @@ class PlanetaryPainter:
 
         # Determine the zodiac signs where the retrograde occurs
         # Get the zodiac sign for station retrograde and direct points
-        def get_zodiac_sign(longitude):
-            for start_deg, sign in zodiac_signs.items():
-                end_deg = (start_deg + 30) % 360
-                if is_in_angular_range(longitude, start_deg, end_deg):
-                    return sign
-            return "Unknown"
-        
         station_retro_sign = get_zodiac_sign(station_retrograde_longitude)
         station_direct_sign = get_zodiac_sign(station_direct_longitude)
         
