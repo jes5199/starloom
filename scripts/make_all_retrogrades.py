@@ -29,6 +29,9 @@ def read_timezones():
 
 def get_timezone_abbr(timezone):
     """Get city name from timezone"""
+    # Special case for GMT
+    if timezone == "GMT":
+        return "GMT"
     return timezone.split('/')[-1].replace('_', '')
 
 def clean_date(date_str):
@@ -53,6 +56,9 @@ def main():
     # Read timezones
     timezones = read_timezones()
     
+    # Add GMT as a special case
+    timezones.append("GMT")
+    
     # Create base output directory
     os.makedirs("./data/retrograde_svgs", exist_ok=True)
 
@@ -64,8 +70,8 @@ def main():
         # Filter for dates from 2020 onwards
         df['date'] = df['sun_aspect_date'].apply(clean_date)
         df['year'] = pd.to_datetime(df['date']).dt.year
-        df = df[df['year'] >= 2025]
-        df = df[df['year'] <= 2030]
+        df = df[df['year'] >= 2000]
+        df = df[df['year'] <= 2050]
         
         # Reverse the order
         if False:

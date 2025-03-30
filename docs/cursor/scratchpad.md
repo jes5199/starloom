@@ -674,3 +674,23 @@ Fix KeyError issues in PlanetaryPainter when accessing station_positions diction
 [X] Added proper tolerance handling to avoid errors when closest position is too far from target
 
 The KeyErrors were occurring due to floating-point precision issues when converting between timestamp and Julian date formats. The new helper method first tries to get an exact match, and if that fails, it finds the closest date within the specified tolerance.
+
+# Add GMT to Retrograde Graphics Generation
+
+## Task
+Modify the retrograde graphics generation script to include GMT (Greenwich Mean Time) as a special timezone.
+
+## Goal
+Ensure the script also generates retrograde graphics for GMT in addition to the other timezones.
+
+## TODOs
+[X] Modify the script to add GMT to the list of timezones
+[X] Update the get_timezone_abbr function to handle GMT as a special case
+[X] Ensure the script creates proper output directories for GMT
+[X] Ensure the command parameters for GMT are correctly formed
+
+## Implementation Notes
+- Added GMT as a special case in the get_timezone_abbr function to return "GMT" instead of trying to extract a city name
+- Added GMT to the timezones list after reading the regular timezones from the file
+- The script will now process GMT alongside other timezones, creating directories and SVG files accordingly
+- The output SVG filenames will have the format {planet}-{date}-GMT.svg
