@@ -591,9 +591,9 @@ class PlanetaryPainter:
         else:
             bg_filename = f"./slop/{station_retro_sign.lower()}-{station_direct_sign.lower()}.png"
             
-        defs.append('    <pattern id="bg-image" patternUnits="userSpaceOnUse" width="90" height="100" x="5" y="5">')
-        defs.append(f'      <image href="{bg_filename}" width="90" height="100" preserveAspectRatio="xMidYMid slice"/>')
-        defs.append('    </pattern>')
+        # defs.append('    <pattern id="bg-image" patternUnits="userSpaceOnUse" width="90" height="100" x="5" y="5">')
+        # defs.append(f'      <image href="{bg_filename}" width="90" height="100" preserveAspectRatio="xMidYMid slice"/>')
+        # defs.append('    </pattern>')
         # Sun fade gradients
         defs.append('    <linearGradient id="sun-fade-down" x1="0%" y1="0%" x2="0%" y2="100%">')
         defs.append('      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1"/>')
@@ -615,8 +615,8 @@ class PlanetaryPainter:
 
         # Add background rectangle with gradient/image/gradient-over-image
         svg_content.append('  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-gradient)" stroke="none" opacity="1"/>')
-        svg_content.append('  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-image)" stroke="none" opacity="1"/>')
-        svg_content.append('  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-gradient)" stroke="none" opacity="0.75"/>')
+        # svg_content.append('  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-image)" stroke="none" opacity="1"/>')
+        # svg_content.append('  <rect x="5" y="5" width="90" height="100" rx="5" ry="5" fill="url(#bg-gradient)" stroke="none" opacity="0.75"/>')
 
         # Add clip path
         svg_content.append('  <clipPath id="rounded-rect">')
@@ -1155,8 +1155,12 @@ class PlanetaryPainter:
         # Second line - Planet Retrograde heading (larger)
         heading_y = first_line_y + cazimi_line_height + first_spacing
         sign_text = f"{station_retro_sign}" + (f" &amp; {station_direct_sign}" if station_retro_sign != station_direct_sign else "")
-        svg_content.append(f'  <text x="{center_x}" y="{heading_y}" fill="#FFFFFF" font-size="{heading_line_height}" font-weight="bold" text-anchor="middle">')
-        svg_content.append(f'    <tspan x="{center_x}" dy="0em">{planet.name.capitalize()} Retrograde in {sign_text}</tspan>')
+        sign_scale_factor = 1.0
+        if len(sign_text) > 20:
+            sign_scale_factor = 0.9
+
+        svg_content.append(f'  <text x="{center_x}" y="{heading_y}" fill="#FFFFFF" font-size="{heading_line_height}" font-weight="bold" text-anchor="middle" transform="scale({sign_scale_factor}, 1)">')
+        svg_content.append(f'    <tspan x="{center_x / sign_scale_factor}" dy="0em">{planet.name.capitalize()} Retrograde in {sign_text}</tspan>')
         svg_content.append('  </text>')
         
         # Third line - Month-year subheading
