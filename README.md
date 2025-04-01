@@ -117,6 +117,57 @@ starloom retrograde mars \
     --output mars_retro.json
 ```
 
+### Decan Analysis
+
+Find precise decan periods for the Sun with high accuracy:
+
+```bash
+# Find all decans from 1900 to 2099 using weftball
+starloom decans \
+    --start 1900-01-01 \
+    --stop 2099-12-31 \
+    --source weft \
+    --data sun_weftball.tar.gz \
+    --step 15m \
+    --output decans_1900_2099.json
+
+# Find decans for a specific period with high precision
+starloom decans \
+    --start 2025-03-30 \
+    --stop 2025-04-10 \
+    --step 15m \
+    --format text
+
+# Generate CSV output for spreadsheet analysis
+starloom decans \
+    --start 2025-01-01 \
+    --stop 2025-12-31 \
+    --format csv \
+    --output decans_2025.csv
+```
+
+Example output:
+```
+Finding decan periods for the Sun...
+
+Decan 2 of Aries:
+  Ingress at: 2025-03-30T11:12:11.250000+00:00 (longitude: 9.999982°)
+  Egress at: 2025-04-09T14:49:13.125000+00:00 (longitude: 20.000073°)
+```
+
+CSV output format:
+```csv
+sign,decan,ingress_date,ingress_longitude,egress_date,egress_longitude
+Aries,2,2025-03-30 11:12:11,9.999982,2025-04-09 14:49:13,20.000073
+Aries,3,2025-04-09 14:49:13,20.000073,2025-04-19 18:26:15,30.000064
+```
+
+The decan command provides:
+- Precise ingress and egress times (better than 15 seconds)
+- Exact ecliptic longitudes at transitions
+- Support for multiple output formats (text, JSON, CSV)
+- High-precision calculations using weftballs
+
 ## Data Types and Formats
 
 ### Ephemeris Output

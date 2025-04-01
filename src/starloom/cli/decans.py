@@ -2,12 +2,13 @@
 
 import click
 import traceback
-from typing import Optional, TextIO
+from typing import Optional, TextIO, Tuple
 import os.path
 import sys
 import json
 import csv
 import dateutil.parser
+from datetime import datetime, timedelta
 
 from ..planet import Planet
 from .ephemeris import (
@@ -16,7 +17,8 @@ from .ephemeris import (
     EPHEMERIS_SOURCES,
     DEFAULT_SOURCE,
 )
-from ..space_time.julian import julian_to_datetime
+from ..space_time.julian import julian_to_datetime, datetime_to_julian
+from ..ephemeris import Quantity
 
 # Default weftball path for Sun
 DEFAULT_SUN_WEFTBALL = "./weftballs/sun_weftball.tar.gz"
@@ -36,6 +38,32 @@ ZODIAC_SIGNS = [
     ("Aquarius", 300),
     ("Pisces", 330),
 ]
+
+def parse_step_size(step: str) -> timedelta:
+    """Parse a step size string into a timedelta.
+    
+    Args:
+        step: Step size string (e.g. '1d', '6h', '15m')
+        
+    Returns:
+        timedelta object
+    """
+    # Remove any whitespace
+    step = step.strip()
+    
+    # Get the unit and value
+    unit = step[-1].lower()
+    value = int(step[:-1])
+    
+    # Convert to timedelta
+    if unit == 'd':
+        return timedelta(days=value)
+    elif unit == 'h':
+        return timedelta(hours=value)
+    elif unit == 'm':
+        return timedelta(minutes=value)
+    else:
+        raise ValueError(f"Invalid step size unit: {unit}. Use 'd' for days, 'h' for hours, or 'm' for minutes.")
 
 def get_zodiac_sign(longitude: float) -> tuple[str, int]:
     """Get the zodiac sign and decan number for a given ecliptic longitude.
@@ -61,11 +89,75 @@ def get_zodiac_sign(longitude: float) -> tuple[str, int]:
     # Shouldn't reach here
     return "Unknown", 0
 
+def get_sun_longitude(ephemeris, date: datetime) -> float:
+    """Get the Sun's ecliptic longitude at a given date."""
+    pos_data = ephemeris.get_planet_position("sun", date)
+    return pos_data.get(Quantity.ECLIPTIC_LONGITUDE, 0.0)
+
+def find_transition(
+    ephemeris,
+    start_date: datetime,
+    end_date: datetime,
+    target_longitude: float,
+    tolerance: float = 0.0001,  # About 0.36 seconds of arc
+    max_iterations: int = 50
+) -> Tuple[datetime, float]:
+    """Find the exact time when the Sun's longitude crosses a target value.
+    
+    Uses binary search to find the transition time with high precision.
+    
+    Args:
+        ephemeris: The ephemeris instance to use
+        start_date: Start of search range
+        end_date: End of search range
+        target_longitude: The target longitude to find
+        tolerance: The precision to achieve (in degrees)
+        max_iterations: Maximum number of binary search iterations
+        
+    Returns:
+        Tuple of (transition datetime, exact longitude at transition)
+    """
+    start_longitude = get_sun_longitude(ephemeris, start_date)
+    end_longitude = get_sun_longitude(ephemeris, end_date)
+    
+    # Check if we have a transition in this range
+    if (start_longitude - target_longitude) * (end_longitude - target_longitude) > 0:
+        raise ValueError("No transition found in given range")
+    
+    # Binary search
+    left_date = start_date
+    right_date = end_date
+    iterations = 0
+    
+    while iterations < max_iterations:
+        mid_date = left_date + (right_date - left_date) / 2
+        mid_longitude = get_sun_longitude(ephemeris, mid_date)
+        
+        # Check if we've reached desired precision
+        if abs(mid_longitude - target_longitude) < tolerance:
+            return mid_date, mid_longitude
+            
+        # Update search range
+        if (mid_longitude - target_longitude) * (start_longitude - target_longitude) > 0:
+            left_date = mid_date
+        else:
+            right_date = mid_date
+            
+        iterations += 1
+        
+    # Return best estimate if we hit max iterations
+    return mid_date, mid_longitude
+
 def write_decan_as_text(decan_data: dict, output: TextIO) -> None:
     """Write a single decan period in text format."""
     output.write(f"Decan {decan_data['decan']} of {decan_data['sign']}:\n")
-    output.write(f"  Ingress at: {decan_data['ingress_date']} (longitude: {decan_data['ingress_longitude']:.2f}°)\n")
-    output.write(f"  Egress at: {decan_data['egress_date']} (longitude: {decan_data['egress_longitude']:.2f}°)\n")
+    
+    if decan_data['ingress_date'] is not None:
+        output.write(f"  Ingress at: {decan_data['ingress_date']} (longitude: {decan_data['ingress_longitude']:.6f}°)\n")
+    
+    if decan_data['egress_date'] is not None:
+        output.write(f"  Egress at: {decan_data['egress_date']} (longitude: {decan_data['egress_longitude']:.6f}°)\n")
+    
     output.flush()
 
 def write_decan_as_csv(decan_data: dict, output: TextIO, write_header: bool = False) -> None:
@@ -82,8 +174,10 @@ def write_decan_as_csv(decan_data: dict, output: TextIO, write_header: bool = Fa
     writer = csv.DictWriter(output, fieldnames=headers)
     if write_header:
         writer.writeheader()
-        
-    writer.writerow(decan_data)
+    
+    # Convert None to empty string for CSV
+    row = {k: '' if v is None else v for k, v in decan_data.items()}
+    writer.writerow(row)
     output.flush()
 
 def write_decan_as_json(decan_data: dict, output: TextIO, is_first: bool = True) -> None:
@@ -92,6 +186,41 @@ def write_decan_as_json(decan_data: dict, output: TextIO, is_first: bool = True)
         output.write(",\n")
     json.dump(decan_data, output, indent=2)
     output.flush()
+
+def get_decan_boundaries(sign: str, decan: int) -> tuple[float, float]:
+    """Get the start and end longitudes for a decan.
+    
+    Args:
+        sign: The zodiac sign name
+        decan: The decan number (1-3)
+        
+    Returns:
+        Tuple of (start_longitude, end_longitude)
+    """
+    sign_deg = next(deg for s, deg in ZODIAC_SIGNS if s == sign)
+    decan_start = sign_deg + (decan - 1) * 10
+    decan_end = decan_start + 10
+    return decan_start, decan_end
+
+def get_next_decan(sign: str, decan: int) -> tuple[str, int]:
+    """Get the next decan after the given one.
+    
+    Args:
+        sign: The current zodiac sign name
+        decan: The current decan number (1-3)
+        
+    Returns:
+        Tuple of (next_sign, next_decan)
+    """
+    if decan < 3:
+        # Next decan is in the same sign
+        return sign, decan + 1
+    else:
+        # Next decan is in the next sign
+        current_idx = next(i for i, (s, _) in enumerate(ZODIAC_SIGNS) if s == sign)
+        next_idx = (current_idx + 1) % 12
+        next_sign = ZODIAC_SIGNS[next_idx][0]
+        return next_sign, 1
 
 @click.command()
 @click.option(
@@ -106,8 +235,8 @@ def write_decan_as_json(decan_data: dict, output: TextIO, is_first: bool = True)
 )
 @click.option(
     "--step",
-    default="1h",
-    help="Step size for calculations (e.g. '1h', '15m'). Defaults to '1h'.",
+    default="1d",
+    help="Step size for initial search (e.g. '1d', '6h', '15m'). Defaults to '1d'.",
 )
 @click.option(
     "--output",
@@ -157,7 +286,7 @@ def decans(
             
     Find decans with higher precision:
         starloom decans --start 2024-01-01 --stop 2024-12-31
-            --step 15m --output decans_2024.json
+            --step 6h --output decans_2024.json
             
     Using a specific data source:
         starloom decans --start 2024-01-01 --stop 2024-12-31
@@ -201,55 +330,106 @@ def decans(
             elif format == "text":
                 output_file.write("Finding decan periods for the Sun...\n\n")
                 
-            # Get Sun positions at regular intervals
+            # Get Sun positions at regular intervals to find potential transitions
             current_date = start_date
-            current_longitude = None
+            step_delta = parse_step_size(step)
+            
+            # Track the current decan we're in
             current_sign = None
             current_decan = None
+            current_ingress_date = None
+            current_ingress_longitude = None
+            
+            # Track output state
+            is_first = True
             
             while current_date <= stop_date:
                 # Get Sun's ecliptic longitude
-                jd = current_date.timestamp() / 86400 + 2440587.5
-                pos_data = sun_ephemeris.get_position(jd)
-                longitude = pos_data.get("ECLIPTIC_LONGITUDE", 0.0)
-                
-                # Get current sign and decan
+                longitude = get_sun_longitude(sun_ephemeris, current_date)
                 sign, decan = get_zodiac_sign(longitude)
                 
-                # Check for decan changes
-                if current_longitude is not None:
-                    current_sign_deg = next(deg for s, deg in ZODIAC_SIGNS if s == current_sign)
-                    current_decan_start = current_sign_deg + (current_decan - 1) * 10
-                    current_decan_end = current_decan_start + 10
+                # Check if we've changed decans
+                if sign != current_sign or decan != current_decan:
+                    if current_sign is not None:
+                        # We've found a transition - get the exact time
+                        decan_start, decan_end = get_decan_boundaries(current_sign, current_decan)
+                        try:
+                            # Find exact transition time
+                            transition_date, transition_longitude = find_transition(
+                                sun_ephemeris,
+                                current_date - step_delta,  # Search window
+                                current_date,
+                                decan_end
+                            )
+                            
+                            # Write the completed decan period
+                            decan_data = {
+                                "sign": current_sign,
+                                "decan": current_decan,
+                                "ingress_date": current_ingress_date,
+                                "ingress_longitude": current_ingress_longitude,
+                                "egress_date": transition_date.isoformat(),
+                                "egress_longitude": transition_longitude
+                            }
+                            
+                            if format == "json":
+                                write_decan_as_json(decan_data, output_file, is_first=is_first)
+                                is_first = False
+                            elif format == "csv":
+                                write_decan_as_csv(decan_data, output_file, write_header=is_first)
+                                is_first = False
+                            else:  # text format
+                                if not is_first:
+                                    output_file.write("\n")
+                                write_decan_as_text(decan_data, output_file)
+                                is_first = False
+                            
+                        except ValueError:
+                            # No transition found in this range, use current time as approximation
+                            pass
                     
-                    # Check if we've crossed a decan boundary
-                    if (current_longitude < current_decan_start and longitude >= current_decan_start) or \
-                       (current_longitude < current_decan_end and longitude >= current_decan_end):
-                        # Write the previous decan period
-                        decan_data = {
-                            "sign": current_sign,
-                            "decan": current_decan,
-                            "ingress_date": current_date.isoformat(),
-                            "ingress_longitude": longitude,
-                            "egress_date": current_date.isoformat(),
-                            "egress_longitude": longitude
-                        }
-                        
-                        if format == "json":
-                            write_decan_as_json(decan_data, output_file, is_first=(current_date == start_date))
-                        elif format == "csv":
-                            write_decan_as_csv(decan_data, output_file, write_header=(current_date == start_date))
-                        else:  # text format
-                            if current_date != start_date:
-                                output_file.write("\n")
-                            write_decan_as_text(decan_data, output_file)
-                
-                current_longitude = longitude
-                current_sign = sign
-                current_decan = decan
+                    # Start tracking the new decan
+                    current_sign = sign
+                    current_decan = decan
+                    
+                    # Find exact ingress time using binary search
+                    try:
+                        decan_start, _ = get_decan_boundaries(sign, decan)
+                        ingress_date, ingress_longitude = find_transition(
+                            sun_ephemeris,
+                            current_date - step_delta,  # Search window
+                            current_date,
+                            decan_start
+                        )
+                        current_ingress_date = ingress_date.isoformat()
+                        current_ingress_longitude = ingress_longitude
+                    except ValueError:
+                        # If we can't find exact ingress, use current time as fallback
+                        current_ingress_date = current_date.isoformat()
+                        current_ingress_longitude = longitude
                 
                 # Move to next time step
-                current_date = current_date + dateutil.parser.parse(step)
+                current_date += step_delta
+                
+            # Write the final decan if we have one
+            if current_sign is not None:
+                decan_data = {
+                    "sign": current_sign,
+                    "decan": current_decan,
+                    "ingress_date": current_ingress_date,
+                    "ingress_longitude": current_ingress_longitude,
+                    "egress_date": None,  # Still in this decan
+                    "egress_longitude": None
+                }
+                
+                if format == "json":
+                    write_decan_as_json(decan_data, output_file, is_first=is_first)
+                elif format == "csv":
+                    write_decan_as_csv(decan_data, output_file, write_header=is_first)
+                else:  # text format
+                    if not is_first:
+                        output_file.write("\n")
+                    write_decan_as_text(decan_data, output_file)
                 
             # Finalize output based on format
             if format == "json":
