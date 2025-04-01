@@ -8,6 +8,7 @@ from .ephemeris import ephemeris
 from .weft import weft
 from .graphics import graphics
 from .retrograde import retrograde
+from .decans import decans
 from . import common as common
 from ..weft.logging import get_logger
 
@@ -51,5 +52,6 @@ cli.add_command(ephemeris)
 cli.add_command(weft)
 cli.add_command(graphics)
 cli.add_command(retrograde)
+cli.add_command(decans)
 if __name__ == "__main__":
     cli()
