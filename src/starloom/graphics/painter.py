@@ -1,7 +1,6 @@
 """SVG painter for visualizing planetary positions."""
 
 import svgwrite
-from svgwrite import filters
 from typing import Tuple
 from datetime import datetime, timezone
 import math

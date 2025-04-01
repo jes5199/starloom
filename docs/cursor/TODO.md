@@ -103,3 +103,13 @@
 [ ] Review other scripts for similar issues
 [ ] Improve error handling in automation scripts
 [ ] Add more comprehensive testing for CLI tools
+
+## Cloudflare R2 Integration
+
+[X] Create script to upload retrograde PNG files to R2 bucket (scripts/upload_retrograde_images.py)
+[X] Implement secure credential handling (env vars and config files)
+[ ] Set up automated workflow to regularly upload new images
+[ ] Add image processing to optimize file sizes before upload
+[ ] Implement browser caching headers for R2 bucket
+[ ] Create script to prune old/unused images from R2 bucket
+[ ] Add monitoring for bucket usage and quotas

@@ -694,3 +694,32 @@ Ensure the script also generates retrograde graphics for GMT in addition to the 
 - Added GMT to the timezones list after reading the regular timezones from the file
 - The script will now process GMT alongside other timezones, creating directories and SVG files accordingly
 - The output SVG filenames will have the format {planet}-{date}-GMT.svg
+
+# Retrograde Image Upload to Cloudflare R2
+
+## Task
+Create a script to upload PNG files from data/retrograde_svgs directory to Cloudflare R2 bucket.
+
+## Goal
+Automate uploading of retrograde PNG images while maintaining directory structure.
+
+## TODOs
+[X] Create upload script in scripts/upload_retrograde_images.py
+[X] Configure script to connect to Cloudflare R2 using provided credentials
+[X] Implement recursive file finding for PNG files
+[X] Handle upload with proper MIME type detection
+[X] Add progress tracking with tqdm
+[X] Implement skipping of existing files
+[X] Make script executable
+[X] Move credentials to a secure location (not hardcoded in script)
+
+## Implementation Notes
+- Used boto3 for S3-compatible API interaction
+- Added content type detection to ensure proper file serving
+- Preserved directory structure in the bucket
+- Added error handling and progress reporting
+- Skip mechanism to avoid re-uploading existing files
+- Implemented secure credential handling:
+  - Primary: Read from environment variables (R2_ACCESS_KEY, R2_SECRET_KEY, etc.)
+  - Secondary: Read from config files (~/.starloom/r2_config.json or config/r2_credentials.json)
+  - Added helpful error messages if credentials are missing
