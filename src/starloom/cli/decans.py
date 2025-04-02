@@ -120,6 +120,10 @@ def find_transition(
     start_longitude = get_sun_longitude(ephemeris, start_date)
     end_longitude = get_sun_longitude(ephemeris, end_date)
     
+    # Normalize longitudes to be close to target
+    start_longitude = ((start_longitude - target_longitude + 180) % 360) - 180 + target_longitude
+    end_longitude = ((end_longitude - target_longitude + 180) % 360) - 180 + target_longitude
+    
     # Check if we have a transition in this range
     if (start_longitude - target_longitude) * (end_longitude - target_longitude) > 0:
         raise ValueError("No transition found in given range")
@@ -132,6 +136,9 @@ def find_transition(
     while iterations < max_iterations:
         mid_date = left_date + (right_date - left_date) / 2
         mid_longitude = get_sun_longitude(ephemeris, mid_date)
+        
+        # Normalize mid longitude to be close to target
+        mid_longitude = ((mid_longitude - target_longitude + 180) % 360) - 180 + target_longitude
         
         # Check if we've reached desired precision
         if abs(mid_longitude - target_longitude) < tolerance:
