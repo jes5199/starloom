@@ -155,15 +155,30 @@ def find_transition(
     # Return best estimate if we hit max iterations
     return mid_date, mid_longitude
 
+def format_longitude(lon: float, precision: int = 3) -> str:
+    """Format a longitude value, converting 360 to 0 and rounding to specified precision.
+    
+    Args:
+        lon: The longitude value to format
+        precision: Number of decimal places to show
+        
+    Returns:
+        Formatted longitude string
+    """
+    if lon is None:
+        return ""
+    normalized = round(lon % 360, precision)  # Round before checking for 360
+    return f"{0.000 if abs(normalized - 360) < 0.001 else normalized:.{precision}f}"
+
 def write_decan_as_text(decan_data: dict, output: TextIO) -> None:
     """Write a single decan period in text format."""
     output.write(f"Decan {decan_data['decan']} of {decan_data['sign']}:\n")
     
     if decan_data['ingress_date'] is not None:
-        output.write(f"  Ingress at: {decan_data['ingress_date']} (longitude: {decan_data['ingress_longitude']:.6f}°)\n")
+        output.write(f"  Ingress at: {decan_data['ingress_date']} (longitude: {format_longitude(decan_data['ingress_longitude'], 6)}°)\n")
     
     if decan_data['egress_date'] is not None:
-        output.write(f"  Egress at: {decan_data['egress_date']} (longitude: {decan_data['egress_longitude']:.6f}°)\n")
+        output.write(f"  Egress at: {decan_data['egress_date']} (longitude: {format_longitude(decan_data['egress_longitude'], 6)}°)\n")
     
     output.flush()
 
@@ -182,8 +197,15 @@ def write_decan_as_csv(decan_data: dict, output: TextIO, write_header: bool = Fa
     if write_header:
         writer.writeheader()
     
-    # Convert None to empty string for CSV
-    row = {k: '' if v is None else v for k, v in decan_data.items()}
+    # Convert None to empty string for CSV and normalize/round longitudes
+    row = {
+        "sign": decan_data["sign"],
+        "decan": decan_data["decan"],
+        "ingress_date": decan_data["ingress_date"] if decan_data["ingress_date"] is not None else "",
+        "ingress_longitude": format_longitude(decan_data["ingress_longitude"]),
+        "egress_date": decan_data["egress_date"] if decan_data["egress_date"] is not None else "",
+        "egress_longitude": format_longitude(decan_data["egress_longitude"])
+    }
     writer.writerow(row)
     output.flush()
 
