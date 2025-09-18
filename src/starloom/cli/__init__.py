@@ -8,6 +8,7 @@ from .ephemeris import ephemeris
 from .weft import weft
 from .graphics import graphics
 from .retrograde import retrograde
+from .inanna import inanna
 from .transits import transits
 from .decans import decans
 from . import common as common
@@ -53,6 +54,7 @@ cli.add_command(ephemeris)
 cli.add_command(weft)
 cli.add_command(graphics)
 cli.add_command(retrograde)
+cli.add_command(inanna)
 cli.add_command(decans)
 cli.add_command(transits)
 if __name__ == "__main__":
