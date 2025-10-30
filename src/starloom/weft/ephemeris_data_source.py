@@ -80,11 +80,13 @@ class EphemerisDataSource:
         # Convert EphemerisQuantity to Quantity for data access
         if isinstance(quantity, EphemerisQuantity):
             self.standard_quantity = EphemerisQuantityToQuantity[quantity]
+            logger.debug(f"Converted {quantity} to {self.standard_quantity}")
         else:
             # For OrbitalElementsQuantity, we need to handle differently
             # This would need proper implementation depending on how orbital elements are mapped
             # For now just use the original quantity
             self.standard_quantity = cast(Quantity, quantity)
+            logger.debug(f"Using quantity as-is: {self.standard_quantity}")
 
         # Create TimeSpec for data fetching
         self.time_spec = TimeSpec.from_range(
@@ -132,6 +134,16 @@ class EphemerisDataSource:
         Returns:
             The value
         """
+        if dt in self.data:
+            data_keys = list(self.data[dt].keys())
+            logger.debug(
+                f"Looking up {self.standard_quantity} (type: {type(self.standard_quantity)}) in data with keys: {data_keys}"
+            )
+            if self.standard_quantity not in self.data[dt]:
+                logger.error(
+                    f"Key {self.standard_quantity} not in data! Available keys: {data_keys}"
+                )
+                logger.error(f"Key types: {[type(k) for k in data_keys]}")
         return float(self.data[dt][self.standard_quantity])
 
     def get_values_in_range(

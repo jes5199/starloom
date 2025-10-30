@@ -90,8 +90,8 @@ def generate_weft_file(
         planet_id = planet.value
         planet_name = planet.name.lower()
 
-    from starloom.horizons.quantities import EphemerisQuantity
-    from starloom.horizons.parsers import OrbitalElementsQuantity
+    from ..horizons.quantities import EphemerisQuantity
+    from ..horizons.parsers import OrbitalElementsQuantity
 
     # Convert Quantity to EphemerisQuantity if needed
     ephemeris_quantity = None
