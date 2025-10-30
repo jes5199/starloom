@@ -117,8 +117,16 @@ def generate_weft_file(
         # Check if planet is LUNAR_NORTH_NODE
         if isinstance(planet, Planet) and planet == Planet.LUNAR_NORTH_NODE:
             needs_orbital_elements = True
+            # Convert lunar_north_node to Moon's Horizons ID for orbital elements query
+            planet_id = "301"
         elif isinstance(planet, str) and planet.lower() == "lunar_north_node":
             needs_orbital_elements = True
+            # Convert lunar_north_node to Moon's Horizons ID for orbital elements query
+            planet_id = "301"
+        elif planet_id == "lunar_north_node":
+            needs_orbital_elements = True
+            # Convert lunar_north_node to Moon's Horizons ID for orbital elements query
+            planet_id = "301"
 
         # Check if quantity is an orbital element
         if isinstance(quantity, Quantity):
