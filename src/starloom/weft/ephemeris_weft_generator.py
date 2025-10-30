@@ -117,7 +117,7 @@ def generate_weft_file(
         # Check if planet is LUNAR_NORTH_NODE
         if isinstance(planet, Planet) and planet == Planet.LUNAR_NORTH_NODE:
             needs_orbital_elements = True
-        elif isinstance(planet, str) and planet.upper() == "LUNAR_NORTH_NODE":
+        elif isinstance(planet, str) and planet.lower() == "lunar_north_node":
             needs_orbital_elements = True
 
         # Check if quantity is an orbital element
