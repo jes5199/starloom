@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """
-Script to generate a "weftball" for a planet.
+Script to generate a "weftball" for a planet or astronomical point.
 
 This script:
 1. Generates decade-by-decade weft files for ecliptic longitude, ecliptic latitude, and distance
 2. Combines them into one big file for each quantity
 3. Creates a tar.gz archive containing the three files
 
+Supported targets:
+- Planets: mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto
+- Calculated points: lunar_north_node (Moon's ascending node)
+
 Usage:
     python -m scripts.make_weftball <planet> [options]
 
 Example:
     python -m scripts.make_weftball mars
+    python -m scripts.make_weftball lunar_north_node
     python -m scripts.make_weftball jupiter --debug  # Enable debug logging
     python -m scripts.make_weftball saturn -v        # Enable verbose (info) logging
     python -m scripts.make_weftball mercury --quiet  # Suppress all but error logs
@@ -27,6 +32,8 @@ from src.starloom.weft.logging import get_logger
 from src.starloom.cli.common import setup_arg_parser, configure_logging
 
 # Define the quantities we want to generate
+# For most planets: longitude, distance, latitude
+# For lunar_north_node: only longitude (ascending node)
 QUANTITIES = ["longitude", "distance", "latitude"]
 
 # Define the decades to generate (20th and 21st centuries)
