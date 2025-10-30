@@ -95,6 +95,25 @@ starloom ephemeris mars \
     --date 2025-03-19T20:00:00
 ```
 
+#### Generating Weftballs for Lunar Nodes
+
+The lunar north node (Moon's ascending node) can be generated as a weftball:
+
+```bash
+# Generate lunar north node weftball for 1900-2100
+python -m scripts.make_weftball lunar_north_node
+
+# Or use the CLI directly for a specific time range
+starloom weft generate lunar_north_node longitude \
+  --start 2024-01-01 \
+  --stop 2025-01-01 \
+  --step 1h \
+  --output lunar_north_node_2024.weft
+```
+
+The lunar north node is calculated from the Moon's orbital elements. The south node
+is always 180 degrees opposite the north node and can be calculated as `(north_node + 180) % 360`.
+
 ### Retrograde Analysis
 
 Find planetary retrograde periods with shadow periods and key aspects:
