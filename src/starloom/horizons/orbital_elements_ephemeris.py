@@ -6,7 +6,7 @@ calculated astronomical points like lunar nodes.
 """
 
 from typing import Dict, Optional, Any, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 from starloom.ephemeris import Ephemeris, Quantity
 from .location import Location
@@ -54,7 +54,98 @@ class OrbitalElementsEphemeris(Ephemeris):
         Raises:
             ValueError: If no data returned from Horizons.
         """
-        raise NotImplementedError("Implemented in next task")
+        from .request import HorizonsRequest
+        from .ephem_type import EphemType
+        from .parsers.orbital_elements_parser import ElementsParser
+        from .time_spec_param import HorizonsTimeSpecParam
+        from .quantities import OrbitalElementsQuantityToQuantity
+
+        # Create time spec for single time point
+        time_spec = self._create_time_spec(time_point)
+
+        # Create and execute request
+        request = HorizonsRequest(
+            planet=planet,
+            location=None,  # Not used for orbital elements
+            quantities=None,  # Not used for ELEMENTS type
+            time_spec=time_spec,
+            time_spec_param=HorizonsTimeSpecParam(time_spec),
+            ephem_type=EphemType.ELEMENTS,
+            center=self.center,
+            use_julian=True,
+        )
+
+        response = request.make_request()
+
+        # Parse the response
+        parser = ElementsParser(response)
+        data_points = parser.parse()
+
+        if not data_points:
+            raise ValueError(f"No data returned from Horizons for planet {planet}")
+
+        # Get the first (and should be only) data point
+        _, values = data_points[0]
+
+        # Convert OrbitalElementsQuantity keys to Quantity keys
+        result: Dict[Quantity, Any] = {}
+        for orbital_quantity, value in values.items():
+            if orbital_quantity in OrbitalElementsQuantityToQuantity:
+                standard_quantity = OrbitalElementsQuantityToQuantity[orbital_quantity]
+                result[standard_quantity] = self._convert_value(
+                    value, standard_quantity
+                )
+
+        return result
+
+    def _create_time_spec(
+        self, time_point: Optional[Union[float, datetime]]
+    ) -> TimeSpec:
+        """Create a TimeSpec from the provided time point.
+
+        Args:
+            time_point: The time point to create a TimeSpec for.
+                       Can be None (current time), a Julian date float,
+                       or a datetime object.
+
+        Returns:
+            A TimeSpec object for the given time point.
+
+        Raises:
+            TypeError: If time_point is not None, float, or datetime.
+        """
+        if time_point is None:
+            # Use current time with UTC timezone
+            now = datetime.now(timezone.utc)
+            return TimeSpec.from_dates([now])
+        elif isinstance(time_point, float):
+            # Assume it's a Julian date
+            return TimeSpec.from_dates([time_point])
+        elif isinstance(time_point, datetime):
+            # It's a datetime object, ensure it has timezone
+            if time_point.tzinfo is None:
+                # Add UTC timezone if missing
+                time_point = time_point.replace(tzinfo=timezone.utc)
+            return TimeSpec.from_dates([time_point])
+        else:
+            raise TypeError(f"Unsupported time type: {type(time_point)}")
+
+    def _convert_value(self, value: str, quantity: Quantity) -> Union[float, str]:
+        """Convert string values from Horizons to appropriate types.
+
+        Args:
+            value: The string value to convert.
+            quantity: The quantity type to convert to.
+
+        Returns:
+            The converted value as float for numeric quantities,
+            or the original string for other quantities.
+        """
+        # For orbital elements, most values should be floats
+        try:
+            return float(value)
+        except ValueError:
+            return value
 
     def get_planet_positions(
         self,
