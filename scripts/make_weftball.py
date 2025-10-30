@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """
-Script to generate a "weftball" for a planet.
+Script to generate a "weftball" for a planet or astronomical point.
 
 This script:
 1. Generates decade-by-decade weft files for ecliptic longitude, ecliptic latitude, and distance
 2. Combines them into one big file for each quantity
 3. Creates a tar.gz archive containing the three files
 
+Supported targets:
+- Planets: mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto
+- Calculated points: lunar_north_node (Moon's ascending node)
+
 Usage:
     python -m scripts.make_weftball <planet> [options]
 
 Example:
     python -m scripts.make_weftball mars
+    python -m scripts.make_weftball lunar_north_node
     python -m scripts.make_weftball jupiter --debug  # Enable debug logging
     python -m scripts.make_weftball saturn -v        # Enable verbose (info) logging
     python -m scripts.make_weftball mercury --quiet  # Suppress all but error logs
@@ -27,7 +32,47 @@ from src.starloom.weft.logging import get_logger
 from src.starloom.cli.common import setup_arg_parser, configure_logging
 
 # Define the quantities we want to generate
+# For most planets: longitude, distance, latitude
+# For lunar_north_node: only longitude (ascending node)
 QUANTITIES = ["longitude", "distance", "latitude"]
+
+# Special handling for targets that don't have all three quantities
+QUANTITIES_BY_TARGET = {
+    "lunar_north_node": ["longitude"],  # Only ascending node longitude
+}
+
+# Step sizes for different targets
+# JPL Horizons ELEMENTS queries have a lower output limit than OBSERVER queries
+# so we use larger steps for orbital element targets
+# Note: ELEMENTS format returns ~4 lines per time point, so actual limit is ~22,500 time points
+STEP_SIZE_BY_TARGET = {
+    "lunar_north_node": "6h",  # 6-hour steps to stay under JPL Horizons limits
+}
+
+
+def get_quantities_for_target(planet):
+    """Get the list of quantities to generate for a given planet/target.
+
+    Args:
+        planet: Planet name
+
+    Returns:
+        List of quantity names
+    """
+    return QUANTITIES_BY_TARGET.get(planet.lower(), QUANTITIES)
+
+
+def get_step_size_for_target(planet):
+    """Get the step size to use for a given planet/target.
+
+    Args:
+        planet: Planet name
+
+    Returns:
+        Step size string (e.g., "1h", "3h")
+    """
+    return STEP_SIZE_BY_TARGET.get(planet.lower(), "1h")
+
 
 # Define the decades to generate (20th and 21st centuries)
 DECADES = [
@@ -85,7 +130,13 @@ def generate_weft_files(planet, temp_dir):
 
     logger.debug(f"Generating weftball for {planet}")
 
-    for quantity in QUANTITIES:
+    quantities = get_quantities_for_target(planet)
+    step_size = get_step_size_for_target(planet)
+    logger.info(
+        f"Generating quantities for {planet}: {quantities} with step size {step_size}"
+    )
+
+    for quantity in quantities:
         logger.info(f"Generating {quantity} data for {planet}")
 
         current_decade_files = []
@@ -94,36 +145,78 @@ def generate_weft_files(planet, temp_dir):
             file_name = f"{planet}_{quantity}_{decade_range}.weft"
             decade_file = os.path.join(temp_dir, file_name)
 
-            # Build command using starloom CLI
-            cmd = [
-                "starloom",
-                "weft",
-                "generate",
-                planet,
-                quantity,
-                "--start",
-                f"{decade_start}",
-                "--stop",
-                f"{decade_end}",
-                "--step",
-                "1h",
-                "--output",
-                decade_file,
-            ]
+            # Special handling for lunar_north_node: use Python API directly
+            # because CLI hardcodes "longitude" to ECLIPTIC_LONGITUDE
+            if planet.lower() == "lunar_north_node":
+                try:
+                    from datetime import datetime, timezone
+                    from src.starloom.planet import Planet
+                    from src.starloom.horizons.quantities import Quantity
+                    from src.starloom.weft.ephemeris_weft_generator import (
+                        generate_weft_file,
+                    )
 
-            # Print the command
-            print(f"Running command: {' '.join(cmd)}")
+                    logger.info(
+                        f"Generating {quantity} for {decade_start} using Python API"
+                    )
 
-            # Log the command at debug level
-            logger.debug(f"Running: {' '.join(cmd)}")
+                    # Parse dates (use UTC timezone)
+                    start_dt = datetime.strptime(decade_start, "%Y-%m-%d").replace(
+                        tzinfo=timezone.utc
+                    )
+                    end_dt = datetime.strptime(decade_end, "%Y-%m-%d").replace(
+                        tzinfo=timezone.utc
+                    )
 
-            # Run the command
-            try:
-                subprocess.run(cmd, check=True)
-                current_decade_files.append(decade_file)
-            except subprocess.CalledProcessError as e:
-                logger.error(f"Error generating {quantity} for {decade_start}: {e}")
-                continue
+                    # Use Python API directly
+                    generate_weft_file(
+                        planet=Planet.LUNAR_NORTH_NODE,
+                        quantity=Quantity.ASCENDING_NODE_LONGITUDE,
+                        start_date=start_dt,
+                        end_date=end_dt,
+                        output_path=decade_file,
+                        step_hours=step_size,
+                        custom_timespan=f"{start_dt.year}-{end_dt.year}",
+                    )
+                    current_decade_files.append(decade_file)
+                    logger.info(f"Successfully generated {decade_file}")
+                except Exception as e:
+                    logger.error(f"Error generating {quantity} for {decade_start}: {e}")
+                    import traceback
+
+                    traceback.print_exc()
+                    continue
+            else:
+                # Build command using starloom CLI for other planets
+                cmd = [
+                    "starloom",
+                    "weft",
+                    "generate",
+                    planet,
+                    quantity,
+                    "--start",
+                    f"{decade_start}",
+                    "--stop",
+                    f"{decade_end}",
+                    "--step",
+                    step_size,
+                    "--output",
+                    decade_file,
+                ]
+
+                # Print the command
+                print(f"Running command: {' '.join(cmd)}")
+
+                # Log the command at debug level
+                logger.debug(f"Running: {' '.join(cmd)}")
+
+                # Run the command
+                try:
+                    subprocess.run(cmd, check=True)
+                    current_decade_files.append(decade_file)
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"Error generating {quantity} for {decade_start}: {e}")
+                    continue
 
         # Store the list of files for this quantity
         generated_files[quantity] = current_decade_files
@@ -144,7 +237,9 @@ def combine_weft_files(planet, temp_dir, generated_files):
     """
     combined_files = {}
 
-    for quantity in QUANTITIES:
+    quantities = get_quantities_for_target(planet)
+
+    for quantity in quantities:
         decade_files = generated_files.get(quantity, [])
         if not decade_files:
             logger.warning(f"No files found for {quantity}, skipping")

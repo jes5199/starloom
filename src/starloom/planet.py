@@ -105,3 +105,6 @@ class Planet(Enum):
     HYLONOME = "10370;"
     BIENOR = "54598;"
     ECHECLUS = "60558;"
+
+    # Calculated astronomical points
+    LUNAR_NORTH_NODE = "lunar_north_node"  # Moon's ascending node (queries Moon orbital elements, ID:301)

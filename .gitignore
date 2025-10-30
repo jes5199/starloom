@@ -2,6 +2,7 @@
 *.sqlite3
 *.weft
 data/
+.worktrees/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -336,3 +336,31 @@ ANGLE_QUANTITIES = {
     EphemerisQuantity.APPARENT_AZIMUTH,
     EphemerisQuantity.APPARENT_ELEVATION,
 }
+
+
+# Map OrbitalElementsQuantity to standard Quantity enum
+# Import is delayed to avoid circular import issues
+def _create_orbital_elements_mapping():
+    """Create mapping from OrbitalElementsQuantity to Quantity.
+
+    This is done in a function to delay the import and avoid circular imports.
+    """
+    from .parsers import OrbitalElementsQuantity
+
+    return {
+        OrbitalElementsQuantity.ASCENDING_NODE_LONGITUDE: Quantity.ASCENDING_NODE_LONGITUDE,
+        OrbitalElementsQuantity.ECCENTRICITY: Quantity.ECCENTRICITY,
+        OrbitalElementsQuantity.INCLINATION: Quantity.INCLINATION,
+        OrbitalElementsQuantity.SEMI_MAJOR_AXIS: Quantity.SEMI_MAJOR_AXIS,
+        OrbitalElementsQuantity.PERIAPSIS_DISTANCE: Quantity.PERIAPSIS_DISTANCE,
+        OrbitalElementsQuantity.APOAPSIS_DISTANCE: Quantity.APOAPSIS_DISTANCE,
+        OrbitalElementsQuantity.ARGUMENT_OF_PERIAPSIS: Quantity.ARGUMENT_OF_PERIFOCUS,
+        OrbitalElementsQuantity.MEAN_MOTION: Quantity.MEAN_MOTION,
+        OrbitalElementsQuantity.MEAN_ANOMALY: Quantity.MEAN_ANOMALY,
+        OrbitalElementsQuantity.TRUE_ANOMALY: Quantity.TRUE_ANOMALY,
+        OrbitalElementsQuantity.ORBITAL_PERIOD: Quantity.ORBITAL_PERIOD,
+    }
+
+
+# Create the mapping (will be created on first module import)
+OrbitalElementsQuantityToQuantity = _create_orbital_elements_mapping()
