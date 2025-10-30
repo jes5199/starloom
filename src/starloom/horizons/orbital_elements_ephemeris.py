@@ -167,4 +167,45 @@ class OrbitalElementsEphemeris(Ephemeris):
         Raises:
             ValueError: If no data returned from Horizons.
         """
-        raise NotImplementedError("Implemented in next task")
+        from .request import HorizonsRequest
+        from .ephem_type import EphemType
+        from .parsers.orbital_elements_parser import ElementsParser
+        from .time_spec_param import HorizonsTimeSpecParam
+        from .quantities import OrbitalElementsQuantityToQuantity
+
+        # Create and execute request
+        request = HorizonsRequest(
+            planet=planet,
+            location=None,  # Not used for orbital elements
+            quantities=None,  # Not used for ELEMENTS type
+            time_spec=time_spec,
+            time_spec_param=HorizonsTimeSpecParam(time_spec),
+            ephem_type=EphemType.ELEMENTS,
+            center=self.center,
+            use_julian=True,
+        )
+
+        response = request.make_request()
+
+        # Parse the response
+        parser = ElementsParser(response)
+        data_points = parser.parse()
+
+        if not data_points:
+            raise ValueError(f"No data returned from Horizons for planet {planet}")
+
+        # Convert each data point to the required format
+        result: Dict[float, Dict[Quantity, Any]] = {}
+        for jd, values in data_points:
+            position_data: Dict[Quantity, Any] = {}
+            for orbital_quantity, value in values.items():
+                if orbital_quantity in OrbitalElementsQuantityToQuantity:
+                    standard_quantity = OrbitalElementsQuantityToQuantity[
+                        orbital_quantity
+                    ]
+                    position_data[standard_quantity] = self._convert_value(
+                        value, standard_quantity
+                    )
+            result[jd] = position_data
+
+        return result

@@ -4,6 +4,7 @@ import unittest
 from datetime import datetime, timezone
 from starloom.horizons.orbital_elements_ephemeris import OrbitalElementsEphemeris
 from starloom.ephemeris.quantities import Quantity
+from starloom.horizons.time_spec import TimeSpec
 
 
 class TestOrbitalElementsEphemeris(unittest.TestCase):
@@ -72,6 +73,55 @@ class TestOrbitalElementsEphemerisGetPosition(unittest.TestCase):
         ]
         for quantity in expected_quantities:
             self.assertIn(quantity, result)
+
+
+class TestOrbitalElementsEphemerisGetPositions(unittest.TestCase):
+    """Test get_planet_positions method."""
+
+    def test_get_moon_ascending_node_time_range(self):
+        """Test getting Moon's ascending node over time range."""
+        ephemeris = OrbitalElementsEphemeris()
+
+        # Query 6 days with 1-day step (March 15-20, inclusive)
+        start = datetime(2024, 3, 15, 0, 0, 0, tzinfo=timezone.utc)
+        time_spec = TimeSpec.from_range(
+            start=start,
+            stop=datetime(2024, 3, 20, 0, 0, 0, tzinfo=timezone.utc),
+            step="1d",
+        )
+
+        result = ephemeris.get_planet_positions("301", time_spec)
+
+        # Should return 6 data points (inclusive endpoints)
+        self.assertEqual(len(result), 6)
+
+        # Each data point should have ASCENDING_NODE_LONGITUDE
+        for jd, values in result.items():
+            self.assertIsInstance(jd, float)
+            self.assertIn(Quantity.ASCENDING_NODE_LONGITUDE, values)
+            longitude = float(values[Quantity.ASCENDING_NODE_LONGITUDE])
+            self.assertGreaterEqual(longitude, 0.0)
+            self.assertLess(longitude, 360.0)
+
+    def test_get_positions_multiple_quantities(self):
+        """Test that get_positions returns multiple orbital elements."""
+        ephemeris = OrbitalElementsEphemeris()
+
+        start = datetime(2024, 3, 15, 0, 0, 0, tzinfo=timezone.utc)
+        time_spec = TimeSpec.from_range(
+            start=start,
+            stop=datetime(2024, 3, 17, 0, 0, 0, tzinfo=timezone.utc),
+            step="1d",
+        )
+
+        result = ephemeris.get_planet_positions("301", time_spec)
+
+        # Each data point should have multiple quantities
+        for jd, values in result.items():
+            self.assertGreater(len(values), 1)
+            self.assertIn(Quantity.ASCENDING_NODE_LONGITUDE, values)
+            self.assertIn(Quantity.ECCENTRICITY, values)
+            self.assertIn(Quantity.INCLINATION, values)
 
 
 if __name__ == "__main__":
