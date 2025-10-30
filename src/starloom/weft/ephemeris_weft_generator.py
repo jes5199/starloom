@@ -22,6 +22,8 @@ from ..ephemeris.ephemeris import Ephemeris
 from .ephemeris_data_source import EphemerisDataSource
 from .block_selection import get_recommended_blocks
 from .logging import get_logger
+from ..horizons.orbital_elements_ephemeris import OrbitalElementsEphemeris
+from ..horizons.ephemeris import HorizonsEphemeris
 
 # Create a logger for this module
 logger = get_logger(__name__)
@@ -107,11 +109,39 @@ def generate_weft_file(
     if ephemeris_quantity is None:
         raise ValueError(f"Unsupported quantity: {quantity}")
 
-    from starloom.horizons.ephemeris import HorizonsEphemeris
-
     # Create or use provided ephemeris client
     if ephemeris is None:
-        ephemeris = HorizonsEphemeris()
+        # Detect if we need OrbitalElementsEphemeris (for lunar nodes or orbital element quantities)
+        needs_orbital_elements = False
+
+        # Check if planet is LUNAR_NORTH_NODE
+        if isinstance(planet, Planet) and planet == Planet.LUNAR_NORTH_NODE:
+            needs_orbital_elements = True
+        elif isinstance(planet, str) and planet.upper() == "LUNAR_NORTH_NODE":
+            needs_orbital_elements = True
+
+        # Check if quantity is an orbital element
+        if isinstance(quantity, Quantity):
+            orbital_element_quantities = {
+                Quantity.ASCENDING_NODE_LONGITUDE,
+                Quantity.ECCENTRICITY,
+                Quantity.PERIAPSIS_DISTANCE,
+                Quantity.APOAPSIS_DISTANCE,
+                Quantity.INCLINATION,
+                Quantity.ARGUMENT_OF_PERIFOCUS,
+                Quantity.MEAN_MOTION,
+                Quantity.MEAN_ANOMALY,
+                Quantity.TRUE_ANOMALY,
+                Quantity.SEMI_MAJOR_AXIS,
+                Quantity.ORBITAL_PERIOD,
+            }
+            if quantity in orbital_element_quantities:
+                needs_orbital_elements = True
+
+        if needs_orbital_elements:
+            ephemeris = OrbitalElementsEphemeris()
+        else:
+            ephemeris = HorizonsEphemeris()
 
     # Create the writer
     writer = WeftWriter(quantity=ephemeris_quantity)
